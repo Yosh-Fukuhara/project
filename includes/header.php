@@ -1,0 +1,266 @@
+<?php
+require_once __DIR__ . '/bootstrap.php';
+
+// ── AJAX: Mark all notifications read (Global) ──
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'mark_notifs_read') {
+    header('Content-Type: application/json');
+    if (isset($_SESSION['notifications'])) {
+        foreach ($_SESSION['notifications'] as &$n) { $n['read'] = true; }
+        unset($n);
+    }
+    echo json_encode(['ok'=>true]);
+    exit;
+}
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><?php echo isset($pageTitle) ? $pageTitle : 'CyberSphere'; ?></title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <nav class="bg-white shadow-lg sticky top-0 z-50">
+        <div class="container mx-auto px-3 sm:px-4">
+            <div class="flex justify-between items-center h-16 md:h-20">
+                <div class="flex items-center gap-3 sm:gap-6 md:gap-8 min-w-0">
+                    <a href="index.php" class="flex items-center gap-2">
+                        <div class="w-10 h-10 md:w-12 md:h-12 bg-gradient-to-br from-blue-900 to-cyan-800 rounded-xl flex items-center justify-center flex-shrink-0">
+                            <svg class="w-6 h-6 md:w-8 md:h-8 text-white" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                            </svg>
+                        </div>
+                        <span class="text-xl sm:text-2xl font-bold text-blue-900 truncate">CyberSphere</span>
+                    </a>
+                    <div class="hidden md:flex items-center gap-8">
+                        <a href="index.php" class="text-lg font-medium <?php echo (isset($currentPage) && $currentPage === 'home') ? 'text-blue-900 border-b-2 border-blue-900 pb-1' : 'text-gray-700 hover:text-blue-900'; ?>">Jobs</a>
+                        <a href="communities.php" class="text-lg font-medium <?php echo (isset($currentPage) && $currentPage === 'communities') ? 'text-blue-900 border-b-2 border-blue-900 pb-1' : 'text-gray-700 hover:text-blue-900'; ?>">Communities</a>
+                        <a href="market.php" class="text-lg font-medium <?php echo (isset($currentPage) && $currentPage === 'market') ? 'text-blue-900 border-b-2 border-blue-900 pb-1' : 'text-gray-700 hover:text-blue-900'; ?>">Marketplace</a>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2 sm:gap-3 md:gap-4">
+                    <form action="index.php" method="GET" class="hidden lg:flex items-center bg-gray-100 rounded-full px-4 py-2 w-full max-w-md min-w-0">
+                        <svg class="w-6 h-6 md:w-8 md:h-8 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                        </svg>
+                        <input type="text" name="q" placeholder="Search..." value="<?php echo htmlspecialchars($_GET['q'] ?? ''); ?>" class="flex-1 bg-transparent border-0 focus:outline-none ml-2 text-base md:text-lg min-w-0">
+                    </form>
+                    
+                    <div class="flex items-center gap-1 sm:gap-2 md:gap-4">
+                        <button id="mobileMenuBtn" type="button" class="md:hidden p-2 rounded-lg hover:bg-gray-100 text-gray-700" aria-label="Open menu">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                            </svg>
+                        </button>
+
+                        <a href="messages.php" class="text-gray-700 hover:text-blue-900 relative">
+                            <svg class="w-7 h-7 md:w-10 md:h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                            </svg>
+                            <?php
+                            $totalUnreadMessages = 0;
+                            if (isset($_SESSION['messages']) && is_array($_SESSION['messages'])) {
+                                foreach ($_SESSION['messages'] as $conv) {
+                                    $totalUnreadMessages += $conv['unread'] ?? 0;
+                                }
+                            }
+                            ?>
+                            <span class="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center pointer-events-none <?php echo $totalUnreadMessages === 0 ? 'hidden' : ''; ?>">
+                                <?php echo $totalUnreadMessages > 9 ? '9+' : $totalUnreadMessages; ?>
+                            </span>
+                        </a>
+                        <button id="bellBtn" type="button" class="text-gray-700 hover:text-blue-900 relative p-0 bg-transparent border-0 cursor-pointer" aria-label="Notifications">
+                            <svg class="w-7 h-7 md:w-10 md:h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+                            </svg>
+                            <?php
+                            $unreadCount = 0;
+                            if (!empty($_SESSION['notifications'])) {
+                                foreach ($_SESSION['notifications'] as $n) {
+                                    if (empty($n['read'])) $unreadCount++;
+                                }
+                            }
+                            ?>
+                            <span id="notifBadge" class="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center pointer-events-none <?php echo $unreadCount === 0 ? 'hidden' : ''; ?>">
+                                <?php echo $unreadCount > 9 ? '9+' : $unreadCount; ?>
+                            </span>
+                        </button>
+                        <a href="cart.php" class="text-gray-700 hover:text-blue-900 relative <?php echo (isset($currentPage) && $currentPage === 'cart') ? 'text-pink-700' : ''; ?>">
+                            <svg class="w-7 h-7 md:w-10 md:h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                            </svg>
+                            <?php if (isset($_SESSION['cart']) && count($_SESSION['cart']) > 0): ?>
+                                <span class="absolute -top-1 -right-1 bg-pink-700 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center">
+                                    <?php echo count($_SESSION['cart']); ?>
+                                </span>
+                            <?php endif; ?>
+                        </a>
+                        <?php if (isset($_SESSION['user'])): ?>
+                            <div class="relative">
+                                <button id="userMenuBtn" type="button" class="w-10 h-10 md:w-12 md:h-12 rounded-full bg-gray-200 flex items-center justify-center text-2xl md:text-3xl text-blue-900 font-bold hover:bg-gray-300 transition overflow-hidden" aria-label="User menu">
+                                    <?php if (!empty($_SESSION['user']['profile_pic'])): ?>
+                                        <img src="<?php echo htmlspecialchars($_SESSION['user']['profile_pic']); ?>" alt="Profile photo" class="w-full h-full object-cover">
+                                    <?php else: ?>
+                                        <?php echo strtoupper(substr($_SESSION['user']['username'], 0, 1)); ?>
+                                    <?php endif; ?>
+                                </button>
+                                <div id="userMenu" class="absolute right-0 top-full mt-2 w-48 bg-white rounded-lg shadow-lg py-2 hidden">
+                                    <a href="profile.php" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">Profile</a>
+                                    <a href="logout.php" class="block px-4 py-2 text-red-600 hover:bg-gray-100">Logout</a>
+                                </div>
+                            </div>
+                        <?php else: ?>
+                            <a href="login.php" class="bg-blue-900 text-white px-4 sm:px-6 py-2 rounded-lg font-medium hover:bg-blue-800 transition text-sm sm:text-base">
+                                Sign In
+                            </a>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+
+            <div id="mobileMenu" class="md:hidden hidden border-t border-gray-200 pb-3 pt-3">
+                <div class="flex flex-col gap-2">
+                    <a href="index.php" class="px-2 py-2 rounded-lg text-gray-700 hover:bg-gray-100 <?php echo (isset($currentPage) && $currentPage === 'home') ? 'font-semibold text-blue-900' : ''; ?>">Jobs</a>
+                    <a href="communities.php" class="px-2 py-2 rounded-lg text-gray-700 hover:bg-gray-100 <?php echo (isset($currentPage) && $currentPage === 'communities') ? 'font-semibold text-blue-900' : ''; ?>">Communities</a>
+                    <a href="market.php" class="px-2 py-2 rounded-lg text-gray-700 hover:bg-gray-100 <?php echo (isset($currentPage) && $currentPage === 'market') ? 'font-semibold text-blue-900' : ''; ?>">Marketplace</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div id="notifPanel" class="fixed top-14 right-4 w-80 bg-white rounded-2xl shadow-2xl border border-gray-200 hidden z-50 overflow-hidden">
+        <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+            <h4 class="font-bold text-gray-900 text-sm">Notifications</h4>
+            <button id="markAllRead" class="text-xs text-blue-700 hover:underline font-semibold">Mark all read</button>
+        </div>
+        <div id="notifList" class="max-h-80 overflow-y-auto divide-y divide-gray-50">
+            <?php if (empty($_SESSION['notifications'])): ?>
+            <p class="text-gray-400 text-sm px-4 py-6 text-center">No notifications yet.</p>
+            <?php else: ?>
+                <?php foreach ($_SESSION['notifications'] as $notif): ?>
+                <div class="px-4 py-3 text-sm <?php echo $notif['read'] ? 'bg-white text-gray-600' : 'bg-blue-50 text-gray-800 font-medium'; ?> cursor-pointer hover:bg-gray-50" <?php if (!empty($notif['link'])): ?>onclick="window.location.href='<?php echo htmlspecialchars($notif['link']); ?>'"<?php endif; ?>>
+                    <p><?php echo htmlspecialchars($notif['msg']); ?></p>
+                    <p class="text-xs text-gray-400 mt-0.5"><?php echo htmlspecialchars($notif['time']); ?></p>
+                </div>
+                <?php endforeach; ?>
+            <?php endif; ?>
+        </div>
+    </div>
+
+    <style>
+        /* Prevent layout shifts and stabilize page */
+        * {
+            box-sizing: border-box;
+        }
+        html {
+            scroll-padding-top: 80px;
+        }
+        body {
+            scroll-behavior: smooth;
+            overflow-y: scroll; /* Always show scrollbar to prevent shift */
+        }
+        /* Ensure badges don't cause layout shifts */
+        .flex-shrink-0 {
+            flex-shrink: 0 !important;
+        }
+        /* Prevent panel from causing layout shift */
+        #notifPanel, #userMenu, #mobileMenu {
+            transform: translateZ(0);
+        }
+    </style>
+    <script>
+        // Define global helpers for notifications (used by components updating states via AJAX)
+        window.updateBadge = function(count) {
+            const badge = document.getElementById('notifBadge');
+            if (!badge) return;
+            if (count > 0) {
+                badge.textContent = count > 9 ? '9+' : count;
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+        };
+
+        // prependNotif(msg, link?) -> adds a clickable notif that can deep-link.
+        window.prependNotif = function(msg, link) {
+            const list = document.getElementById('notifList');
+            if (!list) return;
+            const empty = list.querySelector('p');
+            if (empty && empty.textContent.includes('No notifications yet')) empty.remove();
+            const el = document.createElement('div');
+            el.className = 'px-4 py-3 text-sm bg-blue-50 text-gray-800 font-medium' + (link ? ' cursor-pointer hover:bg-gray-50' : '');
+            const now = new Date().toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'});
+            el.innerHTML = `<p>${msg}</p><p class="text-xs text-gray-400 mt-0.5">${now}</p>`;
+            if (link) {
+                el.addEventListener('click', () => { window.location.href = link; });
+            }
+            list.prepend(el);
+        };
+
+        (function () {
+            const mobileBtn = document.getElementById('mobileMenuBtn');
+            const mobileMenu = document.getElementById('mobileMenu');
+            const userBtn = document.getElementById('userMenuBtn');
+            const userMenu = document.getElementById('userMenu');
+            
+            // Notification Elements
+            const bellBtn = document.getElementById('bellBtn');
+            const notifPanel = document.getElementById('notifPanel');
+            const markAllReadBtn = document.getElementById('markAllRead');
+
+            function toggle(el) {
+                if (!el) return;
+                el.classList.toggle('hidden');
+            }
+
+            if (mobileBtn && mobileMenu) {
+                mobileBtn.addEventListener('click', () => toggle(mobileMenu));
+            }
+
+            if (userBtn && userMenu) {
+                userBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    toggle(userMenu);
+                });
+            }
+
+            if (bellBtn && notifPanel) {
+                bellBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    toggle(notifPanel);
+                });
+            }
+
+            if (markAllReadBtn) {
+                markAllReadBtn.addEventListener('click', () => {
+                    fetch('', { method: 'POST', headers: {'Content-Type':'application/x-www-form-urlencoded'}, body: 'action=mark_notifs_read' })
+                        .then(() => {
+                            document.querySelectorAll('#notifList > div').forEach(d => {
+                                d.classList.remove('bg-blue-50','font-medium');
+                                d.classList.add('bg-white','text-gray-600');
+                            });
+                            window.updateBadge(0);
+                        });
+                });
+            }
+
+            document.addEventListener('click', (e) => {
+                if (userMenu && !userMenu.classList.contains('hidden')) {
+                    if (!e.target.closest('#userMenu') && !e.target.closest('#userMenuBtn')) {
+                        userMenu.classList.add('hidden');
+                    }
+                }
+                if (mobileMenu && !mobileMenu.classList.contains('hidden')) {
+                    if (!e.target.closest('#mobileMenu') && !e.target.closest('#mobileMenuBtn')) {
+                        // don't auto-close while clicking a link inside menu
+                    }
+                }
+                if (notifPanel && !notifPanel.classList.contains('hidden')) {
+                    if (!e.target.closest('#notifPanel') && !e.target.closest('#bellBtn')) {
+                        notifPanel.classList.add('hidden');
+                    }
+                }
+            });
+        })();
+    </script>
