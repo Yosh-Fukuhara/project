@@ -1062,9 +1062,15 @@ include 'includes/header.php';
                                     <?php endif; ?>
                                 <?php endif; ?>
                                 <?php if (isset($post['image'])): ?>
+<<<<<<<<< Temporary merge branch 1
                                     <div class="mt-4 rounded-lg overflow-hidden">
-                                        <img src="<?php echo htmlspecialchars($post['image']); ?>" alt="Post image" class="w-full">
+                                        <img src="<?php echo $post['image']; ?>" alt="Post image" class="w-full">
                                     </div>
+=========
+                                <div class="mt-4 rounded-lg overflow-hidden">
+                                    <img src="<?php echo htmlspecialchars($post['image']); ?>" alt="Post image" class="w-full">
+                                </div>
+>>>>>>>>> Temporary merge branch 2
                                 <?php endif; ?>
                                 <?php if (isset($post['skills'])): ?>
                                     <div class="mt-4 flex flex-wrap gap-2">
@@ -1216,6 +1222,7 @@ include 'includes/header.php';
                     <?php endif; ?>
 
                     <?php if ($applyEnabled): ?>
+<<<<<<<<< Temporary merge branch 1
                         <div class="border-t border-gray-100 px-4 py-3 bg-blue-50 flex gap-3">
                             <button class="apply-modal-btn flex-1 bg-pink-700 hover:bg-pink-800 text-white font-bold py-2 rounded-xl transition text-sm" data-post-id="<?php echo htmlspecialchars($pid); ?>">
                                 Apply Now
