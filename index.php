@@ -811,7 +811,24 @@ include 'includes/header.php';
                 // For shared posts: the Share button should share the original post
                 $shareTargetId = $post['shared_from'] ?? $pid;
 
+                // Build the correct profile URL:
+                // - own posts → profile.php (edit access)
+                // - other users → view_profile.php directly (no double-redirect)
+                // - static job/seeking posts with no email → view_profile.php by name
                 $authorId = isset($post['type']) && $post['type'] === 'user' ? ($post['email'] ?? '') : ($post['name'] ?? $post['company'] ?? '');
+                $loggedInEmail = $_SESSION['user']['email'] ?? '';
+                $isOwnPost = (
+                    $post['type'] === 'user' &&
+                    !empty($authorId) &&
+                    strcasecmp($authorId, $loggedInEmail) === 0
+                );
+                if ($isOwnPost) {
+                    $authorProfileUrl = 'profile.php';
+                } elseif (!empty($post['email'])) {
+                    $authorProfileUrl = 'view_profile.php?username=' . urlencode($post['username'] ?? $authorId);
+                } else {
+                    $authorProfileUrl = 'view_profile.php?username=' . urlencode($authorId);
+                }
 
                 // Compact JSON snapshot used by the Share modal and as a fallback on the server for non-session posts.
                 // If this is already a shared post, use the *original* snapshot for the preview.
@@ -839,7 +856,7 @@ include 'includes/header.php';
                 <div class="bg-white rounded-xl shadow-md mb-4 overflow-hidden" data-post-card data-post-id="<?php echo htmlspecialchars($pid); ?>">
                     <div class="p-4">
                         <div class="flex items-start gap-3">
-                            <a href="profile.php?user=<?php echo urlencode($authorId); ?>" class="flex-shrink-0">
+                            <a href="<?php echo htmlspecialchars($authorProfileUrl); ?>" class="flex-shrink-0">
                                 <?php if (isset($post['type']) && $post['type'] === 'user'): ?>
                                     <div class="w-12 h-12 bg-gray-200 rounded-full overflow-hidden flex items-center justify-center text-2xl text-blue-900 font-bold">
                                         <?php if (!empty($post['avatar'])): ?>
@@ -861,7 +878,7 @@ include 'includes/header.php';
                             <div class="flex-1">
                                 <div class="flex items-center justify-between">
                                     <div>
-                                        <a href="profile.php?user=<?php echo urlencode($authorId); ?>" class="hover:underline">
+                                        <a href="<?php echo htmlspecialchars($authorProfileUrl); ?>" class="hover:underline">
                                             <h4 class="font-bold text-gray-800">
                                                 <?php
                                                 if (isset($post['type']) && $post['type'] === 'user') {
@@ -1229,9 +1246,9 @@ include 'includes/header.php';
                     </div>
                     <?php endforeach; ?>
                 </div>
-                <button class="w-full mt-4 text-blue-800 font-semibold text-sm hover:underline">
+                <a href="index.php?filter=jobs" class="block w-full mt-4 text-center text-blue-800 font-semibold text-sm hover:underline">
                     See all jobs
-                </button>
+                </a>
             </div>
 
             <div class="bg-white rounded-xl shadow-md p-4">
@@ -1253,9 +1270,9 @@ include 'includes/header.php';
                     </div>
                     <?php endforeach; ?>
                 </div>
-                <button class="w-full mt-4 text-blue-800 font-semibold text-sm hover:underline">
+                <a href="assessment.php" class="block w-full mt-4 text-center text-blue-800 font-semibold text-sm hover:underline">
                     Explore skills
-                </button>
+                </a>
             </div>
         </div>
     </div>
