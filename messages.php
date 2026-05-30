@@ -427,14 +427,14 @@ foreach ($_SESSION['messages'] as $conv) {
 <?php include 'includes/header.php'; ?>
 
 <div class="container mx-auto px-4 py-8">
-    <div class="max-w-5xl mx-auto bg-white rounded-2xl shadow-md overflow-hidden">
-        <div class="grid grid-cols-1 md:grid-cols-3 h-[600px]">
+    <div class="max-w-5xl mx-auto bg-white rounded-2xl shadow-md overflow-hidden h-[calc(100vh-120px)] md:h-[600px] flex flex-col">
+        <div class="flex-1 flex min-h-0">
             <!-- Conversations List -->
-            <div class="border-r border-gray-200 flex flex-col min-h-0">
+            <div id="convSidebar" class="w-full md:w-1/3 border-r border-gray-200 flex flex-col min-h-0 <?php echo isset($_GET['conv']) ? 'hidden md:flex' : 'flex'; ?>">
                 <div class="p-4 border-b border-gray-200 flex items-center justify-between">
                     <h2 class="text-xl font-bold text-gray-900">Messages</h2>
                     <?php if ($totalUnread > 0): ?>
-                    <span id="msgSidebarUnread" class="bg-blue-900 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                    <span id="msgSidebarUnread" class="bg-red-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
                         <?php echo $totalUnread; ?>
                     </span>
                     <?php endif; ?>
@@ -453,7 +453,7 @@ foreach ($_SESSION['messages'] as $conv) {
                             <p class="text-sm text-gray-500 truncate mt-1" data-conv-preview><?php echo htmlspecialchars($conv['messages'][count($conv['messages'])-1]['text']); ?></p>
                         </div>
                         <?php if (($conv['unread'] ?? 0) > 0): ?>
-                        <span class="conv-unread-badge bg-blue-900 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0"><?php echo $conv['unread']; ?></span>
+                        <span class="conv-unread-badge bg-red-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0"><?php echo $conv['unread']; ?></span>
                         <?php endif; ?>
                     </a>
                     <?php endforeach; ?>
@@ -461,15 +461,20 @@ foreach ($_SESSION['messages'] as $conv) {
             </div>
 
             <!-- Chat Area -->
-            <div class="col-span-2 flex flex-col min-h-0">
+            <div id="chatArea" class="w-full md:w-2/3 flex flex-col min-h-0 <?php echo isset($_GET['conv']) ? 'flex' : 'hidden md:flex'; ?>">
                 <!-- Chat Header -->
-                <div class="p-4 border-b border-gray-200 flex items-center gap-3">
+                <div class="p-3 md:p-4 border-b border-gray-200 flex items-center gap-3">
+                    <a href="messages.php" class="md:hidden p-2 -ml-2 text-gray-500 hover:text-blue-900" aria-label="Back to messages">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                        </svg>
+                    </a>
                     <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-xl">
                         <?php echo htmlspecialchars($currentConv['otherUser']['avatar']); ?>
                     </div>
-                    <div>
+                    <div class="flex-1">
                         <h3 class="font-semibold text-gray-800"><?php echo htmlspecialchars($currentConv['otherUser']['username']); ?></h3>
-                        <p class="text-xs text-green-600">Online</p>
+                        <p class="text-[10px] md:text-xs text-green-600">Online</p>
                     </div>
                 </div>
 

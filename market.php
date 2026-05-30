@@ -112,18 +112,18 @@ include 'includes/header.php';
             <span id="live-clock"><?php echo $xFormattedDate; ?></span>
         </div>
 
-        <div class="mb-8 flex justify-end">
-            <form method="GET" action="#products-section">
-                <div class="flex gap-2">
+        <div class="mb-8 flex justify-end px-4 sm:px-0">
+            <form method="GET" action="#products-section" class="w-full sm:w-auto">
+                <div class="flex gap-2 w-full">
                     <input 
                         type="text" 
                         name="search" 
                         placeholder="Search products..." 
                         value="<?php echo htmlspecialchars($search); ?>"
-                        class="w-80 px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                        class="flex-1 sm:w-80 px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm min-w-0"
                     >
                     <input type="hidden" name="category" value="<?php echo htmlspecialchars($category); ?>">
-                    <button type="submit" class="bg-blue-900 text-white px-5 py-2 rounded-lg font-semibold hover:bg-blue-800 transition text-sm">
+                    <button type="submit" class="bg-blue-900 text-white px-5 py-2 rounded-lg font-semibold hover:bg-blue-800 transition text-sm flex-shrink-0">
                         Search
                     </button>
                 </div>
