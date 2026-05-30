@@ -28,7 +28,8 @@ foreach ($_SESSION['posts'] as $i => $p) {
     }
 }
 
-function savePostAttachment(?array $file, string $uploadDirAbs, array &$postErrors): ?array {
+function savePostAttachment(?array $file, string $uploadDirAbs, array &$postErrors): ?array
+{
     if (!$file || !isset($file['error'])) {
         return null;
     }
@@ -154,7 +155,8 @@ function savePostAttachment(?array $file, string $uploadDirAbs, array &$postErro
     ];
 }
 
-function safeUnlinkUpload(?string $relativePath): void {
+function safeUnlinkUpload(?string $relativePath): void
+{
     if (!$relativePath) return;
     // Only allow deleting files inside /uploads
     if (!str_starts_with($relativePath, 'uploads/')) return;
@@ -189,7 +191,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             $postId = $pdo->lastInsertId();
 
             // Also keep in session for backward compatibility
-            $allowedTags = ['#Hiring','#OpenToWork','#Networking','#OpenToCollaborate','#JobSeeker','#Freelance','#Announcement'];
+            $allowedTags = ['#Hiring', '#OpenToWork', '#Networking', '#OpenToCollaborate', '#JobSeeker', '#Freelance', '#Announcement'];
             $selectedTags = [];
             foreach (($_POST['tags'] ?? []) as $t) {
                 if (in_array($t, $allowedTags)) $selectedTags[] = $t;
@@ -209,7 +211,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 'enable_apply' => $isHiringPost && !empty($_POST['enable_apply']),
             ];
             array_unshift($_SESSION['posts'], $newPost);
-            
+
             // Notification: own post uploaded
             array_unshift($_SESSION['notifications'], [
                 'msg' => 'Your post was published successfully.',
@@ -314,11 +316,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 // ── AJAX: React to a post ──
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'react_post') {
     header('Content-Type: application/json');
-    if (!isset($_SESSION['user'])) { echo json_encode(['ok'=>false,'msg'=>'Login required']); exit; }
+    if (!isset($_SESSION['user'])) {
+        echo json_encode(['ok' => false, 'msg' => 'Login required']);
+        exit;
+    }
     $pid  = $_POST['post_id'] ?? '';
     $emoji = $_POST['emoji'] ?? '';
-    $allowed = ['👍','❤️','🎉','💡','👏'];
-    if (!$pid || !in_array($emoji, $allowed)) { echo json_encode(['ok'=>false]); exit; }
+    $allowed = ['👍', '❤️', '🎉', '💡', '👏'];
+    if (!$pid || !in_array($emoji, $allowed)) {
+        echo json_encode(['ok' => false]);
+        exit;
+    }
     if (!isset($_SESSION['reactions'][$pid])) $_SESSION['reactions'][$pid] = [];
     // toggle off
     $prev = $_SESSION['my_reactions'][$pid] ?? null;
@@ -345,17 +353,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'react
     } else {
         unset($_SESSION['my_reactions'][$pid]);
     }
-    echo json_encode(['ok'=>true,'reactions'=>$_SESSION['reactions'][$pid],'mine'=>$_SESSION['my_reactions'][$pid]??null]);
+    echo json_encode(['ok' => true, 'reactions' => $_SESSION['reactions'][$pid], 'mine' => $_SESSION['my_reactions'][$pid] ?? null]);
     exit;
 }
 
 // ── AJAX: Add a comment ──
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'add_comment') {
     header('Content-Type: application/json');
-    if (!isset($_SESSION['user'])) { echo json_encode(['ok'=>false,'msg'=>'Login required']); exit; }
+    if (!isset($_SESSION['user'])) {
+        echo json_encode(['ok' => false, 'msg' => 'Login required']);
+        exit;
+    }
     $pid  = $_POST['post_id'] ?? '';
     $text = trim($_POST['text'] ?? '');
-    if (!$pid || $text === '') { echo json_encode(['ok'=>false]); exit; }
+    if (!$pid || $text === '') {
+        echo json_encode(['ok' => false]);
+        exit;
+    }
     $commentId = 'c_' . uniqid('', true);
     $comment = [
         'id'     => $commentId,
@@ -380,22 +394,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'add_c
             break;
         }
     }
-    echo json_encode(['ok'=>true,'comment'=>$comment,'total'=>count($_SESSION['comments'][$pid])]);
+    echo json_encode(['ok' => true, 'comment' => $comment, 'total' => count($_SESSION['comments'][$pid])]);
     exit;
 }
 
 // ── AJAX: Share a post ──
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'share_post') {
     header('Content-Type: application/json');
-    if (!isset($_SESSION['user'])) { echo json_encode(['ok'=>false,'msg'=>'Login required']); exit; }
+    if (!isset($_SESSION['user'])) {
+        echo json_encode(['ok' => false, 'msg' => 'Login required']);
+        exit;
+    }
     $pid = $_POST['post_id'] ?? '';
     $shareText = trim($_POST['share_text'] ?? '');
     $postJson = $_POST['post_json'] ?? '';
-    if (!$pid) { echo json_encode(['ok'=>false]); exit; }
+    if (!$pid) {
+        echo json_encode(['ok' => false]);
+        exit;
+    }
 
     // Optional caption length limit (keeps layout stable)
     if (cs_strlen($shareText) > 1000) {
-        echo json_encode(['ok'=>false,'msg'=>'Share caption is too long.']); exit;
+        echo json_encode(['ok' => false, 'msg' => 'Share caption is too long.']);
+        exit;
     }
 
     // Increment share counter for the *original* post id
@@ -404,7 +425,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'share
     // Try to locate the original post in session (works for user-created posts)
     $original = null;
     foreach (($_SESSION['posts'] ?? []) as $p) {
-        if (($p['id'] ?? '') === $pid) { $original = $p; break; }
+        if (($p['id'] ?? '') === $pid) {
+            $original = $p;
+            break;
+        }
     }
 
     // Fallback: accept a compact JSON snapshot from the client (works for static/x posts)
@@ -457,7 +481,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'share
         ]);
     }
 
-    echo json_encode(['ok'=>true,'shares'=>$_SESSION['shares'][$pid]]);
+    echo json_encode(['ok' => true, 'shares' => $_SESSION['shares'][$pid]]);
     exit;
 }
 
@@ -470,7 +494,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'apply
     $appPhone = trim($_POST['app_phone'] ?? '');
     $appMsg   = trim($_POST['app_message'] ?? '');
     if (!$pid || !$appName || !$appEmail) {
-        echo json_encode(['ok'=>false,'msg'=>'Name and email are required.']); exit;
+        echo json_encode(['ok' => false, 'msg' => 'Name and email are required.']);
+        exit;
     }
     // Handle resume upload
     $resumePath = null;
@@ -492,7 +517,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'apply
         'status'  => 'pending',
     ];
     $_SESSION['applications'][$pid][] = $application;
-    
+
     // Save to user's own applications
     if (isset($_SESSION['user'])) {
         $postTitle = '';
@@ -509,7 +534,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'apply
             'status' => $application['status'],
         ];
     }
-    
+
     // Notify post owner if logged in
     if (isset($_SESSION['user'])) {
         array_unshift($_SESSION['notifications'], [
@@ -519,19 +544,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'apply
             'link' => 'index.php?post=' . urlencode($pid),
         ]);
     }
-    echo json_encode(['ok'=>true,'msg'=>'Application submitted successfully!']);
+    echo json_encode(['ok' => true, 'msg' => 'Application submitted successfully!']);
     exit;
 }
 
 // ── AJAX: Update application status (accept/reject) ──
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'update_app_status') {
     header('Content-Type: application/json');
-    if (!isset($_SESSION['user'])) { echo json_encode(['ok'=>false,'msg'=>'Login required']); exit; }
+    if (!isset($_SESSION['user'])) {
+        echo json_encode(['ok' => false, 'msg' => 'Login required']);
+        exit;
+    }
     $pid = $_POST['post_id'] ?? '';
     $appId = $_POST['app_id'] ?? '';
     $status = $_POST['status'] ?? '';
     if (!$pid || !$appId || !in_array($status, ['accepted', 'rejected'])) {
-        echo json_encode(['ok'=>false]); exit;
+        echo json_encode(['ok' => false]);
+        exit;
     }
     $updated = false;
     if (isset($_SESSION['applications'][$pid])) {
@@ -544,23 +573,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'updat
         }
         unset($app);
     }
-    echo json_encode(['ok'=>$updated]);
+    echo json_encode(['ok' => $updated]);
     exit;
 }
 
 // ── AJAX: Save/unsave job ──
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'toggle_save_job') {
     header('Content-Type: application/json');
-    if (!isset($_SESSION['user'])) { echo json_encode(['ok'=>false,'msg'=>'Login required']); exit; }
+    if (!isset($_SESSION['user'])) {
+        echo json_encode(['ok' => false, 'msg' => 'Login required']);
+        exit;
+    }
     $pid = $_POST['post_id'] ?? '';
-    if (!$pid) { echo json_encode(['ok'=>false]); exit; }
+    if (!$pid) {
+        echo json_encode(['ok' => false]);
+        exit;
+    }
     $index = array_search($pid, $_SESSION['saved_jobs']);
     if ($index !== false) {
         array_splice($_SESSION['saved_jobs'], $index, 1);
-        echo json_encode(['ok'=>true,'saved'=>false]);
+        echo json_encode(['ok' => true, 'saved' => false]);
     } else {
         $_SESSION['saved_jobs'][] = $pid;
-        echo json_encode(['ok'=>true,'saved'=>true]);
+        echo json_encode(['ok' => true, 'saved' => true]);
     }
     exit;
 }
@@ -635,8 +670,7 @@ include 'includes/header.php';
                     <button
                         type="button"
                         id="startPostBtn"
-                        class="flex-1 text-left px-4 py-2 bg-gray-100 rounded-full border border-gray-200 hover:border-blue-500 transition text-gray-500"
-                    >
+                        class="flex-1 text-left px-4 py-2 bg-gray-100 rounded-full border border-gray-200 hover:border-blue-500 transition text-gray-500">
                         Start a post
                     </button>
                 </div>
@@ -699,18 +733,17 @@ include 'includes/header.php';
                                 name="content"
                                 rows="4"
                                 class="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                placeholder="What's on your mind?"
-                            ></textarea>
+                                placeholder="What's on your mind?"></textarea>
                         </div>
 
                         <div id="tagPickerWrap">
                             <label class="block text-sm font-semibold text-gray-700 mb-2">Add Tags</label>
                             <div class="flex flex-wrap gap-2" id="tagList">
-                                <?php foreach(['#Hiring','#OpenToWork','#Networking','#OpenToCollaborate','#JobSeeker','#Freelance','#Announcement'] as $tag): ?>
-                                <label class="cursor-pointer">
-                                    <input type="checkbox" name="tags[]" value="<?php echo $tag; ?>" class="hidden tagCheckbox" data-tag="<?php echo $tag; ?>">
-                                    <span class="tag-pill inline-block px-3 py-1 rounded-full text-sm font-medium border border-gray-300 text-gray-600 hover:border-blue-500 hover:text-blue-700 transition select-none"><?php echo $tag; ?></span>
-                                </label>
+                                <?php foreach (['#Hiring', '#OpenToWork', '#Networking', '#OpenToCollaborate', '#JobSeeker', '#Freelance', '#Announcement'] as $tag): ?>
+                                    <label class="cursor-pointer">
+                                        <input type="checkbox" name="tags[]" value="<?php echo $tag; ?>" class="hidden tagCheckbox" data-tag="<?php echo $tag; ?>">
+                                        <span class="tag-pill inline-block px-3 py-1 rounded-full text-sm font-medium border border-gray-300 text-gray-600 hover:border-blue-500 hover:text-blue-700 transition select-none"><?php echo $tag; ?></span>
+                                    </label>
                                 <?php endforeach; ?>
                             </div>
                         </div>
@@ -732,8 +765,7 @@ include 'includes/header.php';
                             id="composerSubmit"
                             type="submit"
                             class="w-full bg-blue-900 text-white font-bold py-3 rounded-xl hover:bg-blue-800 transition disabled:opacity-60"
-                            <?php echo isset($_SESSION['user']) ? '' : 'disabled'; ?>
-                        >
+                            <?php echo isset($_SESSION['user']) ? '' : 'disabled'; ?>>
                             Post
                         </button>
 
@@ -769,7 +801,7 @@ include 'includes/header.php';
             } catch (Exception $e) {
                 // Fallback to session
             }
-            
+
             $posts = array_merge($dbPosts, $_SESSION['posts'], [
                 [
                     'type' => 'job',
@@ -796,7 +828,7 @@ include 'includes/header.php';
             // Search filter implementation
             $searchQuery = trim($_GET['q'] ?? '');
             if ($searchQuery !== '') {
-                $posts = array_filter($posts, function($post) use ($searchQuery) {
+                $posts = array_filter($posts, function ($post) use ($searchQuery) {
                     $content = $post['content'] ?? '';
                     $author = $post['username'] ?? $post['name'] ?? $post['company'] ?? '';
                     $tags = implode(' ', $post['tags'] ?? []);
@@ -912,8 +944,7 @@ include 'includes/header.php';
                                                     type="button"
                                                     class="postEditBtn w-full text-left px-4 py-2 text-sm hover:bg-gray-50 text-gray-800"
                                                     data-post-id="<?php echo htmlspecialchars($post['id']); ?>"
-                                                    data-post-content="<?php echo htmlspecialchars($post['content']); ?>"
-                                                >
+                                                    data-post-content="<?php echo htmlspecialchars($post['content']); ?>">
                                                     Edit
                                                 </button>
                                                 <form method="POST" onsubmit="return confirm('Delete this post?');">
@@ -928,11 +959,11 @@ include 'includes/header.php';
                                     <?php endif; ?>
                                 </div>
                                 <?php if (!empty($post['badge'])): ?>
-                                <div class="mt-2">
-                                    <span class="inline-block bg-blue-100 text-blue-800 text-xs font-semibold px-3 py-1 rounded-full">
-                                        <?php echo htmlspecialchars($post['badge']); ?>
-                                    </span>
-                                </div>
+                                    <div class="mt-2">
+                                        <span class="inline-block bg-blue-100 text-blue-800 text-xs font-semibold px-3 py-1 rounded-full">
+                                            <?php echo htmlspecialchars($post['badge']); ?>
+                                        </span>
+                                    </div>
                                 <?php endif; ?>
                                 <?php if (!empty($post['shared_post'])): ?>
                                     <?php if (trim((string)($post['content'] ?? '')) !== ''): ?>
@@ -941,19 +972,19 @@ include 'includes/header.php';
                                         </p>
                                     <?php endif; ?>
                                     <?php
-                                        $orig = $post['shared_post'];
-                                        $origIsUser = is_array($orig) && (($orig['type'] ?? 'user') === 'user');
-                                        $origName = $origIsUser
-                                            ? ($orig['username'] ?? 'User')
-                                            : ($orig['company'] ?? ($orig['name'] ?? 'Post'));
-                                        $origMeta = '';
-                                        if ($origIsUser) {
-                                            $origMeta = trim(($orig['email'] ?? '') . (empty($orig['time']) ? '' : ' • ' . $orig['time']));
-                                        } else {
-                                            $metaLeft = $orig['followers'] ?? ($orig['title'] ?? '');
-                                            $origMeta = trim(($metaLeft ? ($metaLeft . ' • ') : '') . ($orig['time'] ?? ''));
-                                        }
-                                        $origText = nl2br(htmlspecialchars(strip_tags((string)($orig['content'] ?? ''))));
+                                    $orig = $post['shared_post'];
+                                    $origIsUser = is_array($orig) && (($orig['type'] ?? 'user') === 'user');
+                                    $origName = $origIsUser
+                                        ? ($orig['username'] ?? 'User')
+                                        : ($orig['company'] ?? ($orig['name'] ?? 'Post'));
+                                    $origMeta = '';
+                                    if ($origIsUser) {
+                                        $origMeta = trim(($orig['email'] ?? '') . (empty($orig['time']) ? '' : ' • ' . $orig['time']));
+                                    } else {
+                                        $metaLeft = $orig['followers'] ?? ($orig['title'] ?? '');
+                                        $origMeta = trim(($metaLeft ? ($metaLeft . ' • ') : '') . ($orig['time'] ?? ''));
+                                    }
+                                    $origText = nl2br(htmlspecialchars(strip_tags((string)($orig['content'] ?? ''))));
                                     ?>
                                     <div class="mt-3 border border-gray-200 rounded-xl overflow-hidden bg-gray-50">
                                         <div class="p-3 flex items-start gap-3">
@@ -1034,22 +1065,25 @@ include 'includes/header.php';
                                 <div class="mt-4 rounded-lg overflow-hidden">
                                     <img src="<?php echo htmlspecialchars($post['image']); ?>" alt="Post image" class="w-full">
                                 </div>
+                                    <div class="mt-4 rounded-lg overflow-hidden">
+                                        <img src="<?php echo $post['image']; ?>" alt="Post image" class="w-full">
+                                    </div>
                                 <?php endif; ?>
                                 <?php if (isset($post['skills'])): ?>
-                                <div class="mt-4 flex flex-wrap gap-2">
-                                    <?php foreach ($post['skills'] as $skill): ?>
-                                    <span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
-                                        <?php echo $skill; ?>
-                                    </span>
-                                    <?php endforeach; ?>
-                                </div>
+                                    <div class="mt-4 flex flex-wrap gap-2">
+                                        <?php foreach ($post['skills'] as $skill): ?>
+                                            <span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
+                                                <?php echo $skill; ?>
+                                            </span>
+                                        <?php endforeach; ?>
+                                    </div>
                                 <?php endif; ?>
                                 <?php if (!empty($post['tags'])): ?>
-                                <div class="mt-3 flex flex-wrap gap-1">
-                                    <?php foreach($post['tags'] as $ptag): ?>
-                                    <span class="bg-blue-100 text-blue-800 text-xs font-semibold px-2 py-0.5 rounded-full"><?php echo htmlspecialchars($ptag); ?></span>
-                                    <?php endforeach; ?>
-                                </div>
+                                    <div class="mt-3 flex flex-wrap gap-1">
+                                        <?php foreach ($post['tags'] as $ptag): ?>
+                                            <span class="bg-blue-100 text-blue-800 text-xs font-semibold px-2 py-0.5 rounded-full"><?php echo htmlspecialchars($ptag); ?></span>
+                                        <?php endforeach; ?>
+                                    </div>
                                 <?php endif; ?>
                             </div>
                         </div>
@@ -1067,23 +1101,21 @@ include 'includes/header.php';
                             <button
                                 class="react-btn flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-gray-100 transition font-medium <?php echo $myReaction ? 'text-blue-700' : 'text-gray-700'; ?>"
                                 data-post-id="<?php echo htmlspecialchars($pid); ?>"
-                                title="React"
-                            >
+                                title="React">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5"></path>
                                 </svg>
                                 <span class="react-label"><?php echo $myReaction ? $myReaction . ' ' . $totalReactions : 'React' . ($totalReactions > 0 ? ' ' . $totalReactions : ''); ?></span>
                             </button>
                             <div class="emoji-picker absolute bottom-full left-0 mb-1 bg-white border border-gray-200 rounded-xl shadow-xl p-2 flex gap-1 hidden z-20" data-post-id="<?php echo htmlspecialchars($pid); ?>">
-                                <?php foreach(['👍','❤️','🎉','💡','👏'] as $em): ?>
-                                <button class="emoji-opt text-2xl hover:scale-125 transition-transform p-1 rounded-lg hover:bg-gray-100" data-post-id="<?php echo htmlspecialchars($pid); ?>" data-emoji="<?php echo $em; ?>"><?php echo $em; ?></button>
+                                <?php foreach (['👍', '❤️', '🎉', '💡', '👏'] as $em): ?>
+                                    <button class="emoji-opt text-2xl hover:scale-125 transition-transform p-1 rounded-lg hover:bg-gray-100" data-post-id="<?php echo htmlspecialchars($pid); ?>" data-emoji="<?php echo $em; ?>"><?php echo $em; ?></button>
                                 <?php endforeach; ?>
                             </div>
                         </div>
                         <button
                             class="comment-toggle-btn flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-gray-100 transition text-gray-700 font-medium"
-                            data-post-id="<?php echo htmlspecialchars($pid); ?>"
-                        >
+                            data-post-id="<?php echo htmlspecialchars($pid); ?>">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"></path>
                             </svg>
@@ -1092,8 +1124,7 @@ include 'includes/header.php';
                         <button
                             class="share-btn flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-gray-100 transition text-gray-700 font-medium"
                             data-post-id="<?php echo htmlspecialchars($shareTargetId); ?>"
-                            data-post-json="<?php echo $sharePayloadJson; ?>"
-                        >
+                            data-post-json="<?php echo $sharePayloadJson; ?>">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"></path>
                             </svg>
@@ -1101,91 +1132,90 @@ include 'includes/header.php';
                         </button>
 
                         <?php if (isset($_SESSION['user']) && ($post['email'] ?? '') === $_SESSION['user']['email'] && !empty($_SESSION['applications'][$pid])): ?>
-                        <button
-                            class="view-apps-toggle flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-gray-100 transition text-gray-700 font-medium"
-                            data-post-id="<?php echo htmlspecialchars($pid); ?>"
-                        >
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                            </svg>
-                            Apps (<?php echo count($_SESSION['applications'][$pid]); ?>)
-                        </button>
+                            <button
+                                class="view-apps-toggle flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-gray-100 transition text-gray-700 font-medium"
+                                data-post-id="<?php echo htmlspecialchars($pid); ?>">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                </svg>
+                                Apps (<?php echo count($_SESSION['applications'][$pid]); ?>)
+                            </button>
                         <?php endif; ?>
                     </div>
 
                     <div class="comment-section hidden border-t border-gray-100 px-4 py-3 bg-gray-50" data-post-id="<?php echo htmlspecialchars($pid); ?>">
                         <div class="comments-list space-y-3 mb-3">
                             <?php foreach (($_SESSION['comments'][$pid] ?? []) as $cm): ?>
-                            <?php $cmid = $cm['id'] ?? ''; ?>
-                            <div <?php echo $cmid ? ('id="comment_' . htmlspecialchars($cmid) . '"') : ''; ?> class="flex gap-2 items-start">
-                                <div class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-900 font-bold text-sm overflow-hidden flex-shrink-0">
-                                    <?php if (!empty($cm['avatar'])): ?>
-                                        <img src="<?php echo htmlspecialchars($cm['avatar']); ?>" class="w-full h-full object-cover" alt="">
-                                    <?php else: ?>
-                                        <?php echo strtoupper(substr($cm['user'],0,1)); ?>
-                                    <?php endif; ?>
+                                <?php $cmid = $cm['id'] ?? ''; ?>
+                                <div <?php echo $cmid ? ('id="comment_' . htmlspecialchars($cmid) . '"') : ''; ?> class="flex gap-2 items-start">
+                                    <div class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-900 font-bold text-sm overflow-hidden flex-shrink-0">
+                                        <?php if (!empty($cm['avatar'])): ?>
+                                            <img src="<?php echo htmlspecialchars($cm['avatar']); ?>" class="w-full h-full object-cover" alt="">
+                                        <?php else: ?>
+                                            <?php echo strtoupper(substr($cm['user'], 0, 1)); ?>
+                                        <?php endif; ?>
+                                    </div>
+                                    <div class="bg-white rounded-xl px-3 py-2 text-sm shadow-sm flex-1">
+                                        <span class="font-semibold text-gray-800"><?php echo htmlspecialchars($cm['user']); ?></span>
+                                        <span class="text-gray-400 text-xs ml-2"><?php echo htmlspecialchars($cm['time']); ?></span>
+                                        <p class="text-gray-700 mt-0.5"><?php echo htmlspecialchars($cm['text']); ?></p>
+                                    </div>
                                 </div>
-                                <div class="bg-white rounded-xl px-3 py-2 text-sm shadow-sm flex-1">
-                                    <span class="font-semibold text-gray-800"><?php echo htmlspecialchars($cm['user']); ?></span>
-                                    <span class="text-gray-400 text-xs ml-2"><?php echo htmlspecialchars($cm['time']); ?></span>
-                                    <p class="text-gray-700 mt-0.5"><?php echo htmlspecialchars($cm['text']); ?></p>
-                                </div>
-                            </div>
                             <?php endforeach; ?>
                         </div>
                         <?php if (isset($_SESSION['user'])): ?>
-                        <div class="flex gap-2">
-                            <div class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-900 font-bold text-sm overflow-hidden flex-shrink-0">
-                                <?php if (!empty($_SESSION['user']['profile_pic'])): ?>
-                                    <img src="<?php echo htmlspecialchars($_SESSION['user']['profile_pic']); ?>" class="w-full h-full object-cover" alt="">
-                                <?php else: ?>
-                                    <?php echo strtoupper(substr($_SESSION['user']['username'],0,1)); ?>
-                                <?php endif; ?>
+                            <div class="flex gap-2">
+                                <div class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-900 font-bold text-sm overflow-hidden flex-shrink-0">
+                                    <?php if (!empty($_SESSION['user']['profile_pic'])): ?>
+                                        <img src="<?php echo htmlspecialchars($_SESSION['user']['profile_pic']); ?>" class="w-full h-full object-cover" alt="">
+                                    <?php else: ?>
+                                        <?php echo strtoupper(substr($_SESSION['user']['username'], 0, 1)); ?>
+                                    <?php endif; ?>
+                                </div>
+                                <input type="text" class="comment-input flex-1 px-3 py-2 rounded-full border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400" placeholder="Write a comment…" data-post-id="<?php echo htmlspecialchars($pid); ?>">
                             </div>
-                            <input type="text" class="comment-input flex-1 px-3 py-2 rounded-full border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400" placeholder="Write a comment…" data-post-id="<?php echo htmlspecialchars($pid); ?>">
-                        </div>
                         <?php else: ?>
-                        <p class="text-sm text-gray-500">Please <a href="login.php" class="text-blue-900 font-semibold hover:underline">sign in</a> to comment.</p>
+                            <p class="text-sm text-gray-500">Please <a href="login.php" class="text-blue-900 font-semibold hover:underline">sign in</a> to comment.</p>
                         <?php endif; ?>
                     </div>
 
                     <?php if (isset($_SESSION['user']) && ($post['email'] ?? '') === $_SESSION['user']['email'] && !empty($_SESSION['applications'][$pid])): ?>
-                    <div class="apps-section hidden border-t border-gray-100 px-4 py-3 bg-blue-50" data-post-id="<?php echo htmlspecialchars($pid); ?>">
-                        <h5 class="font-bold text-gray-800 text-sm mb-3">Job Applications</h5>
-                        <div class="space-y-3">
-                            <?php foreach ($_SESSION['applications'][$pid] as $app): ?>
-                            <div class="bg-white p-3 rounded-xl shadow-sm border border-gray-200 text-sm">
-                                <div class="flex justify-between items-start mb-1">
-                                    <div class="flex items-center gap-2">
-                                        <span class="font-bold text-gray-800"><?php echo htmlspecialchars($app['name']); ?></span>
-                                        <span class="text-xs px-2 py-0.5 rounded-full <?php echo ($app['status'] ?? 'pending') === 'pending' ? 'bg-yellow-100 text-yellow-800' : (($app['status'] ?? 'pending') === 'accepted' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'); ?>">
-                                            <?php echo ucfirst($app['status'] ?? 'pending'); ?>
-                                        </span>
+                        <div class="apps-section hidden border-t border-gray-100 px-4 py-3 bg-blue-50" data-post-id="<?php echo htmlspecialchars($pid); ?>">
+                            <h5 class="font-bold text-gray-800 text-sm mb-3">Job Applications</h5>
+                            <div class="space-y-3">
+                                <?php foreach ($_SESSION['applications'][$pid] as $app): ?>
+                                    <div class="bg-white p-3 rounded-xl shadow-sm border border-gray-200 text-sm">
+                                        <div class="flex justify-between items-start mb-1">
+                                            <div class="flex items-center gap-2">
+                                                <span class="font-bold text-gray-800"><?php echo htmlspecialchars($app['name']); ?></span>
+                                                <span class="text-xs px-2 py-0.5 rounded-full <?php echo ($app['status'] ?? 'pending') === 'pending' ? 'bg-yellow-100 text-yellow-800' : (($app['status'] ?? 'pending') === 'accepted' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'); ?>">
+                                                    <?php echo ucfirst($app['status'] ?? 'pending'); ?>
+                                                </span>
+                                            </div>
+                                            <span class="text-xs text-gray-400"><?php echo htmlspecialchars($app['time']); ?></span>
+                                        </div>
+                                        <div class="text-gray-600 flex gap-4 mb-2">
+                                            <span>📧 <a href="mailto:<?php echo htmlspecialchars($app['email']); ?>" class="hover:underline text-blue-700"><?php echo htmlspecialchars($app['email']); ?></a></span>
+                                            <?php if (!empty($app['phone'])): ?>
+                                                <span>📱 <?php echo htmlspecialchars($app['phone']); ?></span>
+                                            <?php endif; ?>
+                                        </div>
+                                        <?php if (!empty($app['message'])): ?>
+                                            <p class="text-gray-700 mb-2 italic bg-gray-50 p-2 rounded">"<?php echo nl2br(htmlspecialchars($app['message'])); ?>"</p>
+                                        <?php endif; ?>
+                                        <?php if (!empty($app['resume'])): ?>
+                                            <a href="<?php echo htmlspecialchars($app['resume']); ?>" target="_blank" class="inline-block text-xs font-semibold bg-blue-100 text-blue-800 px-3 py-1 rounded hover:bg-blue-200 transition mb-2">📄 View Resume</a>
+                                        <?php endif; ?>
+                                        <?php if (($app['status'] ?? 'pending') === 'pending'): ?>
+                                            <div class="flex gap-2 mt-2">
+                                                <button class="accept-app-btn text-xs font-semibold bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 transition" data-post-id="<?php echo htmlspecialchars($pid); ?>" data-app-id="<?php echo htmlspecialchars($app['id'] ?? ''); ?>">Accept</button>
+                                                <button class="reject-app-btn text-xs font-semibold bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 transition" data-post-id="<?php echo htmlspecialchars($pid); ?>" data-app-id="<?php echo htmlspecialchars($app['id'] ?? ''); ?>">Reject</button>
+                                            </div>
+                                        <?php endif; ?>
                                     </div>
-                                    <span class="text-xs text-gray-400"><?php echo htmlspecialchars($app['time']); ?></span>
-                                </div>
-                                <div class="text-gray-600 flex gap-4 mb-2">
-                                    <span>📧 <a href="mailto:<?php echo htmlspecialchars($app['email']); ?>" class="hover:underline text-blue-700"><?php echo htmlspecialchars($app['email']); ?></a></span>
-                                    <?php if (!empty($app['phone'])): ?>
-                                    <span>📱 <?php echo htmlspecialchars($app['phone']); ?></span>
-                                    <?php endif; ?>
-                                </div>
-                                <?php if (!empty($app['message'])): ?>
-                                <p class="text-gray-700 mb-2 italic bg-gray-50 p-2 rounded">"<?php echo nl2br(htmlspecialchars($app['message'])); ?>"</p>
-                                <?php endif; ?>
-                                <?php if (!empty($app['resume'])): ?>
-                                <a href="<?php echo htmlspecialchars($app['resume']); ?>" target="_blank" class="inline-block text-xs font-semibold bg-blue-100 text-blue-800 px-3 py-1 rounded hover:bg-blue-200 transition mb-2">📄 View Resume</a>
-                                <?php endif; ?>
-                                <?php if (($app['status'] ?? 'pending') === 'pending'): ?>
-                                <div class="flex gap-2 mt-2">
-                                    <button class="accept-app-btn text-xs font-semibold bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 transition" data-post-id="<?php echo htmlspecialchars($pid); ?>" data-app-id="<?php echo htmlspecialchars($app['id'] ?? ''); ?>">Accept</button>
-                                    <button class="reject-app-btn text-xs font-semibold bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 transition" data-post-id="<?php echo htmlspecialchars($pid); ?>" data-app-id="<?php echo htmlspecialchars($app['id'] ?? ''); ?>">Reject</button>
-                                </div>
-                                <?php endif; ?>
+                                <?php endforeach; ?>
                             </div>
-                            <?php endforeach; ?>
                         </div>
-                    </div>
                     <?php endif; ?>
 
                     <?php if ($applyEnabled): ?>
@@ -1194,6 +1224,17 @@ include 'includes/header.php';
                             Apply Now
                         </button>
                     </div>
+                        <div class="border-t border-gray-100 px-4 py-3 bg-blue-50 flex gap-3">
+                            <button class="apply-modal-btn flex-1 bg-pink-700 hover:bg-pink-800 text-white font-bold py-2 rounded-xl transition text-sm" data-post-id="<?php echo htmlspecialchars($pid); ?>">
+                                Apply Now
+                            </button>
+                            <button class="save-job-btn px-6 bg-white border border-gray-300 hover:bg-gray-100 text-gray-700 font-bold py-2 rounded-xl transition text-sm flex items-center justify-center gap-2" data-post-id="<?php echo htmlspecialchars($pid); ?>">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"></path>
+                                </svg>
+                                <span class="save-btn-text"><?php echo in_array($pid, $_SESSION['saved_jobs'] ?? []) ? 'Saved' : 'Save'; ?></span>
+                            </button>
+                        </div>
                     <?php endif; ?>
                 </div>
             <?php endforeach; ?>
@@ -1236,14 +1277,14 @@ include 'includes/header.php';
                         $jobTime = htmlspecialchars($job['time'] ?? 'Active');
                         $jobLogo = htmlspecialchars($job['logo'] ?? '💼');
                     ?>
-                    <div class="flex gap-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition">
-                        <div class="w-8 h-8 bg-blue-100 rounded flex items-center justify-center flex-shrink-0"><?php echo $jobLogo; ?></div>
-                        <div class="flex-1">
-                            <h4 class="font-semibold text-gray-800 text-sm"><?php echo $jobTitle; ?></h4>
-                            <p class="text-gray-500 text-xs"><?php echo $jobCompany; ?></p>
-                            <p class="text-gray-400 text-xs mt-1"><?php echo $jobTime; ?></p>
+                        <div class="flex gap-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition">
+                            <div class="w-8 h-8 bg-blue-100 rounded flex items-center justify-center flex-shrink-0"><?php echo $jobLogo; ?></div>
+                            <div class="flex-1">
+                                <h4 class="font-semibold text-gray-800 text-sm"><?php echo $jobTitle; ?></h4>
+                                <p class="text-gray-500 text-xs"><?php echo $jobCompany; ?></p>
+                                <p class="text-gray-400 text-xs mt-1"><?php echo $jobTime; ?></p>
+                            </div>
                         </div>
-                    </div>
                     <?php endforeach; ?>
                 </div>
                 <a href="index.php?filter=jobs" class="block w-full mt-4 text-center text-blue-800 font-semibold text-sm hover:underline">
@@ -1264,10 +1305,10 @@ include 'includes/header.php';
                     foreach (array_slice($trendingSkills, 0, 3) as $skill):
                         $countFormatted = number_format($skill['count'] / 1000, 1) . 'k';
                     ?>
-                    <div class="cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition">
-                        <p class="text-gray-800 font-medium text-sm"><?php echo htmlspecialchars($skill['name']); ?></p>
-                        <p class="text-gray-400 text-xs"><?php echo $countFormatted; ?> professionals</p>
-                    </div>
+                        <div class="cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition">
+                            <p class="text-gray-800 font-medium text-sm"><?php echo htmlspecialchars($skill['name']); ?></p>
+                            <p class="text-gray-400 text-xs"><?php echo $countFormatted; ?> professionals</p>
+                        </div>
                     <?php endforeach; ?>
                 </div>
                 <a href="assessment.php" class="block w-full mt-4 text-center text-blue-800 font-semibold text-sm hover:underline">
@@ -1364,7 +1405,7 @@ include 'includes/header.php';
 </div>
 
 <script>
-    (function () {
+    (function() {
         // ── Composer ──
         const backdrop = document.getElementById('composerBackdrop');
         const closeBtn = document.getElementById('composerClose');
@@ -1386,11 +1427,11 @@ include 'includes/header.php';
             cb.addEventListener('change', () => {
                 const pill = cb.nextElementSibling;
                 if (cb.checked) {
-                    pill.classList.add('bg-blue-100','border-blue-500','text-blue-700');
-                    pill.classList.remove('border-gray-300','text-gray-600');
+                    pill.classList.add('bg-blue-100', 'border-blue-500', 'text-blue-700');
+                    pill.classList.remove('border-gray-300', 'text-gray-600');
                 } else {
-                    pill.classList.remove('bg-blue-100','border-blue-500','text-blue-700');
-                    pill.classList.add('border-gray-300','text-gray-600');
+                    pill.classList.remove('bg-blue-100', 'border-blue-500', 'text-blue-700');
+                    pill.classList.add('border-gray-300', 'text-gray-600');
                 }
                 // show hiring toggle if #Hiring is checked
                 const hiringCb = document.querySelector('.tagCheckbox[data-tag="#Hiring"]');
@@ -1411,8 +1452,8 @@ include 'includes/header.php';
             tagCheckboxes.forEach(cb => {
                 cb.checked = false;
                 const pill = cb.nextElementSibling;
-                pill.classList.remove('bg-blue-100','border-blue-500','text-blue-700');
-                pill.classList.add('border-gray-300','text-gray-600');
+                pill.classList.remove('bg-blue-100', 'border-blue-500', 'text-blue-700');
+                pill.classList.add('border-gray-300', 'text-gray-600');
             });
             if (hiringToggleWrap) hiringToggleWrap.classList.add('hidden');
         }
@@ -1471,7 +1512,11 @@ include 'includes/header.php';
             if (e.target === backdrop) closeComposer();
         });
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') { closeComposer(); closeApplyModal(); closeShareModal(); }
+            if (e.key === 'Escape') {
+                closeComposer();
+                closeApplyModal();
+                closeShareModal();
+            }
         });
 
         // Post options dropdown
@@ -1497,7 +1542,10 @@ include 'includes/header.php';
                 const postId = editBtn.getAttribute('data-post-id');
                 const content = editBtn.getAttribute('data-post-content') || '';
                 closeAllMenus();
-                openComposer('edit', { postId, content });
+                openComposer('edit', {
+                    postId,
+                    content
+                });
                 e.preventDefault();
                 return;
             }
@@ -1537,18 +1585,24 @@ include 'includes/header.php';
                 const pid = opt.dataset.postId;
                 const emoji = opt.dataset.emoji;
                 const fd = new FormData();
-                fd.append('action','react_post');
+                fd.append('action', 'react_post');
                 fd.append('post_id', pid);
                 fd.append('emoji', emoji);
-                fetch('', {method:'POST', body: fd})
+                fetch('', {
+                        method: 'POST',
+                        body: fd
+                    })
                     .then(r => r.json())
                     .then(data => {
-                        if (!data.ok) { alert(data.msg || 'Please sign in to react.'); return; }
+                        if (!data.ok) {
+                            alert(data.msg || 'Please sign in to react.');
+                            return;
+                        }
                         const btn = document.querySelector(`.react-btn[data-post-id="${pid}"]`);
                         const label = btn ? btn.querySelector('.react-label') : null;
                         if (label) {
-                            const total = Object.values(data.reactions || {}).reduce((a,b)=>a+b,0);
-                            label.textContent = data.mine ? data.mine + ' ' + total : 'React' + (total > 0 ? ' '+total : '');
+                            const total = Object.values(data.reactions || {}).reduce((a, b) => a + b, 0);
+                            label.textContent = data.mine ? data.mine + ' ' + total : 'React' + (total > 0 ? ' ' + total : '');
                             btn.classList.toggle('text-blue-700', !!data.mine);
                             btn.classList.toggle('text-gray-700', !data.mine);
                         }
@@ -1575,7 +1629,7 @@ include 'includes/header.php';
                 const sec = document.querySelector(`.comment-section[data-post-id="${pid}"]`);
                 if (sec) sec.classList.toggle('hidden');
             }
-            
+
             const appBtn = e.target.closest('.view-apps-toggle');
             if (appBtn) {
                 const pid = appBtn.dataset.postId;
@@ -1604,7 +1658,10 @@ include 'includes/header.php';
             fd.append('post_id', pid);
             fd.append('app_id', appId);
             fd.append('status', status);
-            fetch('', { method: 'POST', body: fd })
+            fetch('', {
+                    method: 'POST',
+                    body: fd
+                })
                 .then(r => r.json())
                 .then(data => {
                     if (data.ok) location.reload();
@@ -1619,13 +1676,19 @@ include 'includes/header.php';
                 const text = input.value.trim();
                 if (!text) return;
                 const fd = new FormData();
-                fd.append('action','add_comment');
+                fd.append('action', 'add_comment');
                 fd.append('post_id', pid);
                 fd.append('text', text);
-                fetch('', {method:'POST', body: fd})
+                fetch('', {
+                        method: 'POST',
+                        body: fd
+                    })
                     .then(r => r.json())
                     .then(data => {
-                        if (!data.ok) { alert(data.msg || 'Please sign in to comment.'); return; }
+                        if (!data.ok) {
+                            alert(data.msg || 'Please sign in to comment.');
+                            return;
+                        }
                         input.value = '';
                         const sec = document.querySelector(`.comment-section[data-post-id="${pid}"]`);
                         const list = sec ? sec.querySelector('.comments-list') : null;
@@ -1645,12 +1708,12 @@ include 'includes/header.php';
                         }
                         // update button label
                         const btn2 = document.querySelector(`.comment-toggle-btn[data-post-id="${pid}"]`);
-                        if (btn2) btn2.childNodes[btn2.childNodes.length-1].textContent = ' Comment ' + data.total;
+                        if (btn2) btn2.childNodes[btn2.childNodes.length - 1].textContent = ' Comment ' + data.total;
                         if (window.prependNotif && window.updateBadge) {
                             const link = 'index.php?post=' + encodeURIComponent(pid) + (data.comment && data.comment.id ? '&comment=' + encodeURIComponent(data.comment.id) : '');
                             window.prependNotif('You commented on a post.', link);
                             const badge = document.getElementById('notifBadge');
-                            if (badge) window.updateBadge((parseInt(badge.textContent)||0)+1);
+                            if (badge) window.updateBadge((parseInt(badge.textContent) || 0) + 1);
                         }
                     });
             }
@@ -1669,17 +1732,29 @@ include 'includes/header.php';
         let shareBtnRef = null;
 
         function escapeHtml(str) {
-            return (str || '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+            return (str || '').replace(/[&<>"']/g, (c) => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#39;'
+            } [c]));
         }
 
         function closeShareModal() {
-            if (shareModalBackdrop) { shareModalBackdrop.classList.add('hidden'); shareModalBackdrop.classList.remove('flex'); }
+            if (shareModalBackdrop) {
+                shareModalBackdrop.classList.add('hidden');
+                shareModalBackdrop.classList.remove('flex');
+            }
             shareTargetId = null;
             sharePostJson = null;
             shareBtnRef = null;
             if (shareCaption) shareCaption.value = '';
             if (sharePreview) sharePreview.innerHTML = '';
-            if (shareModalMsg) { shareModalMsg.classList.add('hidden'); shareModalMsg.textContent = ''; }
+            if (shareModalMsg) {
+                shareModalMsg.classList.add('hidden');
+                shareModalMsg.textContent = '';
+            }
         }
         // Make accessible for the earlier Escape handler
         window.closeShareModal = closeShareModal;
@@ -1689,10 +1764,17 @@ include 'includes/header.php';
             sharePostJson = postJson || '';
             shareBtnRef = btnEl || null;
             if (shareCaption) shareCaption.value = '';
-            if (shareModalMsg) { shareModalMsg.classList.add('hidden'); shareModalMsg.textContent = ''; }
+            if (shareModalMsg) {
+                shareModalMsg.classList.add('hidden');
+                shareModalMsg.textContent = '';
+            }
 
             let data = null;
-            try { data = postJson ? JSON.parse(postJson) : null; } catch (e) { data = null; }
+            try {
+                data = postJson ? JSON.parse(postJson) : null;
+            } catch (e) {
+                data = null;
+            }
             if (sharePreview) {
                 const name = escapeHtml((data && (data.username || data.company || data.name)) || 'Post');
                 const meta = escapeHtml((data && data.time) || '');
@@ -1724,7 +1806,10 @@ include 'includes/header.php';
                 `;
             }
 
-            if (shareModalBackdrop) { shareModalBackdrop.classList.remove('hidden'); shareModalBackdrop.classList.add('flex'); }
+            if (shareModalBackdrop) {
+                shareModalBackdrop.classList.remove('hidden');
+                shareModalBackdrop.classList.add('flex');
+            }
             setTimeout(() => shareCaption && shareCaption.focus(), 50);
         }
 
@@ -1739,7 +1824,9 @@ include 'includes/header.php';
         });
 
         if (shareModalClose) shareModalClose.addEventListener('click', closeShareModal);
-        if (shareModalBackdrop) shareModalBackdrop.addEventListener('click', (e) => { if (e.target === shareModalBackdrop) closeShareModal(); });
+        if (shareModalBackdrop) shareModalBackdrop.addEventListener('click', (e) => {
+            if (e.target === shareModalBackdrop) closeShareModal();
+        });
 
         if (shareSubmitBtn) {
             shareSubmitBtn.addEventListener('click', () => {
@@ -1750,13 +1837,16 @@ include 'includes/header.php';
                 fd.append('share_text', (shareCaption ? shareCaption.value.trim() : ''));
                 if (sharePostJson) fd.append('post_json', sharePostJson);
 
-                fetch('', { method: 'POST', body: fd })
+                fetch('', {
+                        method: 'POST',
+                        body: fd
+                    })
                     .then(r => r.json())
                     .then(data => {
                         if (!data.ok) {
                             if (shareModalMsg) {
-                                shareModalMsg.classList.remove('hidden','bg-green-100','text-green-700','bg-red-100','text-red-700');
-                                shareModalMsg.classList.add('bg-red-100','text-red-700');
+                                shareModalMsg.classList.remove('hidden', 'bg-green-100', 'text-green-700', 'bg-red-100', 'text-red-700');
+                                shareModalMsg.classList.add('bg-red-100', 'text-red-700');
                                 shareModalMsg.textContent = data.msg || 'Please sign in to share.';
                             } else {
                                 alert(data.msg || 'Please sign in to share.');
@@ -1766,7 +1856,7 @@ include 'includes/header.php';
 
                         // Update share count on the clicked button immediately
                         if (shareBtnRef) {
-                            shareBtnRef.childNodes[shareBtnRef.childNodes.length-1].textContent = ' Share ' + data.shares;
+                            shareBtnRef.childNodes[shareBtnRef.childNodes.length - 1].textContent = ' Share ' + data.shares;
                             shareBtnRef.classList.add('text-blue-700');
                         }
 
@@ -1785,7 +1875,10 @@ include 'includes/header.php';
         const applyFormMsg = document.getElementById('applyFormMsg');
 
         function closeApplyModal() {
-            if (applyModalBackdrop) { applyModalBackdrop.classList.add('hidden'); applyModalBackdrop.classList.remove('flex'); }
+            if (applyModalBackdrop) {
+                applyModalBackdrop.classList.add('hidden');
+                applyModalBackdrop.classList.remove('flex');
+            }
         }
 
         document.addEventListener('click', (e) => {
@@ -1793,24 +1886,35 @@ include 'includes/header.php';
             if (btn) {
                 const pid = btn.dataset.postId;
                 if (applyPostIdInput) applyPostIdInput.value = pid;
-                if (applyFormMsg) { applyFormMsg.classList.add('hidden'); applyFormMsg.textContent = ''; }
+                if (applyFormMsg) {
+                    applyFormMsg.classList.add('hidden');
+                    applyFormMsg.textContent = '';
+                }
                 if (applyForm) applyForm.reset();
                 if (applyPostIdInput) applyPostIdInput.value = pid;
-                if (applyModalBackdrop) { applyModalBackdrop.classList.remove('hidden'); applyModalBackdrop.classList.add('flex'); }
+                if (applyModalBackdrop) {
+                    applyModalBackdrop.classList.remove('hidden');
+                    applyModalBackdrop.classList.add('flex');
+                }
             }
         });
         if (applyModalClose) applyModalClose.addEventListener('click', closeApplyModal);
-        if (applyModalBackdrop) applyModalBackdrop.addEventListener('click', (e) => { if(e.target===applyModalBackdrop) closeApplyModal(); });
+        if (applyModalBackdrop) applyModalBackdrop.addEventListener('click', (e) => {
+            if (e.target === applyModalBackdrop) closeApplyModal();
+        });
 
         if (applyForm) {
             applyForm.addEventListener('submit', (e) => {
                 e.preventDefault();
                 const fd = new FormData(applyForm);
-                fetch('', {method:'POST', body:fd})
+                fetch('', {
+                        method: 'POST',
+                        body: fd
+                    })
                     .then(r => r.json())
                     .then(data => {
                         if (applyFormMsg) {
-                            applyFormMsg.classList.remove('hidden','bg-red-100','text-red-700','bg-green-100','text-green-700');
+                            applyFormMsg.classList.remove('hidden', 'bg-red-100', 'text-red-700', 'bg-green-100', 'text-green-700');
                             applyFormMsg.classList.add(data.ok ? 'bg-green-100' : 'bg-red-100', data.ok ? 'text-green-700' : 'text-red-700');
                             applyFormMsg.textContent = data.msg || (data.ok ? 'Applied!' : 'Error.');
                         }
@@ -1822,12 +1926,42 @@ include 'includes/header.php';
                                 const link = 'index.php?post=' + encodeURIComponent(fd.get('post_id') || '');
                                 window.prependNotif('You submitted a job application.', link);
                                 const badge = document.getElementById('notifBadge');
-                                if (badge) window.updateBadge((parseInt(badge.textContent)||0)+1);
+                                if (badge) window.updateBadge((parseInt(badge.textContent) || 0) + 1);
                             }
                         }
                     });
             });
         }
+
+        // ── AJAX: Save Job Toggle ──
+        document.addEventListener('click', (e) => {
+            const saveBtn = e.target.closest('.save-job-btn');
+            if (saveBtn) {
+                const pid = saveBtn.dataset.postId;
+                const textSpan = saveBtn.querySelector('.save-btn-text');
+
+                const fd = new FormData();
+                fd.append('action', 'toggle_save_job');
+                fd.append('post_id', pid);
+
+                fetch('', {
+                        method: 'POST',
+                        body: fd
+                    })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (!data.ok) {
+                            alert(data.msg || 'Please sign in to save jobs.');
+                            return;
+                        }
+                        // Update button text visually
+                        if (textSpan) {
+                            textSpan.textContent = data.saved ? 'Saved' : 'Save';
+                        }
+                    });
+                e.preventDefault();
+            }
+        });
 
         // Auto-dismiss success alert
         document.querySelectorAll('[data-autodismiss]').forEach(el => {
@@ -1836,7 +1970,7 @@ include 'includes/header.php';
         });
 
         // ── Notification deep links: ?post=ID[&comment=ID] ──
-        (function () {
+        (function() {
             const params = new URLSearchParams(window.location.search);
             const pid = params.get('post');
             if (!pid) return;
@@ -1848,9 +1982,12 @@ include 'includes/header.php';
 
             // Scroll to post and highlight
             setTimeout(() => {
-                card.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                card.classList.add('ring-2','ring-yellow-400','ring-offset-2');
-                setTimeout(() => card.classList.remove('ring-2','ring-yellow-400','ring-offset-2'), 1600);
+                card.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start'
+                });
+                card.classList.add('ring-2', 'ring-yellow-400', 'ring-offset-2');
+                setTimeout(() => card.classList.remove('ring-2', 'ring-yellow-400', 'ring-offset-2'), 1600);
             }, 150);
 
             const cid = params.get('comment');
@@ -1864,9 +2001,12 @@ include 'includes/header.php';
             setTimeout(() => {
                 const commentEl = document.getElementById(`comment_${cid}`);
                 if (commentEl) {
-                    commentEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    commentEl.classList.add('ring-2','ring-blue-400','ring-offset-2');
-                    setTimeout(() => commentEl.classList.remove('ring-2','ring-blue-400','ring-offset-2'), 1600);
+                    commentEl.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'center'
+                    });
+                    commentEl.classList.add('ring-2', 'ring-blue-400', 'ring-offset-2');
+                    setTimeout(() => commentEl.classList.remove('ring-2', 'ring-blue-400', 'ring-offset-2'), 1600);
                 }
             }, 250);
         })();
@@ -1875,9 +2015,17 @@ include 'includes/header.php';
 </script>
 
 <style>
-.tag-pill { transition: all 0.15s; }
-.emoji-picker { transition: opacity 0.1s; }
-.comment-section { transition: all 0.2s; }
+    .tag-pill {
+        transition: all 0.15s;
+    }
+
+    .emoji-picker {
+        transition: opacity 0.1s;
+    }
+
+    .comment-section {
+        transition: all 0.2s;
+    }
 </style>
 
 <?php include 'includes/footer.php'; ?>
