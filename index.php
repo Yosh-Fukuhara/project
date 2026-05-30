@@ -1062,15 +1062,9 @@ include 'includes/header.php';
                                     <?php endif; ?>
                                 <?php endif; ?>
                                 <?php if (isset($post['image'])): ?>
-<<<<<<<<< Temporary merge branch 1
                                     <div class="mt-4 rounded-lg overflow-hidden">
-                                        <img src="<?php echo $post['image']; ?>" alt="Post image" class="w-full">
+                                        <img src="<?php echo htmlspecialchars($post['image']); ?>" alt="Post image" class="w-full">
                                     </div>
-=========
-                                <div class="mt-4 rounded-lg overflow-hidden">
-                                    <img src="<?php echo htmlspecialchars($post['image']); ?>" alt="Post image" class="w-full">
-                                </div>
->>>>>>>>> Temporary merge branch 2
                                 <?php endif; ?>
                                 <?php if (isset($post['skills'])): ?>
                                     <div class="mt-4 flex flex-wrap gap-2">
