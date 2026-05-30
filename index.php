@@ -811,7 +811,7 @@ include 'includes/header.php';
                     'followers' => '1,450',
                     'badge' => '#Hiring',
                     'content' => 'We are looking for: SOC analyst, Full stack Developer, Graphic Designer, and Data analyst. Submit your credentials and apply now!',
-                    'image' => 'https://images.unsplash.com/photo-1701175398176-33f1fd49a1e9?w=800&h=400&fit=crop'
+                    'image' => 'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=800&h=400&fit=crop'
                 ],
                 [
                     'type' => 'seeking',
@@ -1062,6 +1062,9 @@ include 'includes/header.php';
                                     <?php endif; ?>
                                 <?php endif; ?>
                                 <?php if (isset($post['image'])): ?>
+                                <div class="mt-4 rounded-lg overflow-hidden">
+                                    <img src="<?php echo htmlspecialchars($post['image']); ?>" alt="Post image" class="w-full">
+                                </div>
                                     <div class="mt-4 rounded-lg overflow-hidden">
                                         <img src="<?php echo $post['image']; ?>" alt="Post image" class="w-full">
                                     </div>
@@ -1216,6 +1219,11 @@ include 'includes/header.php';
                     <?php endif; ?>
 
                     <?php if ($applyEnabled): ?>
+                    <div class="border-t border-gray-100 px-4 py-3 bg-blue-50">
+                        <button class="apply-modal-btn w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 rounded-xl transition text-sm" data-post-id="<?php echo htmlspecialchars($pid); ?>">
+                            Apply Now
+                        </button>
+                    </div>
                         <div class="border-t border-gray-100 px-4 py-3 bg-blue-50 flex gap-3">
                             <button class="apply-modal-btn flex-1 bg-pink-700 hover:bg-pink-800 text-white font-bold py-2 rounded-xl transition text-sm" data-post-id="<?php echo htmlspecialchars($pid); ?>">
                                 Apply Now
@@ -1237,7 +1245,7 @@ include 'includes/header.php';
             <?php endif; ?>
         </div>
 
-        <div class="lg:col-span-3 space-y-6">
+        <div class="lg:col-span-3 space-y-6 hidden lg:block">
             <div class="bg-white rounded-xl shadow-md p-4">
                 <div class="flex items-center justify-between mb-4">
                     <h3 class="font-bold text-lg text-gray-800">Jobs for You</h3>

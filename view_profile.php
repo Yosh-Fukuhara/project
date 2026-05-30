@@ -176,7 +176,7 @@ include 'includes/header.php';
                 'hr@netsentinel.com' => [
                     [
                         'content'         => 'We are looking for: SOC analyst, Full stack Developer, Graphic Designer, and Data analyst. Submit your credentials and apply now!',
-                        'attachment_path' => 'https://images.unsplash.com/photo-1701175398176-33f1fd49a1e9?w=800&h=400&fit=crop',
+                        'attachment_path' => 'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=800&h=400&fit=crop',
                         'time_label'      => '2h ago',
                     ],
                 ],

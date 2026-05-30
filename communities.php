@@ -272,11 +272,11 @@ include 'includes/header.php';
 ?>
 
 <div class="container mx-auto px-4 py-8">
-    <div class="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6">
+    <div class="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6 h-[calc(100vh-140px)] md:h-auto">
 
         <!-- Left: List -->
-        <div class="lg:col-span-4">
-            <div class="bg-white rounded-2xl shadow-md overflow-hidden">
+        <div class="lg:col-span-4 flex flex-col min-h-0 <?php echo $activeCommunityId ? 'hidden lg:flex' : 'flex'; ?>">
+            <div class="bg-white rounded-2xl shadow-md overflow-hidden flex flex-col flex-1 min-h-0">
                 <div class="p-4 border-b border-gray-200 flex items-center justify-between gap-3">
                     <h2 class="text-xl font-bold text-gray-900">Communities</h2>
                     <button id="openCreateCommunity" type="button" class="bg-blue-900 hover:bg-blue-800 text-white text-sm font-semibold px-3 py-2 rounded-xl transition">
@@ -286,17 +286,17 @@ include 'includes/header.php';
 
                 <div class="p-4 border-b border-gray-200">
                     <form method="GET" class="flex gap-2">
-                        <input type="text" name="q" value="<?php echo htmlspecialchars($search); ?>" placeholder="Search communities..." class="flex-1 px-3 py-2 rounded-xl border border-gray-200 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                        <input type="text" name="q" value="<?php echo htmlspecialchars($search); ?>" placeholder="Search..." class="flex-1 px-3 py-2 rounded-xl border border-gray-200 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm min-w-0">
                         <input type="hidden" name="view" value="<?php echo htmlspecialchars($view); ?>">
                         <?php if (!empty($activeCommunityId)): ?>
                             <input type="hidden" name="c" value="<?php echo htmlspecialchars($activeCommunityId); ?>">
                         <?php endif; ?>
-                        <button class="bg-gray-900 hover:bg-gray-800 text-white px-4 py-2 rounded-xl text-sm font-semibold">Search</button>
+                        <button class="bg-gray-900 hover:bg-gray-800 text-white px-3 py-2 rounded-xl text-xs font-semibold flex-shrink-0">Search</button>
                     </form>
                 </div>
 
                 <!-- Sidebar tabs (Reddit-like) -->
-                <div class="p-4 border-b border-gray-200 bg-gray-50">
+                <div class="p-3 md:p-4 border-b border-gray-200 bg-gray-50 overflow-x-auto">
                     <?php
                         $base = ['q' => $search, 'c' => $activeCommunityId ?: null];
                         $tabClass = function($key) use ($view) {
@@ -305,43 +305,24 @@ include 'includes/header.php';
                                 : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50';
                         };
                     ?>
-                    <div class="grid grid-cols-2 gap-2">
+                    <div class="flex lg:grid lg:grid-cols-2 gap-2 min-w-max lg:min-w-0">
                         <a href="<?php echo cs_build_communities_url(array_merge($base, ['view' => 'all'])); ?>"
-                           class="text-xs font-semibold px-3 py-2 rounded-xl border transition <?php echo $tabClass('all'); ?>">
-                            All <span class="opacity-80">(<?php echo $countAll; ?>)</span>
+                           class="text-[10px] md:text-xs font-semibold px-2 py-1.5 md:px-3 md:py-2 rounded-xl border transition <?php echo $tabClass('all'); ?>">
+                            All (<?php echo $countAll; ?>)
                         </a>
                         <a href="<?php echo cs_build_communities_url(array_merge($base, ['view' => 'joined'])); ?>"
-                           class="text-xs font-semibold px-3 py-2 rounded-xl border transition <?php echo $tabClass('joined'); ?>">
-                            Joined <span class="opacity-80">(<?php echo $countJoined; ?>)</span>
+                           class="text-[10px] md:text-xs font-semibold px-2 py-1.5 md:px-3 md:py-2 rounded-xl border transition <?php echo $tabClass('joined'); ?>">
+                            Joined (<?php echo $countJoined; ?>)
                         </a>
                         <a href="<?php echo cs_build_communities_url(array_merge($base, ['view' => 'recommended'])); ?>"
-                           class="text-xs font-semibold px-3 py-2 rounded-xl border transition <?php echo $tabClass('recommended'); ?>">
-                            Recommended <span class="opacity-80">(<?php echo $countRecommended; ?>)</span>
+                           class="text-[10px] md:text-xs font-semibold px-2 py-1.5 md:px-3 md:py-2 rounded-xl border transition <?php echo $tabClass('recommended'); ?>">
+                            Recs (<?php echo $countRecommended; ?>)
                         </a>
                         <a href="<?php echo cs_build_communities_url(array_merge($base, ['view' => 'groups'])); ?>"
-                           class="text-xs font-semibold px-3 py-2 rounded-xl border transition <?php echo $tabClass('groups'); ?>">
-                            Groups <span class="opacity-80">(<?php echo $countGroups; ?>)</span>
+                           class="text-[10px] md:text-xs font-semibold px-2 py-1.5 md:px-3 md:py-2 rounded-xl border transition <?php echo $tabClass('groups'); ?>">
+                            Groups (<?php echo $countGroups; ?>)
                         </a>
-                        <a href="<?php echo cs_build_communities_url(array_merge($base, ['view' => 'organizations'])); ?>"
-                           class="text-xs font-semibold px-3 py-2 rounded-xl border transition <?php echo $tabClass('organizations'); ?>">
-                            Orgs <span class="opacity-80">(<?php echo $countOrgs; ?>)</span>
-                        </a>
-                        <button type="button" class="text-xs font-semibold px-3 py-2 rounded-xl border border-dashed border-gray-300 text-gray-500 cursor-default">
-                            Filter
-                        </button>
                     </div>
-                    <p class="text-xs text-gray-500 mt-3">
-                        <?php
-                            $labelMap = [
-                                'all' => 'Showing all communities',
-                                'joined' => 'Showing communities you joined',
-                                'recommended' => 'Showing recommended communities',
-                                'groups' => 'Showing groups',
-                                'organizations' => 'Showing organizations',
-                            ];
-                            echo htmlspecialchars($labelMap[$view] ?? 'Showing communities');
-                        ?>
-                    </p>
                 </div>
 
                 <?php if (!empty($errors)): ?>
@@ -352,7 +333,7 @@ include 'includes/header.php';
                     </div>
                 <?php endif; ?>
 
-                <div class="divide-y divide-gray-100">
+                <div class="divide-y divide-gray-100 flex-1 overflow-y-auto min-h-0">
                     <?php if (empty($communities)): ?>
                         <div class="p-6 text-center text-sm text-gray-500">
                             No communities found.
@@ -369,20 +350,17 @@ include 'includes/header.php';
                             <div class="flex items-start justify-between gap-3">
                                 <div class="min-w-0">
                                     <div class="flex items-center gap-2">
-                                        <span class="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-blue-100 text-blue-900 font-bold flex-shrink-0">
+                                        <span class="inline-flex items-center justify-center w-8 h-8 md:w-9 md:h-9 rounded-xl bg-blue-100 text-blue-900 font-bold flex-shrink-0">
                                             <?php echo strtoupper(substr($c['name'], 0, 1)); ?>
                                         </span>
                                         <div class="min-w-0">
-                                            <p class="font-bold text-gray-900 truncate"><?php echo htmlspecialchars($c['name']); ?></p>
-                                            <p class="text-xs text-gray-500"><?php echo $typeLabel; ?> • <?php echo number_format((int)($c['members'] ?? 0)); ?> members</p>
+                                            <p class="font-bold text-gray-900 truncate text-sm md:text-base"><?php echo htmlspecialchars($c['name']); ?></p>
+                                            <p class="text-[10px] md:text-xs text-gray-500"><?php echo $typeLabel; ?> • <?php echo number_format((int)($c['members'] ?? 0)); ?></p>
                                         </div>
                                     </div>
-                                    <?php if (!empty($c['description'])): ?>
-                                        <p class="text-sm text-gray-600 mt-2 line-clamp-2"><?php echo htmlspecialchars($c['description']); ?></p>
-                                    <?php endif; ?>
                                 </div>
                                 <?php if ($isJoined): ?>
-                                    <span class="text-xs font-bold text-green-700 bg-green-100 px-2 py-1 rounded-full flex-shrink-0">Joined</span>
+                                    <span class="text-[10px] font-bold text-green-700 bg-green-100 px-2 py-0.5 rounded-full flex-shrink-0">Joined</span>
                                 <?php endif; ?>
                             </div>
                         </a>
@@ -392,9 +370,9 @@ include 'includes/header.php';
         </div>
 
         <!-- Right: Detail -->
-        <div class="lg:col-span-8">
+        <div class="lg:col-span-8 flex flex-col min-h-0 <?php echo $activeCommunityId ? 'flex' : 'hidden lg:flex'; ?>">
             <?php if (!$activeCommunity): ?>
-                <div class="bg-white rounded-2xl shadow-md p-10 text-center">
+                <div class="bg-white rounded-2xl shadow-md p-10 text-center flex-1 flex flex-col items-center justify-center">
                     <div class="text-4xl mb-3">👥</div>
                     <h3 class="text-xl font-bold text-gray-900">Pick a community</h3>
                     <p class="text-gray-500 mt-2">Join groups or organizations and start posting like Reddit communities.</p>
@@ -406,82 +384,88 @@ include 'includes/header.php';
                     $typeLabel = ($activeCommunity['type'] ?? 'group') === 'organization' ? 'Organization' : 'Group';
                     $posts = $_SESSION['community_posts'][$cid] ?? [];
                 ?>
-                <div class="bg-white rounded-2xl shadow-md overflow-hidden">
-                    <div class="p-5 border-b border-gray-200 flex items-start justify-between gap-4">
-                        <div class="min-w-0">
-                            <div class="flex items-center gap-3">
-                                <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-900 to-cyan-800 text-white flex items-center justify-center font-black text-xl flex-shrink-0">
-                                    <?php echo strtoupper(substr($activeCommunity['name'], 0, 1)); ?>
-                                </div>
-                                <div class="min-w-0">
-                                    <h3 class="text-2xl font-bold text-gray-900 truncate"><?php echo htmlspecialchars($activeCommunity['name']); ?></h3>
-                                    <p class="text-sm text-gray-500"><?php echo $typeLabel; ?> • <?php echo number_format((int)($activeCommunity['members'] ?? 0)); ?> members • Created <?php echo htmlspecialchars($activeCommunity['created_at'] ?? ''); ?></p>
+                <div class="bg-white rounded-2xl shadow-md overflow-hidden flex flex-col flex-1 min-h-0">
+                    <div class="p-4 md:p-5 border-b border-gray-200 flex items-start justify-between gap-4">
+                        <div class="flex items-start gap-3 min-w-0">
+                            <a href="communities.php" class="lg:hidden p-2 -ml-2 text-gray-500 hover:text-blue-900 flex-shrink-0" aria-label="Back to communities">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                                </svg>
+                            </a>
+                            <div class="min-w-0">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 md:w-12 md:h-12 rounded-2xl bg-gradient-to-br from-blue-900 to-cyan-800 text-white flex items-center justify-center font-black text-lg md:text-xl flex-shrink-0">
+                                        <?php echo strtoupper(substr($activeCommunity['name'], 0, 1)); ?>
+                                    </div>
+                                    <div class="min-w-0">
+                                        <h3 class="text-lg md:text-2xl font-bold text-gray-900 truncate"><?php echo htmlspecialchars($activeCommunity['name']); ?></h3>
+                                        <p class="text-[10px] md:text-sm text-gray-500 truncate"><?php echo $typeLabel; ?> • <?php echo number_format((int)($activeCommunity['members'] ?? 0)); ?> members</p>
+                                    </div>
                                 </div>
                             </div>
-                            <?php if (!empty($activeCommunity['description'])): ?>
-                                <p class="mt-3 text-gray-700"><?php echo htmlspecialchars($activeCommunity['description']); ?></p>
-                            <?php endif; ?>
                         </div>
                         <div class="flex gap-2 flex-shrink-0">
                             <?php if (!$isJoined): ?>
                                 <form method="POST">
                                     <input type="hidden" name="action" value="join_community">
                                     <input type="hidden" name="community_id" value="<?php echo htmlspecialchars($cid); ?>">
-                                    <button class="bg-blue-900 hover:bg-blue-800 text-white font-semibold px-4 py-2 rounded-xl transition text-sm">Join</button>
+                                    <button class="bg-blue-900 hover:bg-blue-800 text-white font-semibold px-3 py-1.5 md:px-4 md:py-2 rounded-xl transition text-xs md:text-sm">Join</button>
                                 </form>
                             <?php else: ?>
                                 <form method="POST" onsubmit="return confirm('Leave this community?');">
                                     <input type="hidden" name="action" value="leave_community">
                                     <input type="hidden" name="community_id" value="<?php echo htmlspecialchars($cid); ?>">
-                                    <button class="bg-white hover:bg-gray-50 border border-gray-200 text-gray-800 font-semibold px-4 py-2 rounded-xl transition text-sm">Joined ✓</button>
+                                    <button class="bg-white hover:bg-gray-50 border border-gray-200 text-gray-800 font-semibold px-3 py-1.5 md:px-4 md:py-2 rounded-xl transition text-xs md:text-sm">Joined ✓</button>
                                 </form>
                             <?php endif; ?>
                         </div>
                     </div>
 
-                    <div class="p-5 border-b border-gray-100 bg-gray-50">
-                        <?php if (!$isJoined): ?>
-                            <p class="text-sm text-gray-600">Join this community to create posts.</p>
-                        <?php else: ?>
-                            <form method="POST" class="space-y-3">
-                                <input type="hidden" name="action" value="create_community_post">
-                                <input type="hidden" name="community_id" value="<?php echo htmlspecialchars($cid); ?>">
-                                <textarea name="content" rows="3" class="w-full px-4 py-3 rounded-2xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" placeholder="Create a post..."></textarea>
-                                <div class="flex justify-end">
-                                    <button class="bg-blue-900 hover:bg-blue-800 text-white font-bold px-5 py-2 rounded-xl transition text-sm">Post</button>
-                                </div>
-                            </form>
-                        <?php endif; ?>
-                    </div>
+                    <div class="flex-1 overflow-y-auto min-h-0">
+                        <div class="p-4 md:p-5 border-b border-gray-100 bg-gray-50">
+                            <?php if (!$isJoined): ?>
+                                <p class="text-sm text-gray-600">Join this community to create posts.</p>
+                            <?php else: ?>
+                                <form method="POST" class="space-y-3">
+                                    <input type="hidden" name="action" value="create_community_post">
+                                    <input type="hidden" name="community_id" value="<?php echo htmlspecialchars($cid); ?>">
+                                    <textarea name="content" rows="3" class="w-full px-4 py-3 rounded-2xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" placeholder="Create a post..."></textarea>
+                                    <div class="flex justify-end">
+                                        <button class="bg-blue-900 hover:bg-blue-800 text-white font-bold px-5 py-2 rounded-xl transition text-sm">Post</button>
+                                    </div>
+                                </form>
+                            <?php endif; ?>
+                        </div>
 
-                    <div class="p-5 space-y-4">
-                        <?php if (empty($posts)): ?>
-                            <div class="text-center py-10">
-                                <div class="text-3xl mb-2">🗨️</div>
-                                <p class="text-gray-500">No posts yet. Be the first to post!</p>
-                            </div>
-                        <?php else: ?>
-                            <?php foreach ($posts as $p): ?>
-                                <div class="border border-gray-200 rounded-2xl p-4">
-                                    <div class="flex items-start justify-between gap-3">
-                                        <div class="flex items-center gap-2 min-w-0">
-                                            <div class="w-9 h-9 rounded-full bg-blue-100 text-blue-900 font-bold flex items-center justify-center overflow-hidden flex-shrink-0">
-                                                <?php if (!empty($p['avatar'])): ?>
-                                                    <img src="<?php echo htmlspecialchars($p['avatar']); ?>" alt="" class="w-full h-full object-cover">
-                                                <?php else: ?>
-                                                    <?php echo strtoupper(substr($p['user'] ?? 'U', 0, 1)); ?>
-                                                <?php endif; ?>
-                                            </div>
-                                            <div class="min-w-0">
-                                                <p class="font-bold text-gray-900 truncate"><?php echo htmlspecialchars($p['user'] ?? 'User'); ?></p>
-                                                <p class="text-xs text-gray-500 truncate"><?php echo htmlspecialchars($p['time'] ?? ''); ?></p>
+                        <div class="p-4 md:p-5 space-y-4">
+                            <?php if (empty($posts)): ?>
+                                <div class="text-center py-10">
+                                    <div class="text-3xl mb-2">🗨️</div>
+                                    <p class="text-gray-500">No posts yet. Be the first to post!</p>
+                                </div>
+                            <?php else: ?>
+                                <?php foreach ($posts as $p): ?>
+                                    <div class="border border-gray-200 rounded-2xl p-4 bg-white">
+                                        <div class="flex items-start justify-between gap-3">
+                                            <div class="flex items-center gap-2 min-w-0">
+                                                <div class="w-8 h-8 md:w-9 md:h-9 rounded-full bg-blue-100 text-blue-900 font-bold flex items-center justify-center overflow-hidden flex-shrink-0">
+                                                    <?php if (!empty($p['avatar'])): ?>
+                                                        <img src="<?php echo htmlspecialchars($p['avatar']); ?>" alt="" class="w-full h-full object-cover">
+                                                    <?php else: ?>
+                                                        <?php echo strtoupper(substr($p['user'] ?? 'U', 0, 1)); ?>
+                                                    <?php endif; ?>
+                                                </div>
+                                                <div class="min-w-0">
+                                                    <p class="font-bold text-gray-900 truncate text-sm"><?php echo htmlspecialchars($p['user'] ?? 'User'); ?></p>
+                                                    <p class="text-[10px] text-gray-500 truncate"><?php echo htmlspecialchars($p['time'] ?? ''); ?></p>
+                                                </div>
                                             </div>
                                         </div>
+                                        <p class="mt-3 text-gray-800 whitespace-pre-wrap break-words text-sm"><?php echo nl2br(htmlspecialchars($p['content'] ?? '')); ?></p>
                                     </div>
-                                    <p class="mt-3 text-gray-800 whitespace-pre-wrap break-words"><?php echo nl2br(htmlspecialchars($p['content'] ?? '')); ?></p>
-                                </div>
-                            <?php endforeach; ?>
-                        <?php endif; ?>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </div>
                     </div>
                 </div>
             <?php endif; ?>
