@@ -7,6 +7,14 @@ $pageTitle = 'Shopping Cart - CyberSphere';
 $currentPage = 'cart';
 
 // Sanitize: remove any items that aren't proper arrays (guards against string-offset TypeError)
+// ── Require login to access cart ────────────────────────────────────────
+if (!isset($_SESSION['user'])) {
+    // Store intended destination so we can redirect back after login
+    $_SESSION['redirect_after_login'] = 'cart.php';
+    header('Location: login.php');
+    exit;
+}
+
 $_SESSION['cart'] = array_values(array_filter($_SESSION['cart'], fn($item) => is_array($item)));
 
 // Calculate total FIRST so it's available inside the POST block below
@@ -17,22 +25,79 @@ foreach ($_SESSION['cart'] as $item) {
 
 $checkoutSuccess = false;
 $checkoutMessage = '';
+$checkoutErrors  = [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['checkout'])) {
-    $paymentMethod = $_POST['payment_method'] ?? '';
-    $paymentDetails = $_POST['payment_details'] ?? '';
-    $checkoutSuccess = true;
-    // Save a snapshot of the cart and totals before clearing, so the summary can still be shown
-    $_SESSION['last_order'] = [
-        'items'          => $_SESSION['cart'],
-        'subtotal'       => $total,
-        'tax'            => $total * 0.12,
-        'grand_total'    => $total * 1.12,
-        'payment_method' => $paymentMethod,
-    ];
-    $checkoutMessage = "Order placed successfully! Payment method: " . htmlspecialchars($paymentMethod);
-    $_SESSION['cart'] = [];
-    $total = 0; // reset after clearing
+    // ── Login required ────────────────────────────────────────────────────
+    if (!isset($_SESSION['user'])) {
+        header('Location: login.php');
+        exit;
+    }
+
+    $paymentMethod  = trim($_POST['payment_method'] ?? '');
+    $paymentDetails = trim($_POST['payment_details'] ?? '');
+
+    // ── Validate ──────────────────────────────────────────────────────────
+    $allowedMethods = ['Credit Card', 'GCash', 'PayMaya'];
+    if (empty($paymentMethod) || !in_array($paymentMethod, $allowedMethods)) {
+        $checkoutErrors[] = 'Please select a valid payment method.';
+    }
+    if (empty($paymentDetails)) {
+        $checkoutErrors[] = 'Please enter your payment details.';
+    }
+    if (empty($_SESSION['cart'])) {
+        $checkoutErrors[] = 'Your cart is empty.';
+    }
+
+    // ── Validate payment details by method ────────────────────────────────
+    if (empty($checkoutErrors)) {
+        if ($paymentMethod === 'Credit Card') {
+            // Expect "Cardholder: ..., Card: XXXX XXXX XXXX XXXX, Expiry: MM/YY, CVV: XXX"
+            if (!preg_match('/Card:\s*[\d\s]{14,19}/', $paymentDetails)) {
+                $checkoutErrors[] = 'Please enter a valid card number (16 digits).';
+            }
+            if (!preg_match('/Expiry:\s*\d{2}\/\d{2}/', $paymentDetails)) {
+                $checkoutErrors[] = 'Please enter a valid expiry date (MM/YY).';
+            }
+            if (!preg_match('/CVV:\s*\d{3,4}/', $paymentDetails)) {
+                $checkoutErrors[] = 'Please enter a valid CVV (3–4 digits).';
+            }
+        } else {
+            // GCash / PayMaya — expect Philippine mobile number
+            if (!preg_match('/09\d{9}/', $paymentDetails)) {
+                $checkoutErrors[] = 'Please enter a valid mobile number starting with 09 (11 digits).';
+            }
+        }
+    }
+
+    if (empty($checkoutErrors)) {
+        $orderId = 'ORD-' . strtoupper(substr(uniqid('', true), -8));
+        $orderRecord = [
+            'id'             => $orderId,
+            'user_id'        => $_SESSION['user']['id'],
+            'username'       => $_SESSION['user']['username'],
+            'items'          => $_SESSION['cart'],
+            'subtotal'       => $total,
+            'tax'            => $total * 0.12,
+            'grand_total'    => $total * 1.12,
+            'payment_method' => $paymentMethod,
+            'ordered_at'     => date('M j, Y g:i A'),
+        ];
+
+        // Save to last_order for receipt display
+        $_SESSION['last_order'] = $orderRecord;
+
+        // ── Persist to user purchase history ─────────────────────────────
+        if (!isset($_SESSION['purchases']) || !is_array($_SESSION['purchases'])) {
+            $_SESSION['purchases'] = [];
+        }
+        array_unshift($_SESSION['purchases'], $orderRecord);
+
+        $checkoutSuccess = true;
+        $checkoutMessage = 'Order <strong>' . htmlspecialchars($orderId) . '</strong> placed successfully!';
+        $_SESSION['cart'] = [];
+        $total = 0;
+    }
 }
 
 $paymentMethods = ['Credit Card', 'GCash', 'PayMaya'];
@@ -46,7 +111,23 @@ include 'includes/header.php';
     
     <?php if ($checkoutSuccess): ?>
     <div class="bg-green-100 border border-green-300 text-green-800 px-4 py-3 rounded-lg mb-6">
-        <?php echo htmlspecialchars($checkoutMessage); ?>
+        <?php echo $checkoutMessage; /* contains safe HTML with order ID */ ?>
+        <?php if (isset($_SESSION['last_order'])): ?>
+        <p class="text-sm mt-1">
+            Payment: <strong><?php echo htmlspecialchars($_SESSION['last_order']['payment_method']); ?></strong>
+            &nbsp;•&nbsp; <?php echo htmlspecialchars($_SESSION['last_order']['ordered_at']); ?>
+        </p>
+        <?php endif; ?>
+    </div>
+    <?php endif; ?>
+    <?php if (!empty($checkoutErrors)): ?>
+    <div class="bg-red-50 border border-red-300 text-red-700 px-4 py-3 rounded-lg mb-6">
+        <p class="font-semibold mb-1">Please fix the following:</p>
+        <ul class="list-disc list-inside text-sm space-y-0.5">
+            <?php foreach ($checkoutErrors as $err): ?>
+            <li><?php echo htmlspecialchars($err); ?></li>
+            <?php endforeach; ?>
+        </ul>
     </div>
     <?php endif; ?>
     

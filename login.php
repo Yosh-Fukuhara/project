@@ -44,7 +44,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             setcookie('last_login', date('Y-m-d H:i:s'), time() + (86400 * 30), "/");
             setcookie('welcome_seen', 'true', time() + (86400 * 365), "/");
 
-            header('Location: index.php');
+            // Redirect back to intended page (e.g. cart) if set
+            $redirect = $_SESSION['redirect_after_login'] ?? 'index.php';
+            unset($_SESSION['redirect_after_login']);
+            // Only allow relative paths to prevent open redirect
+            if (!preg_match('/^[a-zA-Z0-9_\-\.]+\.php(\?.*)?$/', $redirect)) {
+                $redirect = 'index.php';
+            }
+            header('Location: ' . $redirect);
             exit;
         } else {
             $errors[] = 'Invalid email or password';

@@ -417,6 +417,12 @@ foreach ($_SESSION['messages'] as &$conv) {
 }
 unset($conv);
 if (!$currentConv) $currentConv = $_SESSION['messages'][0];
+
+// Count total unread across all conversations
+$totalUnread = 0;
+foreach ($_SESSION['messages'] as $conv) {
+    $totalUnread += (int)($conv['unread'] ?? 0);
+}
 ?>
 <?php include 'includes/header.php'; ?>
 
@@ -425,8 +431,13 @@ if (!$currentConv) $currentConv = $_SESSION['messages'][0];
         <div class="grid grid-cols-1 md:grid-cols-3 h-[600px]">
             <!-- Conversations List -->
             <div class="border-r border-gray-200 flex flex-col min-h-0">
-                <div class="p-4 border-b border-gray-200">
+                <div class="p-4 border-b border-gray-200 flex items-center justify-between">
                     <h2 class="text-xl font-bold text-gray-900">Messages</h2>
+                    <?php if ($totalUnread > 0): ?>
+                    <span id="msgSidebarUnread" class="bg-blue-900 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                        <?php echo $totalUnread; ?>
+                    </span>
+                    <?php endif; ?>
                 </div>
                 <div class="flex-1 overflow-y-auto min-h-0">
                     <?php foreach ($_SESSION['messages'] as $conv): ?>
@@ -442,7 +453,7 @@ if (!$currentConv) $currentConv = $_SESSION['messages'][0];
                             <p class="text-sm text-gray-500 truncate mt-1" data-conv-preview><?php echo htmlspecialchars($conv['messages'][count($conv['messages'])-1]['text']); ?></p>
                         </div>
                         <?php if (($conv['unread'] ?? 0) > 0): ?>
-                        <span class="bg-blue-900 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0"><?php echo $conv['unread']; ?></span>
+                        <span class="conv-unread-badge bg-blue-900 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0"><?php echo $conv['unread']; ?></span>
                         <?php endif; ?>
                     </a>
                     <?php endforeach; ?>
@@ -634,6 +645,9 @@ if (!$currentConv) $currentConv = $_SESSION['messages'][0];
                     const textEl = convLink.querySelector('[data-conv-preview]');
                     if (timeEl && data.preview_time) timeEl.textContent = data.preview_time;
                     if (textEl && data.preview_text) textEl.textContent = data.preview_text;
+                    // Clear unread badge for current conv since we just sent a message
+                    const convBadge = document.querySelector(`a[data-conv-id="${activeConvId}"] .conv-unread-badge`);
+                    if (convBadge) { convBadge.remove(); updateSidebarUnreadTotal(); }
                 }
 
                 messagesArea.scrollTop = messagesArea.scrollHeight;
@@ -772,6 +786,23 @@ if (!$currentConv) $currentConv = $_SESSION['messages'][0];
     });
 
     messagesArea.scrollTop = messagesArea.scrollHeight;
+    // ── Unread badge helpers ─────────────────────────────────────────────
+    function updateSidebarUnreadTotal() {
+        const badges = document.querySelectorAll('.conv-unread-badge');
+        const total  = Array.from(badges).reduce((s, b) => s + (parseInt(b.textContent) || 0), 0);
+        let sidebarBadge = document.getElementById('msgSidebarUnread');
+        if (total > 0) {
+            if (!sidebarBadge) {
+                sidebarBadge = document.createElement('span');
+                sidebarBadge.id = 'msgSidebarUnread';
+                sidebarBadge.className = 'bg-blue-900 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center';
+                document.querySelector('.p-4.border-b.border-gray-200.flex')?.appendChild(sidebarBadge);
+            }
+            sidebarBadge.textContent = total;
+        } else if (sidebarBadge) {
+            sidebarBadge.remove();
+        }
+    }
 })();
 </script>
 

@@ -3,6 +3,13 @@ require_once 'includes/bootstrap.php';
 
 require_once 'data/products.php';
 
+// Guests cannot add to cart — redirect to login
+if (!isset($_SESSION['user'])) {
+    $_SESSION['redirect_after_login'] = 'market.php';
+    header('Location: login.php');
+    exit;
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
     $productId = (int)$_POST['product_id'];
     $redirectTo = isset($_POST['redirect_to']) ? $_POST['redirect_to'] : 'market.php';
