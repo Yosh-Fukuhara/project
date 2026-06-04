@@ -39,6 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'website' => $user['website'],
                 'phone' => $user['phone']
             ];
+            $_SESSION['last_activity'] = time();
 
             session_regenerate_id(true);
             setcookie('last_login', date('Y-m-d H:i:s'), time() + (86400 * 30), "/");

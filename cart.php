@@ -1,6 +1,18 @@
 <?php
 require_once 'includes/bootstrap.php';
 
+$cart_session_timeout = 60;
+
+if (isset($_SESSION['user'])) {
+    if (isset($_SESSION['cart_last_activity']) && (time() - $_SESSION['cart_last_activity'] > $cart_session_timeout)) {
+        $_SESSION = [];
+        session_destroy();
+        header('Location: login.php');
+        exit;
+    }
+    $_SESSION['cart_last_activity'] = time();
+}
+
 require_once 'autoload.php';
 require_once 'data/products.php';
 
@@ -439,6 +451,28 @@ modal.addEventListener('click', function(e) {
         modal.classList.remove('flex');
     }
 });
+
+// CART PAGE INACTIVITY TIMER - 60 SECONDS
+let inactivityTimer;
+const INACTIVITY_TIMEOUT = 60 * 1000; // 60 seconds in milliseconds
+
+function resetInactivityTimer() {
+    clearTimeout(inactivityTimer);
+    inactivityTimer = setTimeout(logoutUser, INACTIVITY_TIMEOUT);
+}
+
+function logoutUser() {
+    window.location.href = 'logout.php';
+}
+
+// Listen for any user activity to reset the timer
+const events = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart', 'click'];
+events.forEach(event => {
+    document.addEventListener(event, resetInactivityTimer, true);
+});
+
+// Start the timer when the page loads
+resetInactivityTimer();
 </script>
 
 <?php include 'includes/footer.php'; ?>

@@ -325,4 +325,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'mark_
                 }
             });
         })();
+
+        // GLOBAL INACTIVITY TIMER - 60 SECONDS (except on cart.php which has its own 60s timer)
+        <?php
+        // Only add this if we're NOT on cart.php
+        $currentScript = basename($_SERVER['SCRIPT_NAME']);
+        if ($currentScript !== 'cart.php'):
+        ?>
+        let globalInactivityTimer;
+        const GLOBAL_INACTIVITY_TIMEOUT = 60 * 1000; // 60 seconds
+
+        function resetGlobalInactivityTimer() {
+            clearTimeout(globalInactivityTimer);
+            globalInactivityTimer = setTimeout(logoutUserGlobal, GLOBAL_INACTIVITY_TIMEOUT);
+        }
+
+        function logoutUserGlobal() {
+            window.location.href = 'logout.php';
+        }
+
+        // Listen for any user activity to reset the timer
+        const globalEvents = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart', 'click'];
+        globalEvents.forEach(event => {
+            document.addEventListener(event, resetGlobalInactivityTimer, true);
+        });
+
+        // Start the timer when the page loads
+        resetGlobalInactivityTimer();
+        <?php endif; ?>
     </script>

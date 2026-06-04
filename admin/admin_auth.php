@@ -5,6 +5,18 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+$session_timeout = 60;
+
+if (isset($_SESSION['admin'])) {
+    if (isset($_SESSION['admin_last_activity']) && (time() - $_SESSION['admin_last_activity'] > $session_timeout)) {
+        unset($_SESSION['admin']);
+        session_destroy();
+        header('Location: login.php');
+        exit;
+    }
+    $_SESSION['admin_last_activity'] = time();
+}
+
 function admin_is_logged_in(): bool {
     return !empty($_SESSION['admin']) && is_array($_SESSION['admin']) && !empty($_SESSION['admin']['id']);
 }
@@ -37,6 +49,7 @@ function admin_login_attempt(string $email, string $password): bool {
             'role' => $user['role'],
             'logged_in_at' => date('Y-m-d H:i:s'),
         ];
+        $_SESSION['admin_last_activity'] = time();
         session_regenerate_id(true);
         return true;
     }
