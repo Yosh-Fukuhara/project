@@ -30,6 +30,12 @@ $categories = ['All', 'Courses', 'Books', 'Resources'];
 $message = '';
 $showMessage = false;
 
+if (isset($_SESSION['market_message'])) {
+    $message = $_SESSION['market_message'];
+    $showMessage = true;
+    unset($_SESSION['market_message']);
+}
+
 // 2. Dynamic Current Date
 $xFormattedDate = date("F j, Y");
 
@@ -179,14 +185,36 @@ include 'includes/header.php';
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <?php foreach ($filteredProducts as $product): ?>
+                    <?php 
+                    $purchasedIds = [];
+                    if (isset($_SESSION['purchases'])) {
+                        foreach ($_SESSION['purchases'] as $order) {
+                            foreach ($order['items'] as $item) {
+                                $purchasedIds[] = $item['id'];
+                            }
+                        }
+                    }
+                    $inCartIds = array_column($_SESSION['cart'] ?? [], 'id');
+                    
+                    foreach ($filteredProducts as $product): 
+                        $isPurchased = in_array($product['id'], $purchasedIds);
+                        $isInCart = in_array($product['id'], $inCartIds);
+                        $typeLabel = ($product['category'] === 'Books') ? 'Book' : (($product['category'] === 'Courses') ? 'Course' : 'Resource');
+                    ?>
                     <div class="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition group">
                         <div class="relative">
-                            <img src="<?php echo htmlspecialchars($product['image']); ?>" alt="<?php echo htmlspecialchars($product['name']); ?>" class="w-full h-48 object-cover">
-                            <?php if (isset($product['badge'])): ?>
+                            <img src="<?php echo htmlspecialchars($product['image']); ?>" alt="<?php echo htmlspecialchars($product['name']); ?>" class="w-full h-48 object-cover <?php echo $isPurchased ? 'grayscale' : ''; ?>">
+                            <?php if (isset($product['badge']) && !$isPurchased): ?>
                             <div class="absolute top-3 left-3">
                                 <span class="bg-blue-900 text-white text-xs font-bold px-3 py-1 rounded">
                                     <?php echo htmlspecialchars($product['badge']); ?>
+                                </span>
+                            </div>
+                            <?php endif; ?>
+                            <?php if ($isPurchased): ?>
+                            <div class="absolute inset-0 bg-black/40 flex items-center justify-center">
+                                <span class="bg-green-600 text-white font-bold px-4 py-2 rounded-lg shadow-lg">
+                                    PURCHASED <?php echo strtoupper($typeLabel); ?>
                                 </span>
                             </div>
                             <?php endif; ?>
@@ -212,15 +240,28 @@ include 'includes/header.php';
                                 <span class="text-xl font-bold text-gray-800">
                                     ₱<?php echo number_format($product['price'], 2); ?>
                                 </span>
-                                <form method="POST" action="add_to_cart.php">
-                                    <input type="hidden" name="product_id" value="<?php echo $product['id']; ?>">
-                                    <button type="submit" class="bg-pink-700 text-white px-4 py-2 rounded-lg font-semibold hover:bg-pink-800 transition flex items-center gap-2">
+                                <?php if ($isPurchased): ?>
+                                    <span class="text-green-600 font-bold text-sm flex items-center gap-1">
                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                                         </svg>
-                                        Add
-                                    </button>
-                                </form>
+                                        In Library
+                                    </span>
+                                <?php elseif ($isInCart): ?>
+                                    <a href="cart.php" class="bg-blue-100 text-blue-800 px-4 py-2 rounded-lg font-semibold hover:bg-blue-200 transition text-sm">
+                                        Added to cart
+                                    </a>
+                                <?php else: ?>
+                                    <form method="POST" action="add_to_cart.php">
+                                        <input type="hidden" name="product_id" value="<?php echo $product['id']; ?>">
+                                        <button type="submit" class="bg-pink-700 text-white px-4 py-2 rounded-lg font-semibold hover:bg-pink-800 transition flex items-center gap-2">
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                                            </svg>
+                                            Add
+                                        </button>
+                                    </form>
+                                <?php endif; ?>
                             </div>
                         </div>
                     </div>

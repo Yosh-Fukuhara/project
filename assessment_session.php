@@ -1,21 +1,41 @@
 <?php
 require_once 'includes/bootstrap.php';
+require_once 'role_helpers.php';
+cs_init_assessments();
 
-// ── Static simulation data ────────────────────────────────────────────────
-// In production this would be fetched by ?session_id= from a DB.
-// For the simulation we always show the "NetSentinel SOC Analyst" assessment.
+// ── Load session: dynamic (employer-created) or static fallback ───────────
+$sessionId = $_GET['session'] ?? 'sess_netsentinel_001';
+$dynamicAssessment = cs_get_assessment_by_id($sessionId);
 
-$session = [
-    'id'          => 'sess_netsentinel_001',
-    'title'       => 'SOC Analyst Skill Assessment',
-    'company'     => 'NetSentinel Solutions',
-    'company_logo'=> '🛡️',
-    'role'        => 'SOC Analyst',
-    'time_limit'  => 45, // minutes
-    'instructions'=> 'Answer each challenge as accurately as possible. For flag-style answers enter the exact flag string. For code challenges paste your solution in the text box. Your score is based on correctness and time of completion.',
-];
+if ($dynamicAssessment) {
+    $session = [
+        'id'           => $dynamicAssessment['id'],
+        'title'        => $dynamicAssessment['title'],
+        'company'      => $dynamicAssessment['employer_name'] ?? 'CyberSphere',
+        'company_logo' => '🛡️',
+        'role'         => $dynamicAssessment['role'] ?? '',
+        'time_limit'   => $dynamicAssessment['time_limit'] ?? 30,
+        'instructions' => $dynamicAssessment['instructions'] ?? 'Answer each challenge as accurately as possible.',
+    ];
+    $challenges = $dynamicAssessment['challenges'];
+    // Build CORRECT map from correct_flag fields
+    $correctMap = [];
+    foreach ($challenges as $ch) {
+        $correctMap[$ch['id']] = !empty($ch['correct_flag']) ? $ch['correct_flag'] : null;
+    }
+} else {
+    // ── Static simulation data (NetSentinel default) ──────────────────────
+    $session = [
+        'id'          => 'sess_netsentinel_001',
+        'title'       => 'SOC Analyst Skill Assessment',
+        'company'     => 'NetSentinel Solutions',
+        'company_logo'=> '🛡️',
+        'role'        => 'SOC Analyst',
+        'time_limit'  => 45,
+        'instructions'=> 'Answer each challenge as accurately as possible. For flag-style answers enter the exact flag string. For code challenges paste your solution in the text box. Your score is based on correctness and time of completion.',
+    ];
 
-$challenges = [
+    $challenges = [
     [
         'id'     => 'c1',
         'type'   => 'flag',
@@ -71,6 +91,14 @@ $challenges = [
         'hint'   => null,
     ],
 ];
+    $correctMap = [
+        'c1' => 'FLAG{10.0.2.15}',
+        'c2' => 'FLAG{255.255.255.224_30_192.168.10.31}',
+        'c3' => null,
+        'c4' => 'FLAG{T1059.001}',
+        'c5' => null,
+    ];
+} // end else (static fallback)
 
 $totalPoints = array_sum(array_column($challenges, 'points'));
 $pageTitle   = $session['title'] . ' - CyberSphere';
@@ -392,14 +420,8 @@ $currentPage = 'assessment';
     const TOTAL_POINTS    = <?php echo $totalPoints; ?>;
     const CHALLENGES = <?php echo json_encode(array_column($challenges, 'id')); ?>;
 
-    // Simulated correct answers (in production these come from the server)
-    const CORRECT = {
-        c1: 'FLAG{10.0.2.15}',
-        c2: 'FLAG{255.255.255.224_30_192.168.10.31}',
-        c3: null,   // code — accepted as long as non-empty
-        c4: 'FLAG{T1059.001}',
-        c5: null,   // short answer — accepted if non-empty
-    };
+    // Correct answers (null = open-ended, accepted if non-empty)
+    const CORRECT = <?php echo json_encode($correctMap); ?>;
 
     // ── State ─────────────────────────────────────────────────────────────
     let secondsLeft  = TIME_LIMIT_SECS;
