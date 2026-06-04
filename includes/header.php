@@ -168,7 +168,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'mark_
                 <div>
                     <div class="flex items-center justify-between mb-3 px-2">
                         <h3 class="font-bold text-base text-gray-800">Trending Skills</h3>
-                        <a href="assessment.php" class="text-xs text-blue-800 font-semibold hover:underline">Explore</a>
+                        <a href="skills.php" class="text-xs text-blue-800 font-semibold hover:underline">Explore</a>
                     </div>
                     <div class="grid grid-cols-1 gap-2">
                         <?php

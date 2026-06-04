@@ -23,15 +23,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
     }
 
     if ($foundProduct) {
+        // Check if already in cart
         $foundInCart = false;
-        foreach ($_SESSION['cart'] as &$item) {
+        foreach ($_SESSION['cart'] as $item) {
             if ($item['id'] === $foundProduct['id']) {
-                $item['quantity']++;
                 $foundInCart = true;
                 break;
             }
         }
-        unset($item);
 
         if (!$foundInCart) {
             $_SESSION['cart'][] = [
@@ -42,10 +41,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
                 'image' => $foundProduct['image'],
                 'quantity' => 1
             ];
+            $_SESSION['market_message'] = "Added " . htmlspecialchars($foundProduct['name']) . " to your cart!";
+        } else {
+            $_SESSION['market_message'] = "Item is already in your cart!";
         }
     }
+    $redirect = $_POST['redirect'] ?? 'market.php';
+    header('Location: ' . $redirect);
+    exit;
+} else {
+    header('Location: market.php');
 }
-
-$fragment = $redirectTo === 'market.php' ? '#products-section' : '';
-header('Location: ' . $redirectTo . $fragment);
-exit;

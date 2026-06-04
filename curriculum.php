@@ -8,12 +8,30 @@ $pageTitle = 'Curriculum - CyberSphere';
 $currentPage = 'market';
 
 $category = isset($_GET['category']) ? trim($_GET['category']) : 'all';
+$search = isset($_GET['search']) ? trim($_GET['search']) : '';
 $filteredProducts = $products;
 
 if ($category !== 'all') {
     $filteredProducts = array_filter($filteredProducts, function($product) use ($category) {
         return strcasecmp($product['category'], $category) === 0;
     });
+}
+
+if ($search !== '') {
+    $filteredProducts = array_filter($filteredProducts, function($product) use ($search) {
+        $searchLower = strtolower($search);
+        return str_contains(strtolower($product['name']), $searchLower) || 
+               str_contains(strtolower($product['description']), $searchLower) ||
+               str_contains(strtolower($product['category']), $searchLower);
+    });
+}
+
+$message = '';
+$showMessage = false;
+if (isset($_SESSION['market_message'])) {
+    $message = $_SESSION['market_message'];
+    $showMessage = true;
+    unset($_SESSION['market_message']);
 }
 
 $categories = ['All', 'Courses', 'Books', 'Resources'];
@@ -95,6 +113,26 @@ include 'includes/header.php';
         <h1 class="text-4xl font-bold text-gray-800 mb-2">Full Curriculum</h1>
         <p class="text-gray-600 mb-8">Explore complete learning paths for all courses, books, and resources</p>
 
+        <div class="mb-8">
+            <form method="GET" class="flex gap-2">
+                <input type="text" name="search" value="<?php echo htmlspecialchars($search); ?>" placeholder="Search curriculum..." class="flex-1 px-4 py-3 rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                <input type="hidden" name="category" value="<?php echo htmlspecialchars($category); ?>">
+                <button type="submit" class="bg-blue-900 text-white px-6 py-3 rounded-xl font-bold hover:bg-blue-800 transition">Search</button>
+            </form>
+            <?php if ($search): ?>
+                <p class="mt-2 text-sm text-gray-500">
+                    Showing results for "<?php echo htmlspecialchars($search); ?>" 
+                    <a href="curriculum.php?category=<?php echo urlencode($category); ?>" class="text-blue-700 hover:underline ml-1">Clear search</a>
+                </p>
+            <?php endif; ?>
+        </div>
+
+        <?php if ($showMessage): ?>
+        <div class="bg-blue-100 border border-blue-300 text-blue-800 px-4 py-3 rounded-lg mb-8">
+            <?php echo htmlspecialchars($message); ?>
+        </div>
+        <?php endif; ?>
+
         <div class="flex gap-4 mb-8 overflow-x-auto pb-2">
             <?php foreach ($categories as $cat): ?>
             <a href="?category=<?php echo strtolower($cat); ?>" 
@@ -105,11 +143,33 @@ include 'includes/header.php';
         </div>
 
         <div class="space-y-8">
-            <?php foreach ($filteredProducts as $product): ?>
-            <div class="bg-white rounded-2xl shadow-md overflow-hidden">
+            <?php 
+            $purchasedIds = [];
+            if (isset($_SESSION['purchases'])) {
+                foreach ($_SESSION['purchases'] as $order) {
+                    foreach ($order['items'] as $item) {
+                        $purchasedIds[] = $item['id'];
+                    }
+                }
+            }
+            $inCartIds = array_column($_SESSION['cart'] ?? [], 'id');
+
+            foreach ($filteredProducts as $product): 
+                $isPurchased = in_array($product['id'], $purchasedIds);
+                $isInCart = in_array($product['id'], $inCartIds);
+                $typeLabel = ($product['category'] === 'Books') ? 'Book' : (($product['category'] === 'Courses') ? 'Course' : 'Resource');
+            ?>
+            <div class="bg-white rounded-2xl shadow-md overflow-hidden <?php echo $isPurchased ? 'ring-2 ring-green-500' : ''; ?>">
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-0">
-                    <div class="lg:col-span-1">
-                        <img src="<?php echo htmlspecialchars($product['image']); ?>" alt="<?php echo htmlspecialchars($product['name']); ?>" class="w-full h-64 lg:h-full object-cover">
+                    <div class="lg:col-span-1 relative">
+                        <img src="<?php echo htmlspecialchars($product['image']); ?>" alt="<?php echo htmlspecialchars($product['name']); ?>" class="w-full h-64 lg:h-full object-cover <?php echo $isPurchased ? 'grayscale' : ''; ?>">
+                        <?php if ($isPurchased): ?>
+                        <div class="absolute inset-0 bg-black/40 flex items-center justify-center">
+                            <span class="bg-green-600 text-white font-bold px-4 py-2 rounded-lg shadow-lg">
+                                PURCHASED <?php echo strtoupper($typeLabel); ?>
+                            </span>
+                        </div>
+                        <?php endif; ?>
                     </div>
                     <div class="lg:col-span-2 p-8">
                         <div class="flex items-start justify-between mb-4">
@@ -117,10 +177,12 @@ include 'includes/header.php';
                                 <span class="bg-blue-100 text-blue-800 text-xs font-semibold px-3 py-1 rounded-full mr-2">
                                     <?php echo htmlspecialchars($product['category']); ?>
                                 </span>
-                                <?php if (isset($product['badge'])): ?>
-                                <span class="bg-pink-100 text-pink-800 text-xs font-semibold px-3 py-1 rounded-full">
-                                    <?php echo htmlspecialchars($product['badge']); ?>
-                                </span>
+                                <?php if ($isPurchased): ?>
+                                    <span class="bg-green-100 text-green-800 text-xs font-bold px-3 py-1 rounded-full">✓ IN LIBRARY</span>
+                                <?php elseif (isset($product['badge'])): ?>
+                                    <span class="bg-pink-100 text-pink-800 text-xs font-semibold px-3 py-1 rounded-full">
+                                        <?php echo htmlspecialchars($product['badge']); ?>
+                                    </span>
                                 <?php endif; ?>
                             </div>
                             <span class="text-2xl font-bold text-gray-800">₱<?php echo number_format($product['price'], 2); ?></span>
@@ -172,17 +234,37 @@ include 'includes/header.php';
                         </div>
                         <?php endif; ?>
 
-                        <div class="mt-8 flex gap-4">
-                            <form method="POST" action="add_to_cart.php">
-                                <input type="hidden" name="product_id" value="<?php echo $product['id']; ?>">
-                                <input type="hidden" name="redirect_to" value="curriculum.php">
-                                <button type="submit" class="bg-pink-700 text-white px-8 py-3 rounded-lg font-semibold hover:bg-pink-800 transition">
-                                    Add to Cart
-                                </button>
-                            </form>
-                            <a href="market.php" class="border border-gray-700 text-gray-700 px-8 py-3 rounded-lg font-semibold hover:bg-gray-50 transition">
-                                Back to Marketplace
+                        <div class="mt-8 flex items-center justify-between">
+                            <a href="curriculum_detail.php?id=<?php echo $product['id']; ?>" class="text-blue-900 font-bold hover:text-pink-700 transition flex items-center gap-2">
+                                View Full Path
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"></path>
+                                </svg>
                             </a>
+                            
+                            <?php if ($isPurchased): ?>
+                                <span class="text-green-600 font-bold flex items-center gap-2">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                    Owned
+                                </span>
+                            <?php elseif ($isInCart): ?>
+                                <a href="cart.php" class="bg-blue-100 text-blue-800 px-6 py-3 rounded-xl font-bold hover:bg-blue-200 transition">
+                                    Added in cart
+                                </a>
+                            <?php else: ?>
+                                <form method="POST" action="add_to_cart.php">
+                                    <input type="hidden" name="product_id" value="<?php echo $product['id']; ?>">
+                                    <input type="hidden" name="redirect" value="curriculum.php">
+                                    <button type="submit" class="bg-pink-700 text-white px-6 py-3 rounded-xl font-bold hover:bg-pink-800 transition shadow-lg flex items-center gap-2">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                                        </svg>
+                                        Add to Cart
+                                    </button>
+                                </form>
+                            <?php endif; ?>
                         </div>
                     </div>
                 </div>

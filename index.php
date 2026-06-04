@@ -1,6 +1,17 @@
 <?php
 require_once 'includes/bootstrap.php';
 require_once 'autoload.php';
+require_once 'role_helpers.php';
+
+// Auto-upgrade session role if employer application was approved
+if (isset($_SESSION['user']) && cs_is_applicant()) {
+    $app = cs_get_employer_application_by_email($_SESSION['user']['email']);
+    if ($app && $app['status'] === 'approved') {
+        $_SESSION['user']['role']              = 'employer';
+        $_SESSION['user']['employer_verified'] = true;
+        $_SESSION['user']['company_name']      = $app['company_name'] ?? $_SESSION['user']['username'];
+    }
+}
 
 $pageTitle = 'CyberSphere - Tech & Cybersecurity Marketplace';
 $currentPage = 'home';
@@ -191,12 +202,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             $postId = $pdo->lastInsertId();
 
             // Also keep in session for backward compatibility
-            $allowedTags = ['#Hiring', '#OpenToWork', '#Networking', '#OpenToCollaborate', '#JobSeeker', '#Freelance', '#Announcement'];
+            $allowedTags = ['#OpenToWork', '#Networking', '#OpenToCollaborate', '#JobSeeker', '#Freelance', '#Announcement'];
+            // Only verified employers and admins can use #Hiring
+            if (cs_is_employer() || cs_is_admin()) {
+                $allowedTags[] = '#Hiring';
+            }
             $selectedTags = [];
             foreach (($_POST['tags'] ?? []) as $t) {
                 if (in_array($t, $allowedTags)) $selectedTags[] = $t;
             }
             $isHiringPost = in_array('#Hiring', $selectedTags);
+            // Only employers/admins can enable the Apply button
+            $enableApply = $isHiringPost && !empty($_POST['enable_apply']) && (cs_is_employer() || cs_is_admin());
             $newPost = [
                 'type' => 'user',
                 'id' => $postId,
@@ -206,9 +223,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 'time' => date('M j, Y g:i A'),
                 'content' => $content,
                 'attachment' => $attachment,
-                'tags' => $selectedTags,
-                'hiring' => $isHiringPost,
-                'enable_apply' => $isHiringPost && !empty($_POST['enable_apply']),
+                'tags'         => $selectedTags,
+                'hiring'       => $isHiringPost,
+                'enable_apply' => $enableApply,
             ];
             array_unshift($_SESSION['posts'], $newPost);
 
@@ -739,21 +756,34 @@ include 'includes/header.php';
                         <div id="tagPickerWrap">
                             <label class="block text-sm font-semibold text-gray-700 mb-2">Add Tags</label>
                             <div class="flex flex-wrap gap-2" id="tagList">
-                                <?php foreach (['#Hiring', '#OpenToWork', '#Networking', '#OpenToCollaborate', '#JobSeeker', '#Freelance', '#Announcement'] as $tag): ?>
-                                    <label class="cursor-pointer">
-                                        <input type="checkbox" name="tags[]" value="<?php echo $tag; ?>" class="hidden tagCheckbox" data-tag="<?php echo $tag; ?>">
-                                        <span class="tag-pill inline-block px-3 py-1 rounded-full text-sm font-medium border border-gray-300 text-gray-600 hover:border-blue-500 hover:text-blue-700 transition select-none"><?php echo $tag; ?></span>
-                                    </label>
+                                <?php
+                                $visibleTags = ['#OpenToWork', '#Networking', '#OpenToCollaborate', '#JobSeeker', '#Freelance', '#Announcement'];
+                                if (isset($_SESSION['user']) && (cs_is_employer() || cs_is_admin())) {
+                                    array_unshift($visibleTags, '#Hiring');
+                                }
+                                foreach ($visibleTags as $tag): ?>
+                                <label class="cursor-pointer">
+                                    <input type="checkbox" name="tags[]" value="<?php echo $tag; ?>" class="hidden tagCheckbox" data-tag="<?php echo $tag; ?>">
+                                    <span class="tag-pill inline-block px-3 py-1 rounded-full text-sm font-medium border border-gray-300 text-gray-600 hover:border-blue-500 hover:text-blue-700 transition select-none"><?php echo $tag; ?></span>
+                                </label>
                                 <?php endforeach; ?>
                             </div>
+                            <?php if (isset($_SESSION['user']) && !cs_is_employer() && !cs_is_admin()): ?>
+                            <p class="text-xs text-gray-400 mt-2">
+                                Want to post hiring jobs?
+                                <a href="employer_apply.php" class="text-purple-700 font-semibold hover:underline">Apply for an Employer account</a>
+                            </p>
+                            <?php endif; ?>
                         </div>
 
+                        <?php if (isset($_SESSION['user']) && (cs_is_employer() || cs_is_admin())): ?>
                         <div id="hiringApplyToggleWrap" class="hidden">
                             <label class="flex items-center gap-3 cursor-pointer">
                                 <input type="checkbox" id="enableApplyFeature" name="enable_apply" value="1" class="w-4 h-4 accent-blue-900">
                                 <span class="text-sm font-semibold text-gray-700">Enable "Apply" button on this post (collect resumes &amp; info)</span>
                             </label>
                         </div>
+                        <?php endif; ?>
 
                         <div id="attachmentWrap" class="hidden">
                             <label class="block text-sm font-semibold text-gray-700 mb-2">Attachment</label>
@@ -1279,7 +1309,7 @@ include 'includes/header.php';
                         </div>
                     <?php endforeach; ?>
                 </div>
-                <a href="index.php?filter=jobs" class="block w-full mt-4 text-center text-blue-800 font-semibold text-sm hover:underline">
+                <a href="jobs.php" class="block w-full mt-4 text-center text-blue-800 font-semibold text-sm hover:underline">
                     See all jobs
                 </a>
             </div>
@@ -1303,7 +1333,7 @@ include 'includes/header.php';
                         </div>
                     <?php endforeach; ?>
                 </div>
-                <a href="assessment.php" class="block w-full mt-4 text-center text-blue-800 font-semibold text-sm hover:underline">
+                <a href="skills.php" class="block w-full mt-4 text-center text-blue-800 font-semibold text-sm hover:underline">
                     Explore skills
                 </a>
             </div>

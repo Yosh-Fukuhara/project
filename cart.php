@@ -2,11 +2,11 @@
 require_once 'includes/bootstrap.php';
 
 require_once 'autoload.php';
+require_once 'data/products.php';
 
 $pageTitle = 'Shopping Cart - CyberSphere';
 $currentPage = 'cart';
 
-// Sanitize: remove any items that aren't proper arrays (guards against string-offset TypeError)
 // ── Require login to access cart ────────────────────────────────────────
 if (!isset($_SESSION['user'])) {
     // Store intended destination so we can redirect back after login
@@ -15,7 +15,19 @@ if (!isset($_SESSION['user'])) {
     exit;
 }
 
-$_SESSION['cart'] = array_values(array_filter($_SESSION['cart'], fn($item) => is_array($item)));
+// Sanitize: remove any items that aren't proper arrays
+$_SESSION['cart'] = array_values(array_filter($_SESSION['cart'] ?? [], fn($item) => is_array($item)));
+
+// ── Sync prices with latest product data ────────────────────────────────
+foreach ($_SESSION['cart'] as &$item) {
+    foreach ($products as $p) {
+        if ($item['id'] === $p['id']) {
+            $item['price'] = $p['price']; // Update to latest price
+            break;
+        }
+    }
+}
+unset($item);
 
 // Calculate total FIRST so it's available inside the POST block below
 $total = 0;
@@ -147,39 +159,24 @@ include 'includes/header.php';
             <?php else: ?>
                 <div class="bg-white rounded-xl shadow-md overflow-hidden">
                     <?php foreach ($_SESSION['cart'] as $index => $item): ?>
-                    <div class="flex gap-4 p-6 border-b border-gray-200 last:border-0">
-                        <img src="<?php echo htmlspecialchars($item['image']); ?>" alt="<?php echo htmlspecialchars($item['name']); ?>" class="w-32 h-32 object-cover rounded-lg">
-                        <div class="flex-1">
-                            <div class="flex justify-between items-start">
-                                <div>
-                                    <h3 class="text-xl font-bold text-gray-800"><?php echo htmlspecialchars($item['name']); ?></h3>
+                    <div class="flex gap-4 p-6 border-b border-gray-200 last:border-0 items-center">
+                        <img src="<?php echo htmlspecialchars($item['image']); ?>" alt="<?php echo htmlspecialchars($item['name']); ?>" class="w-24 h-24 object-cover rounded-lg flex-shrink-0">
+                        <div class="flex-1 min-w-0">
+                            <div class="flex justify-between items-start gap-3">
+                                <div class="min-w-0">
+                                    <h3 class="text-lg font-bold text-gray-800 truncate"><?php echo htmlspecialchars($item['name']); ?></h3>
                                     <p class="text-gray-500 text-sm"><?php echo htmlspecialchars($item['category']); ?></p>
                                 </div>
-                                <form method="POST" action="remove_from_cart.php">
+                                <form method="POST" action="remove_from_cart.php" class="flex-shrink-0">
                                     <input type="hidden" name="index" value="<?php echo $index; ?>">
-                                    <button type="submit" class="text-red-500 hover:text-red-700">
-                                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <button type="submit" class="text-red-400 hover:text-red-600 transition" title="Remove">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
                                         </svg>
                                     </button>
                                 </form>
                             </div>
-                            <div class="flex items-center justify-between mt-4">
-                                <div class="flex items-center gap-3">
-                                    <form method="POST" action="update_cart.php">
-                                        <input type="hidden" name="index" value="<?php echo $index; ?>">
-                                        <input type="hidden" name="action" value="decrease">
-                                        <button type="submit" class="w-8 h-8 rounded border border-gray-300 flex items-center justify-center hover:bg-gray-100">-</button>
-                                    </form>
-                                    <span class="font-semibold text-gray-800 w-8 text-center"><?php echo $item['quantity']; ?></span>
-                                    <form method="POST" action="update_cart.php">
-                                        <input type="hidden" name="index" value="<?php echo $index; ?>">
-                                        <input type="hidden" name="action" value="increase">
-                                        <button type="submit" class="w-8 h-8 rounded border border-gray-300 flex items-center justify-center hover:bg-gray-100">+</button>
-                                    </form>
-                                </div>
-                                <span class="text-2xl font-bold text-pink-700">₱<?php echo number_format($item['price'] * $item['quantity'], 2); ?></span>
-                            </div>
+                            <p class="text-xl font-bold text-pink-700 mt-2">₱<?php echo number_format($item['price'], 2); ?></p>
                         </div>
                     </div>
                     <?php endforeach; ?>
@@ -210,18 +207,14 @@ include 'includes/header.php';
                 <div class="space-y-4 mb-6">
                     <?php foreach ($summaryItems as $item): ?>
                     <div class="flex justify-between text-gray-700 text-sm">
-                        <span><?php echo htmlspecialchars($item['name']); ?> &times; <?php echo $item['quantity']; ?></span>
-                        <span>₱<?php echo number_format($item['price'] * $item['quantity'], 2); ?></span>
+                        <span><?php echo htmlspecialchars($item['name']); ?></span>
+                        <span>₱<?php echo number_format($item['price'], 2); ?></span>
                     </div>
                     <?php endforeach; ?>
                     <div class="border-t border-gray-100 pt-3 space-y-2">
                         <div class="flex justify-between text-gray-700">
                             <span>Subtotal</span>
                             <span>₱<?php echo number_format($summarySubtotal, 2); ?></span>
-                        </div>
-                        <div class="flex justify-between text-gray-700">
-                            <span>Shipping</span>
-                            <span class="text-green-600 font-semibold">FREE</span>
                         </div>
                         <div class="flex justify-between text-gray-700">
                             <span>Tax (12%)</span>
