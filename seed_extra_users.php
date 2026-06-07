@@ -80,7 +80,7 @@ try {
             ':phone'     => $u['phone'],
         ]);
 
-        $idStmt = $pdo->prepare('SELECT id FROM users WHERE email = ? LIMIT 1');
+        $idStmt = $pdo->prepare('SELECT user_id FROM users WHERE email = ? LIMIT 1');
         $idStmt->execute([$u['email']]);
         $userId = (int) $idStmt->fetchColumn();
 
