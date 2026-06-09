@@ -20,13 +20,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (empty($errors)) {
         $pdo = get_db_connection();
-        $stmt = $pdo->prepare('SELECT id, username, email, password, role, status, profile_pic, cover_pic, bio, location, work, education, website, phone FROM users WHERE email = ? LIMIT 1');
+        $stmt = $pdo->prepare('SELECT user_id, username, email, password, role, status, profile_pic, cover_pic, bio, location, work, education, website, phone FROM users WHERE email = ? LIMIT 1');
         $stmt->execute([$email]);
         $user = $stmt->fetch();
 
         if ($user && password_verify($password, $user['password']) && $user['status'] === 'active') {
             $_SESSION['user'] = [
-                'id' => $user['id'],
+                'user_id' => $user['user_id'],
                 'username' => $user['username'],
                 'email' => $user['email'],
                 'role' => $user['role'],

@@ -35,7 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (empty($errors)) {
         $pdo = get_db_connection();
         
-        $checkStmt = $pdo->prepare('SELECT id FROM users WHERE email = ? OR username = ? LIMIT 1');
+        $checkStmt = $pdo->prepare('SELECT user_id FROM users WHERE email = ? OR username = ? LIMIT 1');
         $checkStmt->execute([$email, $username]);
         if ($checkStmt->fetch()) {
             $errors[] = 'Email or username already exists';
@@ -46,7 +46,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $userId = $pdo->lastInsertId();
 
             $_SESSION['user'] = [
-                'id' => $userId,
+                'user_id' => $userId,
                 'username' => $username,
                 'email' => $email,
                 'role' => 'user',

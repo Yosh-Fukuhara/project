@@ -7,18 +7,6 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-$session_timeout = 60;
-
-if (isset($_SESSION['user'])) {
-    if (isset($_SESSION['last_activity']) && (time() - $_SESSION['last_activity'] > $session_timeout)) {
-        $_SESSION = [];
-        session_destroy();
-        header('Location: login.php');
-        exit;
-    }
-    $_SESSION['last_activity'] = time();
-}
-
 require_once __DIR__ . '/../config/database.php';
 
 // ── String helpers (works even without mbstring) ──

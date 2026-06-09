@@ -6,6 +6,32 @@ if (!isset($_SESSION['user'])) {
     exit;
 }
 
+// Refresh session user data from database
+try {
+    $pdo = get_db_connection();
+    $stmt = $pdo->prepare('SELECT user_id, username, email, role, profile_pic, cover_pic, bio, location, work, education, website, phone FROM users WHERE user_id = ? LIMIT 1');
+    $stmt->execute([$_SESSION['user']['user_id']]);
+    $user = $stmt->fetch(PDO::FETCH_ASSOC);
+    if ($user) {
+        $_SESSION['user'] = [
+            'user_id' => $user['user_id'],
+            'username' => $user['username'],
+            'email' => $user['email'],
+            'role' => $user['role'],
+            'profile_pic' => $user['profile_pic'],
+            'cover_pic' => $user['cover_pic'],
+            'bio' => $user['bio'],
+            'location' => $user['location'],
+            'work' => $user['work'],
+            'education' => $user['education'],
+            'website' => $user['website'],
+            'phone' => $user['phone']
+        ];
+    }
+} catch (Exception $e) {
+    // Ignore errors, just use existing session data
+}
+
 // ── If ?user= is given and it's NOT the current logged-in user,
 //    send them to the public profile page instead ────────────────────────
 if (isset($_GET['user']) && trim($_GET['user']) !== '') {
@@ -13,21 +39,21 @@ if (isset($_GET['user']) && trim($_GET['user']) !== '') {
     $isSelf = (
         strcasecmp($requestedUser, $_SESSION['user']['email']    ?? '') === 0 ||
         strcasecmp($requestedUser, $_SESSION['user']['username'] ?? '') === 0 ||
-        (is_numeric($requestedUser) && (int)$requestedUser === (int)($_SESSION['user']['id'] ?? 0))
+        (is_numeric($requestedUser) && (int)$requestedUser === (int)($_SESSION['user']['user_id'] ?? 0))
     );
     if (!$isSelf) {
         try {
             $pdo  = get_db_connection();
             if (is_numeric($requestedUser)) {
-                $st = $pdo->prepare('SELECT id FROM users WHERE id = ? AND status = "active" LIMIT 1');
+                $st = $pdo->prepare('SELECT user_id FROM users WHERE user_id = ? AND status = "active" LIMIT 1');
                 $st->execute([(int)$requestedUser]);
             } else {
-                $st = $pdo->prepare('SELECT id FROM users WHERE (email = ? OR username = ?) AND status = "active" LIMIT 1');
+                $st = $pdo->prepare('SELECT user_id FROM users WHERE (email = ? OR username = ?) AND status = "active" LIMIT 1');
                 $st->execute([$requestedUser, $requestedUser]);
             }
             $row = $st->fetch(PDO::FETCH_ASSOC);
             if ($row) {
-                header('Location: view_profile.php?id=' . (int)$row['id']);
+                header('Location: view_profile.php?id=' . (int)$row['user_id']);
             } else {
                 header('Location: view_profile.php?username=' . urlencode($requestedUser));
             }
@@ -144,6 +170,10 @@ function saveCoverPhoto(?array $file, array &$errors): ?string {
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_bio') {
     $bio = trim($_POST['bio'] ?? '');
     $_SESSION['user']['bio'] = $bio;
+    // Save to database
+    $pdo = get_db_connection();
+    $stmt = $pdo->prepare('UPDATE users SET bio = ? WHERE user_id = ?');
+    $stmt->execute([$bio, $_SESSION['user']['user_id']]);
     header('Location: profile.php');
     exit;
 }
@@ -151,9 +181,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_details') {
     $_SESSION['user']['work']      = trim($_POST['work']      ?? '');
     $_SESSION['user']['location']  = trim($_POST['location']  ?? '');
+    $_SESSION['user']['education'] = trim($_POST['education'] ?? '');
     $_SESSION['user']['address']   = trim($_POST['address']   ?? '');
     $_SESSION['user']['website']   = trim($_POST['website']   ?? '');
     $_SESSION['user']['phone']     = trim($_POST['phone']     ?? '');
+    // Save to database
+    $pdo = get_db_connection();
+    $stmt = $pdo->prepare('UPDATE users SET work = ?, location = ?, education = ?, website = ?, phone = ? WHERE user_id = ?');
+    $stmt->execute([
+        $_SESSION['user']['work'],
+        $_SESSION['user']['location'],
+        $_SESSION['user']['education'],
+        $_SESSION['user']['website'],
+        $_SESSION['user']['phone'],
+        $_SESSION['user']['user_id']
+    ]);
     header('Location: profile.php');
     exit;
 }
@@ -246,6 +288,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'uploa
     $profilePath = saveProfilePhoto($_FILES['profile_photo'] ?? null, $profileErrors);
     if ($profilePath) {
         $_SESSION['user']['profile_pic'] = $profilePath;
+        // Save to database
+        $pdo = get_db_connection();
+        $stmt = $pdo->prepare('UPDATE users SET profile_pic = ? WHERE user_id = ?');
+        $stmt->execute([$profilePath, $_SESSION['user']['user_id']]);
         header('Location: profile.php');
         exit;
     }
@@ -256,6 +302,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'uploa
     $coverPath = saveCoverPhoto($_FILES['cover_photo'] ?? null, $coverErrors);
     if ($coverPath) {
         $_SESSION['user']['cover_pic'] = $coverPath;
+        // Save to database
+        $pdo = get_db_connection();
+        $stmt = $pdo->prepare('UPDATE users SET cover_pic = ? WHERE user_id = ?');
+        $stmt->execute([$coverPath, $_SESSION['user']['user_id']]);
         header('Location: profile.php');
         exit;
     }
@@ -511,6 +561,7 @@ include 'includes/header.php';
                     $detailRows = [
                         ['icon'=>'M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z', 'label'=>'Work',    'key'=>'work'],
                         ['icon'=>'M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z M15 11a3 3 0 11-6 0 3 3 0 016 0z', 'label'=>'Location','key'=>'location'],
+                        ['icon'=>'M12 14l9-5-9-5-9 5 9 5zm0 7l-9-5 9 5 9-5-9 5zm0-14l-9 5 9 5 9-5-9-5z', 'label'=>'Education', 'key'=>'education'],
                         ['icon'=>'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6', 'label'=>'Address', 'key'=>'address'],
                         ['icon'=>'M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9', 'label'=>'Website', 'key'=>'website'],
                         ['icon'=>'M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.948V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z', 'label'=>'Phone',   'key'=>'phone'],
@@ -546,6 +597,7 @@ include 'includes/header.php';
                         $detailFields = [
                             ['name'=>'work',     'label'=>'Work / Title',      'placeholder'=>'e.g. SOC Analyst at NetSentinel'],
                             ['name'=>'location', 'label'=>'City / Region',     'placeholder'=>'e.g. Manila, Philippines'],
+                            ['name'=>'education', 'label'=>'Education',         'placeholder'=>'e.g. BS Computer Science - University of London'],
                             ['name'=>'address',  'label'=>'Current Address',   'placeholder'=>'e.g. 123 Rizal St, Makati City'],
                             ['name'=>'website',  'label'=>'Website',           'placeholder'=>'https://yoursite.com'],
                             ['name'=>'phone',    'label'=>'Phone',             'placeholder'=>'e.g. 09XX XXX XXXX'],

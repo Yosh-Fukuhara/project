@@ -98,7 +98,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['checkout'])) {
         $orderId = 'ORD-' . strtoupper(substr(uniqid('', true), -8));
         $orderRecord = [
             'id'             => $orderId,
-            'user_id'        => $_SESSION['user']['id'],
+            'user_id'        => $_SESSION['user']['user_id'],
             'username'       => $_SESSION['user']['username'],
             'items'          => $_SESSION['cart'],
             'subtotal'       => $total,
