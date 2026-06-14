@@ -129,12 +129,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'send_
         unset($conv);
 
         // Notify recipient
-        array_unshift($_SESSION['notifications'], [
-            'msg'  => $companyName . ' sent you a skill assessment: ' . $assessment['title'],
-            'time' => date('M j, Y g:i A'),
-            'read' => false,
-            'link' => 'messages.php',
-        ]);
+        try {
+            $pdo = get_db_connection();
+            $stmt = $pdo->prepare('SELECT user_id FROM users WHERE email = ?');
+            $stmt->execute([$recipEmail]);
+            $recip_user_id = $stmt->fetchColumn();
+            if ($recip_user_id) {
+                cs_save_notification($recip_user_id, $companyName . ' sent you a skill assessment: ' . $assessment['title'], 'messages.php');
+            } else {
+                // Fall back to old session method if user not found in DB
+                array_unshift($_SESSION['notifications'], [
+                    'msg'  => $companyName . ' sent you a skill assessment: ' . $assessment['title'],
+                    'time' => date('M j, Y g:i A'),
+                    'read' => false,
+                    'link' => 'messages.php',
+                ]);
+            }
+        } catch (Exception $e) {
+            // Fall back to old method
+            array_unshift($_SESSION['notifications'], [
+                'msg'  => $companyName . ' sent you a skill assessment: ' . $assessment['title'],
+                'time' => date('M j, Y g:i A'),
+                'read' => false,
+                'link' => 'messages.php',
+            ]);
+        }
 
         $flash = 'Assessment link sent to ' . htmlspecialchars($recipEmail) . ' via messages.';
         header('Location: employer_dashboard.php?tab=assessments&flash=' . urlencode($flash));

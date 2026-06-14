@@ -8,6 +8,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'mark_
         foreach ($_SESSION['notifications'] as &$n) { $n['read'] = true; }
         unset($n);
     }
+    // Also update database
+    if (isset($_SESSION['user'])) {
+        try {
+            $pdo = get_db_connection();
+            $stmt = $pdo->prepare('UPDATE notifications SET is_read = 1 WHERE user_id = ?');
+            $stmt->execute([$_SESSION['user']['user_id']]);
+        } catch (Exception $e) {
+            // Ignore database errors for now
+        }
+    }
+    echo json_encode(['ok'=>true]);
+    exit;
+}
+
+// ── AJAX: Mark single notification read ──
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'mark_single_notif_read') {
+    header('Content-Type: application/json');
+    $notifId = $_POST['notification_id'] ?? '';
+    if (isset($_SESSION['notifications']) && $notifId) {
+        foreach ($_SESSION['notifications'] as &$n) { 
+            if (isset($n['notification_id']) && $n['notification_id'] == $notifId) {
+                $n['read'] = true;
+            }
+        }
+        unset($n);
+    }
+    // Also update database
+    if (isset($_SESSION['user']) && $notifId) {
+        try {
+            $pdo = get_db_connection();
+            $stmt = $pdo->prepare('UPDATE notifications SET is_read = 1 WHERE notification_id = ? AND user_id = ?');
+            $stmt->execute([$notifId, $_SESSION['user']['user_id']]);
+        } catch (Exception $e) {
+            // Ignore database errors for now
+        }
+    }
     echo json_encode(['ok'=>true]);
     exit;
 }
@@ -201,7 +237,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'mark_
             <p class="text-gray-400 text-sm px-4 py-6 text-center">No notifications yet.</p>
             <?php else: ?>
                 <?php foreach ($_SESSION['notifications'] as $notif): ?>
-                <div class="px-4 py-3 text-sm <?php echo $notif['read'] ? 'bg-white text-gray-600' : 'bg-blue-50 text-gray-800 font-medium'; ?> cursor-pointer hover:bg-gray-50" <?php if (!empty($notif['link'])): ?>onclick="window.location.href='<?php echo htmlspecialchars($notif['link']); ?>'"<?php endif; ?>>
+                <div class="px-4 py-3 text-sm <?php echo $notif['read'] ? 'bg-white text-gray-600' : 'bg-blue-50 text-gray-800 font-medium'; ?> cursor-pointer hover:bg-gray-50" 
+                    data-notification-id="<?php echo htmlspecialchars($notif['notification_id'] ?? ''); ?>"
+                    onclick="handleNotifClick(this, <?php echo !empty($notif['link']) ? "'" . htmlspecialchars($notif['link']) . "'" : 'null'; ?>)">
                     <p><?php echo htmlspecialchars($notif['msg']); ?></p>
                     <p class="text-xs text-gray-400 mt-0.5"><?php echo htmlspecialchars($notif['time']); ?></p>
                 </div>
@@ -258,6 +296,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'mark_
                 el.addEventListener('click', () => { window.location.href = link; });
             }
             list.prepend(el);
+        };
+
+        // Handle clicking a notification
+        window.handleNotifClick = function(el, link) {
+            const notifId = el.dataset.notificationId;
+            if (notifId) {
+                // Mark as read first
+                fetch('', { 
+                    method: 'POST', 
+                    headers: {'Content-Type':'application/x-www-form-urlencoded'}, 
+                    body: 'action=mark_single_notif_read&notification_id=' + encodeURIComponent(notifId) 
+                }).then(() => {
+                    // Update the UI immediately
+                    el.classList.remove('bg-blue-50', 'font-medium');
+                    el.classList.add('bg-white', 'text-gray-600');
+                    // Update badge count
+                    updateBadgeFromSession();
+                });
+            }
+            if (link) {
+                setTimeout(() => {
+                    window.location.href = link;
+                }, 100);
+            }
+        };
+
+        // Update badge from session (for when a single notif is marked read)
+        window.updateBadgeFromSession = function() {
+            let unreadCount = 0;
+            <?php 
+            if (isset($_SESSION['notifications'])) {
+                foreach ($_SESSION['notifications'] as $n) {
+                    if (empty($n['read'])) {
+                        $unreadCount++;
+                    }
+                }
+            }
+            ?>
+            unreadCount = <?php echo $unreadCount; ?>;
+            window.updateBadge(unreadCount);
         };
 
         (function () {

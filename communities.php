@@ -116,12 +116,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['joined_communities'][$meEmail][] = $cid;
 
             // Notification
-            array_unshift($_SESSION['notifications'], [
-                'msg' => 'You created a new community: ' . htmlspecialchars($name),
-                'time' => cs_now_label(),
-                'read' => false,
-                'link' => 'communities.php?c=' . urlencode($cid),
-            ]);
+            cs_save_notification($_SESSION['user']['user_id'], 'You created a new community: ' . htmlspecialchars($name), 'communities.php?c=' . urlencode($cid));
 
             header('Location: communities.php?c=' . urlencode($cid) . '&created=1');
             exit;

@@ -189,31 +189,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 
         $attachment = savePostAttachment($_FILES['attachment'] ?? null, __DIR__ . DIRECTORY_SEPARATOR . 'uploads', $postErrors);
         $attachmentPath = $attachment ? $attachment['path'] : null;
+        $attachmentMime = $attachment ? $attachment['mime'] : null;
+
+        // Also keep in session for backward compatibility
+        $allowedTags = ['#OpenToWork', '#Networking', '#OpenToCollaborate', '#JobSeeker', '#Freelance', '#Announcement'];
+        // Only verified employers and admins can use #Hiring
+        if (cs_is_employer() || cs_is_admin()) {
+            $allowedTags[] = '#Hiring';
+        }
+        $selectedTags = [];
+        foreach (($_POST['tags'] ?? []) as $t) {
+            if (in_array($t, $allowedTags)) $selectedTags[] = $t;
+        }
+        $isHiringPost = in_array('#Hiring', $selectedTags);
+        // Only employers/admins can enable the Apply button
+        $enableApply = $isHiringPost && !empty($_POST['enable_apply']) && (cs_is_employer() || cs_is_admin());
 
         if (empty($postErrors)) {
             // Save to database
             $pdo = get_db_connection();
-            $stmt = $pdo->prepare('INSERT INTO posts (user_id, content, attachment_path) VALUES (?, ?, ?)');
+            $stmt = $pdo->prepare('INSERT INTO posts (user_id, content, attachment_path, attachment_mime, is_hiring, enable_apply) VALUES (?, ?, ?, ?, ?, ?)');
             $stmt->execute([
             $_SESSION['user']['user_id'],
             $content,
-            $attachmentPath
+            $attachmentPath,
+            $attachmentMime,
+            $isHiringPost ? 1 : 0,
+            $enableApply ? 1 : 0
         ]);
             $postId = $pdo->lastInsertId();
 
-            // Also keep in session for backward compatibility
-            $allowedTags = ['#OpenToWork', '#Networking', '#OpenToCollaborate', '#JobSeeker', '#Freelance', '#Announcement'];
-            // Only verified employers and admins can use #Hiring
-            if (cs_is_employer() || cs_is_admin()) {
-                $allowedTags[] = '#Hiring';
+            // Save tags to post_tags table
+            foreach ($selectedTags as $tag) {
+                $stmt = $pdo->prepare('INSERT INTO post_tags (post_id, tag) VALUES (?, ?)');
+                $stmt->execute([$postId, $tag]);
             }
-            $selectedTags = [];
-            foreach (($_POST['tags'] ?? []) as $t) {
-                if (in_array($t, $allowedTags)) $selectedTags[] = $t;
-            }
-            $isHiringPost = in_array('#Hiring', $selectedTags);
-            // Only employers/admins can enable the Apply button
-            $enableApply = $isHiringPost && !empty($_POST['enable_apply']) && (cs_is_employer() || cs_is_admin());
+
             $newPost = [
                 'type' => 'user',
                 'id' => $postId,
@@ -230,12 +241,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             array_unshift($_SESSION['posts'], $newPost);
 
             // Notification: own post uploaded
-            array_unshift($_SESSION['notifications'], [
-                'msg' => 'Your post was published successfully.',
-                'time' => date('M j, Y g:i A'),
-                'read' => false,
-                'link' => 'index.php?post=' . urlencode($postId),
-            ]);
+            cs_save_notification($_SESSION['user']['user_id'], 'Your post was published successfully.', 'index.php?post=' . urlencode($postId));
 
             // Post/Redirect/Get to avoid duplicate submits on refresh
             header('Location: index.php?posted=1');
@@ -333,45 +339,101 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 // ── AJAX: React to a post ──
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'react_post') {
     header('Content-Type: application/json');
-    if (!isset($_SESSION['user'])) {
-        echo json_encode(['ok' => false, 'msg' => 'Login required']);
-        exit;
-    }
-    $pid  = $_POST['post_id'] ?? '';
-    $emoji = $_POST['emoji'] ?? '';
-    $allowed = ['👍', '❤️', '🎉', '💡', '👏'];
-    if (!$pid || !in_array($emoji, $allowed)) {
-        echo json_encode(['ok' => false]);
-        exit;
-    }
-    if (!isset($_SESSION['reactions'][$pid])) $_SESSION['reactions'][$pid] = [];
-    // toggle off
-    $prev = $_SESSION['my_reactions'][$pid] ?? null;
-    if ($prev) {
-        $_SESSION['reactions'][$pid][$prev] = max(0, ($_SESSION['reactions'][$pid][$prev] ?? 1) - 1);
-    }
-    if ($prev !== $emoji) {
-        $_SESSION['reactions'][$pid][$emoji] = ($_SESSION['reactions'][$pid][$emoji] ?? 0) + 1;
-        $_SESSION['my_reactions'][$pid] = $emoji;
-        // find post owner and notify
-        foreach ($_SESSION['posts'] as $p) {
-            if (($p['id'] ?? '') === $pid) {
-                if (($p['email'] ?? '') !== ($_SESSION['user']['email'] ?? '')) {
-                    array_unshift($_SESSION['notifications'], [
-                        'msg' => htmlspecialchars($_SESSION['user']['username']) . ' reacted ' . $emoji . ' to your post.',
-                        'time' => date('M j, Y g:i A'),
-                        'read' => false,
-                        'link' => 'index.php?post=' . urlencode($pid),
-                    ]);
+    try {
+        if (!isset($_SESSION['user'])) {
+            echo json_encode(['ok' => false, 'msg' => 'Login required']);
+            exit;
+        }
+        $pid  = $_POST['post_id'] ?? '';
+        $emoji = $_POST['emoji'] ?? '';
+        $allowed = ['👍', '❤️', '🎉', '💡', '👏'];
+        if (!$pid || !in_array($emoji, $allowed)) {
+            echo json_encode(['ok' => false, 'msg' => 'Invalid request']);
+            exit;
+        }
+        $pdo = get_db_connection();
+        $userId = $_SESSION['user']['user_id'];
+        
+        // Check if this is a real database post
+        $checkPostStmt = $pdo->prepare('SELECT post_id FROM posts WHERE post_id = ?');
+        $checkPostStmt->execute([$pid]);
+        $isDbPost = $checkPostStmt->fetchColumn();
+        
+        if ($isDbPost) {
+            // Check existing reaction in DB
+            $checkStmt = $pdo->prepare('SELECT emoji FROM post_likes WHERE post_id = ? AND user_id = ?');
+            $checkStmt->execute([$pid, $userId]);
+            $prev = $checkStmt->fetchColumn();
+            
+            if ($prev) {
+                // Remove old reaction
+                $deleteStmt = $pdo->prepare('DELETE FROM post_likes WHERE post_id = ? AND user_id = ?');
+                $deleteStmt->execute([$pid, $userId]);
+            }
+            
+            if ($prev !== $emoji) {
+                // Add new reaction
+                $insertStmt = $pdo->prepare('INSERT INTO post_likes (post_id, user_id, emoji) VALUES (?, ?, ?)');
+                $insertStmt->execute([$pid, $userId, $emoji]);
+                $_SESSION['my_reactions'][$pid] = $emoji;
+                // find post owner and notify
+                try {
+                    $pdo = get_db_connection();
+                    $stmt = $pdo->prepare('SELECT user_id FROM posts WHERE post_id = ?');
+                    $stmt->execute([$pid]);
+                    $post_owner = $stmt->fetchColumn();
+                    if ($post_owner && $post_owner != $_SESSION['user']['user_id']) {
+                        cs_save_notification($post_owner, htmlspecialchars($_SESSION['user']['username']) . ' reacted ' . $emoji . ' to your post.', 'index.php?post=' . urlencode($pid));
+                    }
+                } catch (Exception $e) {
+                    // Fall back to old session method if needed
                 }
-                break;
+            } else {
+                unset($_SESSION['my_reactions'][$pid]);
+            }
+            
+            // Recalculate reactions from DB
+            $recalcStmt = $pdo->prepare('SELECT emoji, COUNT(*) as cnt FROM post_likes WHERE post_id = ? GROUP BY emoji');
+            $recalcStmt->execute([$pid]);
+            $newReactions = [];
+            while ($row = $recalcStmt->fetch(PDO::FETCH_ASSOC)) {
+                $newReactions[$row['emoji']] = (int)$row['cnt'];
+            }
+            $_SESSION['reactions'][$pid] = $newReactions;
+        } else {
+            // Not a database post, use session storage only
+            $prev = $_SESSION['my_reactions'][$pid] ?? null;
+            if ($prev) {
+                $_SESSION['reactions'][$pid][$prev] = max(0, ($_SESSION['reactions'][$pid][$prev] ?? 1) - 1);
+            }
+            if ($prev !== $emoji) {
+                $_SESSION['reactions'][$pid][$emoji] = ($_SESSION['reactions'][$pid][$emoji] ?? 0) + 1;
+                $_SESSION['my_reactions'][$pid] = $emoji;
+                // Notify
+                foreach ($_SESSION['posts'] as $p) {
+                    if (($p['id'] ?? '') === $pid) {
+                        if (($p['email'] ?? '') !== ($_SESSION['user']['email'] ?? '')) {
+                            array_unshift($_SESSION['notifications'], [
+                                'msg' => htmlspecialchars($_SESSION['user']['username']) . ' reacted ' . $emoji . ' to your post.',
+                                'time' => date('M j, Y g:i A'),
+                                'read' => false,
+                                'link' => 'index.php?post=' . urlencode($pid),
+                            ]);
+                        }
+                        break;
+                    }
+                }
+            } else {
+                unset($_SESSION['my_reactions'][$pid]);
             }
         }
-    } else {
-        unset($_SESSION['my_reactions'][$pid]);
+        
+        echo json_encode(['ok' => true, 'reactions' => $_SESSION['reactions'][$pid] ?? [], 'mine' => $_SESSION['my_reactions'][$pid] ?? null]);
+        exit;
+    } catch (Exception $e) {
+        echo json_encode(['ok' => false, 'msg' => $e->getMessage()]);
+        exit;
     }
-    echo json_encode(['ok' => true, 'reactions' => $_SESSION['reactions'][$pid], 'mine' => $_SESSION['my_reactions'][$pid] ?? null]);
-    exit;
 }
 
 // ── AJAX: Add a comment ──
@@ -407,17 +469,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'add_c
     if (!isset($_SESSION['comments'][$pid])) $_SESSION['comments'][$pid] = [];
     $_SESSION['comments'][$pid][] = $comment;
     // notify post owner
-    foreach ($_SESSION['posts'] as $p) {
-        if (($p['id'] ?? '') === $pid) {
-            if (($p['email'] ?? '') !== ($_SESSION['user']['email'] ?? '')) {
-                array_unshift($_SESSION['notifications'], [
-                    'msg' => htmlspecialchars($_SESSION['user']['username']) . ' commented on your post.',
-                    'time' => date('M j, Y g:i A'),
-                    'read' => false,
-                    'link' => 'index.php?post=' . urlencode($pid) . '&comment=' . urlencode($commentId),
-                ]);
+    try {
+        $pdo = get_db_connection();
+        $stmt = $pdo->prepare('SELECT user_id FROM posts WHERE post_id = ?');
+        $stmt->execute([$pid]);
+        $post_owner = $stmt->fetchColumn();
+        if ($post_owner && $post_owner != $_SESSION['user']['user_id']) {
+            cs_save_notification($post_owner, htmlspecialchars($_SESSION['user']['username']) . ' commented on your post.', 'index.php?post=' . urlencode($pid) . '&comment=' . urlencode($commentId));
+        }
+    } catch (Exception $e) {
+        // Fall back to old session method if needed
+        foreach ($_SESSION['posts'] as $p) {
+            if (($p['id'] ?? '') === $pid) {
+                if (($p['email'] ?? '') !== ($_SESSION['user']['email'] ?? '')) {
+                    array_unshift($_SESSION['notifications'], [
+                        'msg' => htmlspecialchars($_SESSION['user']['username']) . ' commented on your post.',
+                        'time' => date('M j, Y g:i A'),
+                        'read' => false,
+                        'link' => 'index.php?post=' . urlencode($pid) . '&comment=' . urlencode($commentId),
+                    ]);
+                }
+                break;
             }
-            break;
         }
     }
     echo json_encode(['ok' => true, 'comment' => $comment, 'total' => count($_SESSION['comments'][$pid])]);
@@ -499,12 +572,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'share
 
     // Notify original owner (if we know it)
     if ($original && !empty($original['email']) && ($original['email'] !== ($_SESSION['user']['email'] ?? ''))) {
-        array_unshift($_SESSION['notifications'], [
-            'msg' => htmlspecialchars($_SESSION['user']['username']) . ' shared your post.',
-            'time' => date('M j, Y g:i A'),
-            'read' => false,
-            'link' => 'index.php?post=' . urlencode($pid),
-        ]);
+        // First try to get user_id from database
+        try {
+            $pdo = get_db_connection();
+            $stmt = $pdo->prepare('SELECT user_id FROM users WHERE email = ?');
+            $stmt->execute([$original['email']]);
+            $original_owner_id = $stmt->fetchColumn();
+            if ($original_owner_id) {
+                cs_save_notification($original_owner_id, htmlspecialchars($_SESSION['user']['username']) . ' shared your post.', 'index.php?post=' . urlencode($pid));
+            } else {
+                // Fall back to old method if user not found in DB
+                array_unshift($_SESSION['notifications'], [
+                    'msg' => htmlspecialchars($_SESSION['user']['username']) . ' shared your post.',
+                    'time' => date('M j, Y g:i A'),
+                    'read' => false,
+                    'link' => 'index.php?post=' . urlencode($pid),
+                ]);
+            }
+        } catch (Exception $e) {
+            // Fall back to old method
+            array_unshift($_SESSION['notifications'], [
+                'msg' => htmlspecialchars($_SESSION['user']['username']) . ' shared your post.',
+                'time' => date('M j, Y g:i A'),
+                'read' => false,
+                'link' => 'index.php?post=' . urlencode($pid),
+            ]);
+        }
     }
 
     echo json_encode(['ok' => true, 'shares' => $_SESSION['shares'][$pid]]);
@@ -563,12 +656,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'apply
 
     // Notify post owner if logged in
     if (isset($_SESSION['user'])) {
-        array_unshift($_SESSION['notifications'], [
-            'msg' => htmlspecialchars($appName) . ' applied to your job posting.',
-            'time' => date('M j, Y g:i A'),
-            'read' => false,
-            'link' => 'index.php?post=' . urlencode($pid),
-        ]);
+        try {
+            $pdo = get_db_connection();
+            $stmt = $pdo->prepare('SELECT user_id FROM posts WHERE post_id = ?');
+            $stmt->execute([$pid]);
+            $post_owner = $stmt->fetchColumn();
+            if ($post_owner) {
+                cs_save_notification($post_owner, htmlspecialchars($appName) . ' applied to your job posting.', 'index.php?post=' . urlencode($pid));
+            } else {
+                // Fall back to old method
+                array_unshift($_SESSION['notifications'], [
+                    'msg' => htmlspecialchars($appName) . ' applied to your job posting.',
+                    'time' => date('M j, Y g:i A'),
+                    'read' => false,
+                    'link' => 'index.php?post=' . urlencode($pid),
+                ]);
+            }
+        } catch (Exception $e) {
+            // Fall back to old method
+            array_unshift($_SESSION['notifications'], [
+                'msg' => htmlspecialchars($appName) . ' applied to your job posting.',
+                'time' => date('M j, Y g:i A'),
+                'read' => false,
+                'link' => 'index.php?post=' . urlencode($pid),
+            ]);
+        }
     }
     echo json_encode(['ok' => true, 'msg' => 'Application submitted successfully!']);
     exit;
@@ -823,7 +935,43 @@ include 'includes/header.php';
             try {
                 $pdo = get_db_connection();
                 $stmt = $pdo->query('SELECT p.*, u.username, u.email, u.profile_pic as avatar FROM posts p JOIN users u ON p.user_id = u.user_id ORDER BY p.created_at DESC');
-                while ($row = $stmt->fetch()) {
+                $postsData = $stmt->fetchAll();
+                
+                // Load all tags for posts
+                $tagStmt = $pdo->query('SELECT post_id, tag FROM post_tags');
+                $postTags = [];
+                while ($tagRow = $tagStmt->fetch()) {
+                    if (!isset($postTags[$tagRow['post_id']])) {
+                        $postTags[$tagRow['post_id']] = [];
+                    }
+                    $postTags[$tagRow['post_id']][] = $tagRow['tag'];
+                }
+                
+                // Load all reactions (likes) for posts
+                $reactionStmt = $pdo->query('SELECT post_id, emoji, user_id FROM post_likes');
+                $postReactions = [];
+                $userReactions = [];
+                while ($reactRow = $reactionStmt->fetch()) {
+                    $postId = $reactRow['post_id'];
+                    $emoji = $reactRow['emoji'];
+                    $userId = $reactRow['user_id'];
+                    if (!isset($postReactions[$postId])) {
+                        $postReactions[$postId] = [];
+                    }
+                    if (!isset($postReactions[$postId][$emoji])) {
+                        $postReactions[$postId][$emoji] = 0;
+                    }
+                    $postReactions[$postId][$emoji]++;
+                    // If it's the current user's reaction, store it
+                    if (isset($_SESSION['user']) && $userId == $_SESSION['user']['user_id']) {
+                        $userReactions[$postId] = $emoji;
+                    }
+                }
+                // Update session with DB reactions (replace to avoid old session data)
+                $_SESSION['reactions'] = $postReactions;
+                $_SESSION['my_reactions'] = $userReactions;
+                
+                foreach ($postsData as $row) {
                     $dbPosts[] = [
                         'type' => 'user',
                         'id' => $row['post_id'],
@@ -832,10 +980,17 @@ include 'includes/header.php';
                         'avatar' => $row['avatar'],
                         'time' => date('M j, Y g:i A', strtotime($row['created_at'])),
                         'content' => $row['content'],
-                        'attachment' => $row['attachment_path'] ? ['path' => $row['attachment_path']] : null,
-                        'tags' => [],
-                        'hiring' => false,
-                        'enable_apply' => false,
+                        'attachment' => $row['attachment_path'] ? [
+                            'path' => $row['attachment_path'],
+                            'mime' => $row['attachment_mime'],
+                            'kind' => $row['attachment_mime'] ? (
+                                str_starts_with($row['attachment_mime'], 'image/') ? 'image' :
+                                (str_starts_with($row['attachment_mime'], 'video/') ? 'video' : 'document')
+                            ) : null
+                        ] : null,
+                        'tags' => $postTags[$row['post_id']] ?? [],
+                        'hiring' => (bool)$row['is_hiring'],
+                        'enable_apply' => (bool)$row['enable_apply'],
                     ];
                 }
                 // Load comments from DB
@@ -1665,14 +1820,6 @@ include 'includes/header.php';
                         }
                         const picker = document.querySelector(`.emoji-picker[data-post-id="${pid}"]`);
                         if (picker) picker.classList.add('hidden');
-                        // add notification badge
-                        const badge = document.getElementById('notifBadge');
-                        if (badge && window.updateBadge && window.prependNotif) {
-                            const cur = parseInt(badge.textContent) || 0;
-                            window.updateBadge(cur + 1);
-                            // prepend to panel
-                            window.prependNotif('Someone reacted to a post.', 'index.php?post=' + encodeURIComponent(pid));
-                        }
                     });
                 e.stopPropagation();
                 return;
@@ -1705,14 +1852,6 @@ include 'includes/header.php';
                         }
                         const picker = document.querySelector(`.emoji-picker[data-post-id="${pid}"]`);
                         if (picker) picker.classList.add('hidden');
-                        // add notification badge
-                        const badge = document.getElementById('notifBadge');
-                        if (badge && window.updateBadge && window.prependNotif) {
-                            const cur = parseInt(badge.textContent) || 0;
-                            window.updateBadge(cur + 1);
-                            // prepend to panel
-                            window.prependNotif('Someone reacted to a post.', 'index.php?post=' + encodeURIComponent(pid));
-                        }
                     });
                 e.stopPropagation();
                 return;
