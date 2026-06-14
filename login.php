@@ -20,24 +20,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (empty($errors)) {
         $pdo = get_db_connection();
-        $stmt = $pdo->prepare('SELECT user_id, username, email, password, role, status, profile_pic, cover_pic, bio, location, work, education, website, phone FROM users WHERE email = ? LIMIT 1');
+        $stmt = $pdo->prepare('SELECT user_id, first_name, last_name, email, password, role, status FROM users WHERE email = ? LIMIT 1');
         $stmt->execute([$email]);
         $user = $stmt->fetch();
 
         if ($user && password_verify($password, $user['password']) && $user['status'] === 'active') {
+            // Fetch user profile details from user_profiles table
+            $profileStmt = $pdo->prepare('SELECT profile_pic, cover_pic, bio, location, website, phone FROM user_profiles WHERE user_id = ? LIMIT 1');
+            $profileStmt->execute([$user['user_id']]);
+            $profile = $profileStmt->fetch();
+            
+            // Build a username from first and last name (since new schema doesn't have username)
+            $username = trim($user['first_name'] . ' ' . $user['last_name']);
+            
             $_SESSION['user'] = [
                 'user_id' => $user['user_id'],
-                'username' => $user['username'],
+                'first_name' => $user['first_name'],
+                'last_name' => $user['last_name'],
+                'username' => $username, // For backward compatibility
                 'email' => $user['email'],
                 'role' => $user['role'],
-                'profile_pic' => $user['profile_pic'],
-                'cover_pic' => $user['cover_pic'],
-                'bio' => $user['bio'],
-                'location' => $user['location'],
-                'work' => $user['work'],
-                'education' => $user['education'],
-                'website' => $user['website'],
-                'phone' => $user['phone']
+                'profile_pic' => $profile['profile_pic'] ?? null,
+                'cover_pic' => $profile['cover_pic'] ?? null,
+                'bio' => $profile['bio'] ?? null,
+                'location' => $profile['location'] ?? null,
+                'website' => $profile['website'] ?? null,
+                'phone' => $profile['phone'] ?? null
             ];
 
             session_regenerate_id(true);

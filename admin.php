@@ -70,7 +70,13 @@ $allPosts        = $_SESSION['posts'] ?? [];
 $allApps         = cs_get_employer_applications();
 $pendingApps     = array_values(array_filter($allApps, fn($a) => $a['status'] === 'pending'));
 $approvedApps    = array_values(array_filter($allApps, fn($a) => $a['status'] === 'approved'));
-$totalJobApps    = array_sum(array_map('count', $_SESSION['applications'] ?? []));
+// Get total job apps from database
+try {
+    $pdo = get_db_connection();
+    $totalJobApps = $pdo->query("SELECT COUNT(*) FROM job_applications")->fetchColumn();
+} catch (Exception $e) {
+    $totalJobApps = array_sum(array_map('count', $_SESSION['applications'] ?? []));
+}
 $totalAssessments= count($_SESSION['cs_assessments'] ?? []);
 $totalPosts      = count($allPosts);
 $suspendedUsers  = $_SESSION['admin_suspended_users'] ?? [];

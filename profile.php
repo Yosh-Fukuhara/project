@@ -9,24 +9,58 @@ if (!isset($_SESSION['user'])) {
 // Refresh session user data from database
 try {
     $pdo = get_db_connection();
-    $stmt = $pdo->prepare('SELECT user_id, username, email, role, profile_pic, cover_pic, bio, location, work, education, website, phone FROM users WHERE user_id = ? LIMIT 1');
+    $stmt = $pdo->prepare('SELECT user_id, first_name, last_name, email, role, status, created_at FROM users WHERE user_id = ? LIMIT 1');
     $stmt->execute([$_SESSION['user']['user_id']]);
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
     if ($user) {
+        // Build base session user data
         $_SESSION['user'] = [
             'user_id' => $user['user_id'],
-            'username' => $user['username'],
+            'first_name' => $user['first_name'],
+            'last_name' => $user['last_name'],
+            'username' => $user['first_name'] . ' ' . $user['last_name'], // For backward compatibility
             'email' => $user['email'],
             'role' => $user['role'],
-            'profile_pic' => $user['profile_pic'],
-            'cover_pic' => $user['cover_pic'],
-            'bio' => $user['bio'],
-            'location' => $user['location'],
-            'work' => $user['work'],
-            'education' => $user['education'],
-            'website' => $user['website'],
-            'phone' => $user['phone']
+            'status' => $user['status'],
+            'created_at' => $user['created_at'],
         ];
+
+        // Get profile data
+        $profileStmt = $pdo->prepare('SELECT profile_pic, cover_pic, bio, location, website, phone, updated_at FROM user_profiles WHERE user_id = ? LIMIT 1');
+        $profileStmt->execute([$user['user_id']]);
+        $profile = $profileStmt->fetch(PDO::FETCH_ASSOC);
+        if ($profile) {
+            $_SESSION['user'] = array_merge($_SESSION['user'], $profile);
+        }
+
+        // Get user work experience from user_work table
+        $workStmt = $pdo->prepare('SELECT work_id, company, title FROM user_work WHERE user_id = ?');
+        $workStmt->execute([$user['user_id']]);
+        $workRecords = $workStmt->fetchAll(PDO::FETCH_ASSOC);
+        $_SESSION['user']['experience_list'] = [];
+        foreach ($workRecords as $work) {
+            $_SESSION['user']['experience_list'][] = [
+                'id' => 'exp_' . $work['work_id'],
+                'company' => $work['company'],
+                'role' => $work['title'],
+                'period' => '',
+                'desc' => ''
+            ];
+        }
+
+        // Get user education from user_education table
+        $eduStmt = $pdo->prepare('SELECT edu_id, school, degree FROM user_education WHERE user_id = ?');
+        $eduStmt->execute([$user['user_id']]);
+        $eduRecords = $eduStmt->fetchAll(PDO::FETCH_ASSOC);
+        $_SESSION['user']['education_list'] = [];
+        foreach ($eduRecords as $edu) {
+            $_SESSION['user']['education_list'][] = [
+                'id' => 'edu_' . $edu['edu_id'],
+                'school' => $edu['school'],
+                'degree' => $edu['degree'],
+                'year' => ''
+            ];
+        }
     }
 } catch (Exception $e) {
     // Ignore errors, just use existing session data
@@ -172,30 +206,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_
     $_SESSION['user']['bio'] = $bio;
     // Save to database
     $pdo = get_db_connection();
-    $stmt = $pdo->prepare('UPDATE users SET bio = ? WHERE user_id = ?');
-    $stmt->execute([$bio, $_SESSION['user']['user_id']]);
+    // Check if profile exists
+    $checkStmt = $pdo->prepare('SELECT profile_id FROM user_profiles WHERE user_id = ? LIMIT 1');
+    $checkStmt->execute([$_SESSION['user']['user_id']]);
+    if ($checkStmt->fetch()) {
+        $stmt = $pdo->prepare('UPDATE user_profiles SET bio = ? WHERE user_id = ?');
+        $stmt->execute([$bio, $_SESSION['user']['user_id']]);
+    } else {
+        $stmt = $pdo->prepare('INSERT INTO user_profiles (user_id, bio) VALUES (?, ?)');
+        $stmt->execute([$_SESSION['user']['user_id'], $bio]);
+    }
     header('Location: profile.php');
     exit;
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_details') {
-    $_SESSION['user']['work']      = trim($_POST['work']      ?? '');
     $_SESSION['user']['location']  = trim($_POST['location']  ?? '');
-    $_SESSION['user']['education'] = trim($_POST['education'] ?? '');
-    $_SESSION['user']['address']   = trim($_POST['address']   ?? '');
     $_SESSION['user']['website']   = trim($_POST['website']   ?? '');
     $_SESSION['user']['phone']     = trim($_POST['phone']     ?? '');
     // Save to database
     $pdo = get_db_connection();
-    $stmt = $pdo->prepare('UPDATE users SET work = ?, location = ?, education = ?, website = ?, phone = ? WHERE user_id = ?');
-    $stmt->execute([
-        $_SESSION['user']['work'],
-        $_SESSION['user']['location'],
-        $_SESSION['user']['education'],
-        $_SESSION['user']['website'],
-        $_SESSION['user']['phone'],
-        $_SESSION['user']['user_id']
-    ]);
+    // Check if profile exists
+    $checkStmt = $pdo->prepare('SELECT profile_id FROM user_profiles WHERE user_id = ? LIMIT 1');
+    $checkStmt->execute([$_SESSION['user']['user_id']]);
+    if ($checkStmt->fetch()) {
+        $stmt = $pdo->prepare('UPDATE user_profiles SET location = ?, website = ?, phone = ? WHERE user_id = ?');
+        $stmt->execute([
+            $_SESSION['user']['location'],
+            $_SESSION['user']['website'],
+            $_SESSION['user']['phone'],
+            $_SESSION['user']['user_id']
+        ]);
+    } else {
+        $stmt = $pdo->prepare('INSERT INTO user_profiles (user_id, location, website, phone) VALUES (?, ?, ?, ?)');
+        $stmt->execute([
+            $_SESSION['user']['user_id'],
+            $_SESSION['user']['location'],
+            $_SESSION['user']['website'],
+            $_SESSION['user']['phone']
+        ]);
+    }
     header('Location: profile.php');
     exit;
 }
@@ -206,12 +256,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_
     $degree  = trim($_POST['edu_degree']  ?? '');
     $year    = trim($_POST['edu_year']    ?? '');
     if ($school !== '') {
-        array_unshift($_SESSION['user']['education_list'], [
-            'id'     => uniqid('edu_'),
-            'school' => $school,
-            'degree' => $degree,
-            'year'   => $year,
-        ]);
+        // Save to user_education database table
+        try {
+            $pdo = get_db_connection();
+            $stmt = $pdo->prepare('INSERT INTO user_education (user_id, school, degree) VALUES (?, ?, ?)');
+            $stmt->execute([$_SESSION['user']['user_id'], $school, $degree]);
+            $eduId = $pdo->lastInsertId();
+            
+            // Also add to session
+            array_unshift($_SESSION['user']['education_list'], [
+                'id'     => 'edu_' . $eduId,
+                'school' => $school,
+                'degree' => $degree,
+                'year'   => $year,
+            ]);
+        } catch (Exception $e) {
+            // If DB fails, still add to session
+            array_unshift($_SESSION['user']['education_list'], [
+                'id'     => uniqid('edu_'),
+                'school' => $school,
+                'degree' => $degree,
+                'year'   => $year,
+            ]);
+        }
     }
     header('Location: profile.php');
     exit;
@@ -219,6 +286,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delete_education') {
     $delId = $_POST['edu_id'] ?? '';
+    // If the id starts with 'edu_', extract the numeric id to delete from DB
+    if (str_starts_with($delId, 'edu_')) {
+        $eduId = (int)substr($delId, 4);
+        if ($eduId > 0) {
+            try {
+                $pdo = get_db_connection();
+                $stmt = $pdo->prepare('DELETE FROM user_education WHERE edu_id = ? AND user_id = ?');
+                $stmt->execute([$eduId, $_SESSION['user']['user_id']]);
+            } catch (Exception $e) {
+                // Ignore DB errors
+            }
+        }
+    }
+    // Remove from session
     $_SESSION['user']['education_list'] = array_values(array_filter(
         $_SESSION['user']['education_list'] ?? [],
         fn($e) => $e['id'] !== $delId
@@ -234,13 +315,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_
     $period   = trim($_POST['exp_period']   ?? '');
     $desc     = trim($_POST['exp_desc']     ?? '');
     if ($company !== '') {
-        array_unshift($_SESSION['user']['experience_list'], [
-            'id'      => uniqid('exp_'),
-            'company' => $company,
-            'role'    => $role,
-            'period'  => $period,
-            'desc'    => $desc,
-        ]);
+        // Save to user_work database table
+        try {
+            $pdo = get_db_connection();
+            $stmt = $pdo->prepare('INSERT INTO user_work (user_id, company, title) VALUES (?, ?, ?)');
+            $stmt->execute([$_SESSION['user']['user_id'], $company, $role]);
+            $workId = $pdo->lastInsertId();
+            
+            // Also add to session
+            array_unshift($_SESSION['user']['experience_list'], [
+                'id'      => 'exp_' . $workId,
+                'company' => $company,
+                'role'    => $role,
+                'period'  => $period,
+                'desc'    => $desc,
+            ]);
+        } catch (Exception $e) {
+            // If DB fails, still add to session
+            array_unshift($_SESSION['user']['experience_list'], [
+                'id'      => uniqid('exp_'),
+                'company' => $company,
+                'role'    => $role,
+                'period'  => $period,
+                'desc'    => $desc,
+            ]);
+        }
     }
     header('Location: profile.php');
     exit;
@@ -248,6 +347,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delete_experience') {
     $delId = $_POST['exp_id'] ?? '';
+    // If the id starts with 'exp_', extract the numeric id to delete from DB
+    if (str_starts_with($delId, 'exp_')) {
+        $workId = (int)substr($delId, 4);
+        if ($workId > 0) {
+            try {
+                $pdo = get_db_connection();
+                $stmt = $pdo->prepare('DELETE FROM user_work WHERE work_id = ? AND user_id = ?');
+                $stmt->execute([$workId, $_SESSION['user']['user_id']]);
+            } catch (Exception $e) {
+                // Ignore DB errors
+            }
+        }
+    }
+    // Remove from session
     $_SESSION['user']['experience_list'] = array_values(array_filter(
         $_SESSION['user']['experience_list'] ?? [],
         fn($e) => $e['id'] !== $delId
@@ -290,8 +403,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'uploa
         $_SESSION['user']['profile_pic'] = $profilePath;
         // Save to database
         $pdo = get_db_connection();
-        $stmt = $pdo->prepare('UPDATE users SET profile_pic = ? WHERE user_id = ?');
-        $stmt->execute([$profilePath, $_SESSION['user']['user_id']]);
+        // Check if profile exists
+        $checkStmt = $pdo->prepare('SELECT profile_id FROM user_profiles WHERE user_id = ? LIMIT 1');
+        $checkStmt->execute([$_SESSION['user']['user_id']]);
+        if ($checkStmt->fetch()) {
+            $stmt = $pdo->prepare('UPDATE user_profiles SET profile_pic = ? WHERE user_id = ?');
+            $stmt->execute([$profilePath, $_SESSION['user']['user_id']]);
+        } else {
+            $stmt = $pdo->prepare('INSERT INTO user_profiles (user_id, profile_pic) VALUES (?, ?)');
+            $stmt->execute([$_SESSION['user']['user_id'], $profilePath]);
+        }
         header('Location: profile.php');
         exit;
     }
@@ -304,8 +425,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'uploa
         $_SESSION['user']['cover_pic'] = $coverPath;
         // Save to database
         $pdo = get_db_connection();
-        $stmt = $pdo->prepare('UPDATE users SET cover_pic = ? WHERE user_id = ?');
-        $stmt->execute([$coverPath, $_SESSION['user']['user_id']]);
+        // Check if profile exists
+        $checkStmt = $pdo->prepare('SELECT profile_id FROM user_profiles WHERE user_id = ? LIMIT 1');
+        $checkStmt->execute([$_SESSION['user']['user_id']]);
+        if ($checkStmt->fetch()) {
+            $stmt = $pdo->prepare('UPDATE user_profiles SET cover_pic = ? WHERE user_id = ?');
+            $stmt->execute([$coverPath, $_SESSION['user']['user_id']]);
+        } else {
+            $stmt = $pdo->prepare('INSERT INTO user_profiles (user_id, cover_pic) VALUES (?, ?)');
+            $stmt->execute([$_SESSION['user']['user_id'], $coverPath]);
+        }
         header('Location: profile.php');
         exit;
     }
@@ -504,7 +633,7 @@ include 'includes/header.php';
                             <?php if (isset($_SESSION['user']) && !empty($_SESSION['user']['profile_pic'])): ?>
                                 <img id="profilePhotoPreview" src="<?php echo htmlspecialchars($_SESSION['user']['profile_pic']); ?>" alt="Profile photo" class="w-full h-full object-cover">
                             <?php else: ?>
-                                <span id="profileInitial"><?php echo isset($_SESSION['user']) ? strtoupper(substr($_SESSION['user']['username'], 0, 1)) : 'G'; ?></span>
+                                <span id="profileInitial"><?php echo isset($_SESSION['user']) ? strtoupper(substr($_SESSION['user']['first_name'], 0, 1)) : 'G'; ?></span>
                             <?php endif; ?>
                             <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
                                 <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">

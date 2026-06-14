@@ -5,15 +5,17 @@ $errors = [];
 $success = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $username = trim($_POST['username'] ?? '');
+    $firstName = trim($_POST['first_name'] ?? '');
+    $lastName = trim($_POST['last_name'] ?? '');
     $email = trim($_POST['email'] ?? '');
     $password = trim($_POST['password'] ?? '');
     $confirmPassword = trim($_POST['confirm_password'] ?? '');
 
-    if (empty($username)) {
-        $errors[] = 'Username is required';
-    } elseif (strlen($username) < 3) {
-        $errors[] = 'Username must be at least 3 characters';
+    if (empty($firstName)) {
+        $errors[] = 'First name is required';
+    }
+    if (empty($lastName)) {
+        $errors[] = 'Last name is required';
     }
 
     if (empty($email)) {
@@ -35,29 +37,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (empty($errors)) {
         $pdo = get_db_connection();
         
-        $checkStmt = $pdo->prepare('SELECT user_id FROM users WHERE email = ? OR username = ? LIMIT 1');
-        $checkStmt->execute([$email, $username]);
+        $checkStmt = $pdo->prepare('SELECT user_id FROM users WHERE email = ? LIMIT 1');
+        $checkStmt->execute([$email]);
         if ($checkStmt->fetch()) {
-            $errors[] = 'Email or username already exists';
+            $errors[] = 'Email already exists';
         } else {
             $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
-            $insertStmt = $pdo->prepare('INSERT INTO users (username, email, password) VALUES (?, ?, ?)');
-            $insertStmt->execute([$username, $email, $hashedPassword]);
+            $insertStmt = $pdo->prepare('INSERT INTO users (first_name, last_name, email, password) VALUES (?, ?, ?, ?)');
+            $insertStmt->execute([$firstName, $lastName, $email, $hashedPassword]);
             $userId = $pdo->lastInsertId();
+            
+            // Insert a blank user profile record
+            $profileStmt = $pdo->prepare('INSERT INTO user_profiles (user_id) VALUES (?)');
+            $profileStmt->execute([$userId]);
 
             $_SESSION['user'] = [
                 'user_id' => $userId,
-                'username' => $username,
+                'first_name' => $firstName,
+                'last_name' => $lastName,
+                'username' => trim($firstName . ' ' . $lastName),
                 'email' => $email,
                 'role' => 'user',
                 'profile_pic' => null,
                 'cover_pic' => null,
-                'bio' => '',
-                'location' => '',
-                'work' => '',
-                'education' => '',
-                'website' => '',
-                'phone' => ''
+                'bio' => null,
+                'location' => null,
+                'website' => null,
+                'phone' => null
             ];
 
             session_regenerate_id(true);
@@ -99,15 +105,27 @@ $currentPage = 'signup';
 
         <form method="POST" class="space-y-8">
             <!-- Note: profile picture upload is available on your Profile page after signing in -->
-            <div>
-                <label class="block text-xl font-semibold mb-1">Username</label>
-                <input 
-                    type="text" 
-                    name="username"
-                    value="<?php echo isset($_POST['username']) ? htmlspecialchars($_POST['username']) : ''; ?>"
-                    class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 shadow-md"
-                    placeholder="John Doe"
-                >
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xl font-semibold mb-1">First Name</label>
+                    <input 
+                        type="text" 
+                        name="first_name"
+                        value="<?php echo isset($_POST['first_name']) ? htmlspecialchars($_POST['first_name']) : ''; ?>"
+                        class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 shadow-md"
+                        placeholder="John"
+                    >
+                </div>
+                <div>
+                    <label class="block text-xl font-semibold mb-1">Last Name</label>
+                    <input 
+                        type="text" 
+                        name="last_name"
+                        value="<?php echo isset($_POST['last_name']) ? htmlspecialchars($_POST['last_name']) : ''; ?>"
+                        class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 shadow-md"
+                        placeholder="Doe"
+                    >
+                </div>
             </div>
 
             <div>

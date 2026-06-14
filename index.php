@@ -208,27 +208,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         if (empty($postErrors)) {
             // Save to database
             $pdo = get_db_connection();
-            $stmt = $pdo->prepare('INSERT INTO posts (user_id, content, attachment_path, attachment_mime, is_hiring, enable_apply) VALUES (?, ?, ?, ?, ?, ?)');
+            $type = $isHiringPost ? 'job' : 'text';
+            $stmt = $pdo->prepare('INSERT INTO posts (user_id, content, type) VALUES (?, ?, ?)');
             $stmt->execute([
-            $_SESSION['user']['user_id'],
-            $content,
-            $attachmentPath,
-            $attachmentMime,
-            $isHiringPost ? 1 : 0,
-            $enableApply ? 1 : 0
-        ]);
+                $_SESSION['user']['user_id'],
+                $content,
+                $type
+            ]);
             $postId = $pdo->lastInsertId();
+            
+            // Save attachment if any to post_attachments
+            if ($attachmentPath) {
+                $stmtAttach = $pdo->prepare('INSERT INTO post_attachments (post_id, file_path, mime_type) VALUES (?, ?, ?)');
+                $stmtAttach->execute([$postId, $attachmentPath, $attachmentMime]);
+            }
+            
+            // Save job details if hiring post
+            if ($isHiringPost) {
+                $stmtJob = $pdo->prepare('INSERT INTO job_post_details (post_id, is_hiring, enable_apply) VALUES (?, ?, ?)');
+                $stmtJob->execute([$postId, 1, $enableApply ? 1 : 0]);
+            }
 
             // Save tags to post_tags table
             foreach ($selectedTags as $tag) {
-                $stmt = $pdo->prepare('INSERT INTO post_tags (post_id, tag) VALUES (?, ?)');
-                $stmt->execute([$postId, $tag]);
+                $stmtTag = $pdo->prepare('INSERT INTO post_tags (post_id, tag) VALUES (?, ?)');
+                $stmtTag->execute([$postId, $tag]);
             }
 
             $newPost = [
                 'type' => 'user',
                 'id' => $postId,
-                'username' => $_SESSION['user']['username'],
+                'username' => $_SESSION['user']['first_name'] . ' ' . $_SESSION['user']['last_name'],
+                'first_name' => $_SESSION['user']['first_name'],
+                'last_name' => $_SESSION['user']['last_name'],
                 'email' => $_SESSION['user']['email'],
                 'avatar' => $_SESSION['user']['profile_pic'] ?? null,
                 'time' => date('M j, Y g:i A'),
@@ -336,7 +348,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     }
 }
 
-// ── AJAX: React to a post ──
+// ── AJAX: React to a post (like) ──
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'react_post') {
     header('Content-Type: application/json');
     try {
@@ -344,10 +356,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'react
             echo json_encode(['ok' => false, 'msg' => 'Login required']);
             exit;
         }
-        $pid  = $_POST['post_id'] ?? '';
-        $emoji = $_POST['emoji'] ?? '';
-        $allowed = ['👍', '❤️', '🎉', '💡', '👏'];
-        if (!$pid || !in_array($emoji, $allowed)) {
+        $pid = $_POST['post_id'] ?? '';
+        if (!$pid) {
             echo json_encode(['ok' => false, 'msg' => 'Invalid request']);
             exit;
         }
@@ -361,52 +371,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'react
         
         if ($isDbPost) {
             // Check existing reaction in DB
-            $checkStmt = $pdo->prepare('SELECT emoji FROM post_likes WHERE post_id = ? AND user_id = ?');
+            $checkStmt = $pdo->prepare('SELECT 1 FROM post_likes WHERE post_id = ? AND user_id = ?');
             $checkStmt->execute([$pid, $userId]);
             $prev = $checkStmt->fetchColumn();
             
             if ($prev) {
-                // Remove old reaction
+                // Unlike
                 $deleteStmt = $pdo->prepare('DELETE FROM post_likes WHERE post_id = ? AND user_id = ?');
                 $deleteStmt->execute([$pid, $userId]);
-            }
-            
-            if ($prev !== $emoji) {
-                // Add new reaction
-                $insertStmt = $pdo->prepare('INSERT INTO post_likes (post_id, user_id, emoji) VALUES (?, ?, ?)');
-                $insertStmt->execute([$pid, $userId, $emoji]);
-                $_SESSION['my_reactions'][$pid] = $emoji;
+                unset($_SESSION['my_reactions'][$pid]);
+            } else {
+                // Like
+                $insertStmt = $pdo->prepare('INSERT INTO post_likes (post_id, user_id) VALUES (?, ?)');
+                $insertStmt->execute([$pid, $userId]);
+                $_SESSION['my_reactions'][$pid] = '👍'; // For backward compatibility
                 // find post owner and notify
                 try {
-                    $pdo = get_db_connection();
                     $stmt = $pdo->prepare('SELECT user_id FROM posts WHERE post_id = ?');
                     $stmt->execute([$pid]);
                     $post_owner = $stmt->fetchColumn();
                     if ($post_owner && $post_owner != $_SESSION['user']['user_id']) {
-                        cs_save_notification($post_owner, htmlspecialchars($_SESSION['user']['username']) . ' reacted ' . $emoji . ' to your post.', 'index.php?post=' . urlencode($pid));
+                        cs_save_notification($post_owner, htmlspecialchars($_SESSION['user']['first_name'] . ' ' . $_SESSION['user']['last_name']) . ' liked your post.', 'index.php?post=' . urlencode($pid));
                     }
                 } catch (Exception $e) {
                     // Fall back to old session method if needed
                 }
-            } else {
-                unset($_SESSION['my_reactions'][$pid]);
             }
             
             // Recalculate reactions from DB
-            $recalcStmt = $pdo->prepare('SELECT emoji, COUNT(*) as cnt FROM post_likes WHERE post_id = ? GROUP BY emoji');
+            $recalcStmt = $pdo->prepare('SELECT COUNT(*) as cnt FROM post_likes WHERE post_id = ?');
             $recalcStmt->execute([$pid]);
-            $newReactions = [];
-            while ($row = $recalcStmt->fetch(PDO::FETCH_ASSOC)) {
-                $newReactions[$row['emoji']] = (int)$row['cnt'];
-            }
+            $count = $recalcStmt->fetchColumn();
+            $newReactions = ['👍' => (int)$count];
             $_SESSION['reactions'][$pid] = $newReactions;
         } else {
             // Not a database post, use session storage only
             $prev = $_SESSION['my_reactions'][$pid] ?? null;
             if ($prev) {
                 $_SESSION['reactions'][$pid][$prev] = max(0, ($_SESSION['reactions'][$pid][$prev] ?? 1) - 1);
-            }
-            if ($prev !== $emoji) {
+                unset($_SESSION['my_reactions'][$pid]);
+            } else {
+                $emoji = '👍';
                 $_SESSION['reactions'][$pid][$emoji] = ($_SESSION['reactions'][$pid][$emoji] ?? 0) + 1;
                 $_SESSION['my_reactions'][$pid] = $emoji;
                 // Notify
@@ -414,7 +419,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'react
                     if (($p['id'] ?? '') === $pid) {
                         if (($p['email'] ?? '') !== ($_SESSION['user']['email'] ?? '')) {
                             array_unshift($_SESSION['notifications'], [
-                                'msg' => htmlspecialchars($_SESSION['user']['username']) . ' reacted ' . $emoji . ' to your post.',
+                                'msg' => htmlspecialchars($_SESSION['user']['username']) . ' liked your post.',
                                 'time' => date('M j, Y g:i A'),
                                 'read' => false,
                                 'link' => 'index.php?post=' . urlencode($pid),
@@ -423,8 +428,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'react
                         break;
                     }
                 }
-            } else {
-                unset($_SESSION['my_reactions'][$pid]);
             }
         }
         
@@ -460,11 +463,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'add_c
     }
     $comment = [
         'id'     => $commentId,
-        'user'   => $_SESSION['user']['username'],
+        'user'   => $_SESSION['user']['first_name'] . ' ' . $_SESSION['user']['last_name'],
         'avatar' => $_SESSION['user']['profile_pic'] ?? null,
         'text'   => $text,
         'time'   => date('M j, Y g:i A'),
-        'username' => $_SESSION['user']['username'],
+        'username' => $_SESSION['user']['first_name'] . ' ' . $_SESSION['user']['last_name'],
+        'first_name' => $_SESSION['user']['first_name'],
+        'last_name' => $_SESSION['user']['last_name'],
     ];
     if (!isset($_SESSION['comments'][$pid])) $_SESSION['comments'][$pid] = [];
     $_SESSION['comments'][$pid][] = $comment;
@@ -475,7 +480,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'add_c
         $stmt->execute([$pid]);
         $post_owner = $stmt->fetchColumn();
         if ($post_owner && $post_owner != $_SESSION['user']['user_id']) {
-            cs_save_notification($post_owner, htmlspecialchars($_SESSION['user']['username']) . ' commented on your post.', 'index.php?post=' . urlencode($pid) . '&comment=' . urlencode($commentId));
+            cs_save_notification($post_owner, htmlspecialchars($_SESSION['user']['first_name'] . ' ' . $_SESSION['user']['last_name']) . ' commented on your post.', 'index.php?post=' . urlencode($pid) . '&comment=' . urlencode($commentId));
         }
     } catch (Exception $e) {
         // Fall back to old session method if needed
@@ -560,7 +565,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'share
     $newPost = [
         'type' => 'user',
         'id' => 'p_' . uniqid('', true),
-        'username' => $_SESSION['user']['username'],
+        'username' => $_SESSION['user']['first_name'] . ' ' . $_SESSION['user']['last_name'],
+        'first_name' => $_SESSION['user']['first_name'],
+        'last_name' => $_SESSION['user']['last_name'],
         'email' => $_SESSION['user']['email'],
         'avatar' => $_SESSION['user']['profile_pic'] ?? null,
         'time' => date('M j, Y g:i A'),
@@ -579,11 +586,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'share
             $stmt->execute([$original['email']]);
             $original_owner_id = $stmt->fetchColumn();
             if ($original_owner_id) {
-                cs_save_notification($original_owner_id, htmlspecialchars($_SESSION['user']['username']) . ' shared your post.', 'index.php?post=' . urlencode($pid));
+                cs_save_notification($original_owner_id, htmlspecialchars($_SESSION['user']['first_name'] . ' ' . $_SESSION['user']['last_name']) . ' shared your post.', 'index.php?post=' . urlencode($pid));
             } else {
                 // Fall back to old method if user not found in DB
                 array_unshift($_SESSION['notifications'], [
-                    'msg' => htmlspecialchars($_SESSION['user']['username']) . ' shared your post.',
+                    'msg' => htmlspecialchars($_SESSION['user']['first_name'] . ' ' . $_SESSION['user']['last_name']) . ' shared your post.',
                     'time' => date('M j, Y g:i A'),
                     'read' => false,
                     'link' => 'index.php?post=' . urlencode($pid),
@@ -592,7 +599,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'share
         } catch (Exception $e) {
             // Fall back to old method
             array_unshift($_SESSION['notifications'], [
-                'msg' => htmlspecialchars($_SESSION['user']['username']) . ' shared your post.',
+                'msg' => htmlspecialchars($_SESSION['user']['first_name'] . ' ' . $_SESSION['user']['last_name']) . ' shared your post.',
                 'time' => date('M j, Y g:i A'),
                 'read' => false,
                 'link' => 'index.php?post=' . urlencode($pid),
@@ -607,51 +614,92 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'share
 // ── AJAX: Submit job application ──
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'apply_job') {
     header('Content-Type: application/json');
-    $pid      = $_POST['post_id'] ?? '';
-    $appName  = trim($_POST['app_name'] ?? '');
-    $appEmail = trim($_POST['app_email'] ?? '');
-    $appPhone = trim($_POST['app_phone'] ?? '');
-    $appMsg   = trim($_POST['app_message'] ?? '');
-    if (!$pid || !$appName || !$appEmail) {
-        echo json_encode(['ok' => false, 'msg' => 'Name and email are required.']);
+    $pid          = $_POST['post_id'] ?? '';
+    $appFirstName = trim($_POST['app_first_name'] ?? '');
+    $appLastName  = trim($_POST['app_last_name'] ?? '');
+    $appEmail     = trim($_POST['app_email'] ?? '');
+    $appPhone     = trim($_POST['app_phone'] ?? '');
+    $appMsg       = trim($_POST['app_message'] ?? '');
+    
+    // Resume is required now (resume_path is NOT NULL in schema)
+    if (!$pid || !$appFirstName || !$appLastName || !$appEmail || empty($_FILES['app_resume']['tmp_name'])) {
+        echo json_encode(['ok' => false, 'msg' => 'First name, last name, email, and resume are required.']);
         exit;
     }
+    
     // Handle resume upload
     $resumePath = null;
-    if (!empty($_FILES['app_resume']['tmp_name'])) {
-        $resumeErrors = [];
-        $resume = savePostAttachment($_FILES['app_resume'], __DIR__ . DIRECTORY_SEPARATOR . 'uploads', $resumeErrors);
-        if ($resume) $resumePath = $resume['path'];
+    $resumeErrors = [];
+    $resume = savePostAttachment($_FILES['app_resume'], __DIR__ . DIRECTORY_SEPARATOR . 'uploads', $resumeErrors);
+    if ($resume) $resumePath = $resume['path'];
+    if (!$resumePath) {
+        echo json_encode(['ok' => false, 'msg' => 'Failed to upload resume.']);
+        exit;
     }
-    if (!isset($_SESSION['applications'][$pid])) $_SESSION['applications'][$pid] = [];
-    $appId = 'app_' . uniqid('', true);
-    $application = [
-        'id'      => $appId,
-        'name'    => $appName,
-        'email'   => $appEmail,
-        'phone'   => $appPhone,
-        'message' => $appMsg,
-        'resume'  => $resumePath,
-        'time'    => date('M j, Y g:i A'),
-        'status'  => 'pending',
-    ];
-    $_SESSION['applications'][$pid][] = $application;
+    
+    // Save to database
+    try {
+        $pdo = get_db_connection();
+        $applicantId = isset($_SESSION['user']['user_id']) ? $_SESSION['user']['user_id'] : null;
+        $stmt = $pdo->prepare('INSERT INTO job_applications (post_id, applicant_id, app_first_name, app_last_name, app_email, app_phone, app_message, resume_path, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
+        $stmt->execute([
+            $pid, 
+            $applicantId, 
+            $appFirstName, 
+            $appLastName, 
+            $appEmail, 
+            $appPhone ?: null, 
+            $appMsg ?: null, 
+            $resumePath, 
+            'pending'
+        ]);
+        error_log("Job application saved to DB for post $pid by $appFirstName $appLastName");
+    } catch (Exception $e) {
+        error_log("Failed to save job application to DB: " . $e->getMessage());
+        // Fall back to session method
+        if (!isset($_SESSION['applications'][$pid])) $_SESSION['applications'][$pid] = [];
+        $appId = 'app_' . uniqid('', true);
+        $application = [
+            'id'          => $appId,
+            'first_name'  => $appFirstName,
+            'last_name'   => $appLastName,
+            'name'        => trim($appFirstName . ' ' . $appLastName), // Backward compatibility
+            'email'       => $appEmail,
+            'phone'       => $appPhone,
+            'message'     => $appMsg,
+            'resume'      => $resumePath,
+            'time'        => date('M j, Y g:i A'),
+            'status'      => 'pending',
+        ];
+        $_SESSION['applications'][$pid][] = $application;
+    }
 
     // Save to user's own applications
     if (isset($_SESSION['user'])) {
         $postTitle = '';
-        foreach ($_SESSION['posts'] as $post) {
-            if (($post['id'] ?? '') === $pid) {
-                $postTitle = substr($post['content'] ?? 'Job Posting', 0, 50);
-                break;
+        try {
+            $pdo = get_db_connection();
+            $stmt = $pdo->prepare('SELECT content FROM posts WHERE post_id = ?');
+            $stmt->execute([$pid]);
+            $postContent = $stmt->fetchColumn();
+            if ($postContent) $postTitle = substr($postContent, 0, 50);
+        } catch (Exception $e) {
+            foreach ($_SESSION['posts'] as $post) {
+                if (($post['id'] ?? '') === $pid) {
+                    $postTitle = substr($post['content'] ?? 'Job Posting', 0, 50);
+                    break;
+                }
             }
         }
+        if (!isset($_SESSION['my_applications'])) $_SESSION['my_applications'] = [];
         $_SESSION['my_applications'][] = [
             'postId' => $pid,
             'postTitle' => $postTitle,
-            'time' => $application['time'],
-            'status' => $application['status'],
+            'time' => date('M j, Y g:i A'),
+            'status' => 'pending',
         ];
+        // Send notification to the applicant that they applied
+        cs_save_notification($_SESSION['user']['user_id'], 'You submitted a job application.', 'index.php?post=' . urlencode($pid));
     }
 
     // Notify post owner if logged in
@@ -701,15 +749,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'updat
         exit;
     }
     $updated = false;
-    if (isset($_SESSION['applications'][$pid])) {
-        foreach ($_SESSION['applications'][$pid] as &$app) {
-            if (($app['id'] ?? '') === $appId) {
-                $app['status'] = $status;
-                $updated = true;
-                break;
+    // First try to update database
+    try {
+        $pdo = get_db_connection();
+        $appIdInt = (int)$appId;
+        $stmt = $pdo->prepare('UPDATE job_applications SET status = ? WHERE application_id = ?');
+        $stmt->execute([$status, $appIdInt]);
+        if ($stmt->rowCount() > 0) $updated = true;
+    } catch (Exception $e) {
+        // Then try session
+        if (isset($_SESSION['applications'][$pid])) {
+            foreach ($_SESSION['applications'][$pid] as &$app) {
+                if (($app['id'] ?? '') === $appId) {
+                    $app['status'] = $status;
+                    $updated = true;
+                    break;
+                }
             }
+            unset($app);
         }
-        unset($app);
     }
     echo json_encode(['ok' => $updated]);
     exit;
@@ -756,27 +814,18 @@ include 'includes/header.php';
                             <?php if (isset($_SESSION['user']) && !empty($_SESSION['user']['profile_pic'])): ?>
                                 <img src="<?php echo htmlspecialchars($_SESSION['user']['profile_pic']); ?>" alt="Profile photo" class="w-full h-full object-cover">
                             <?php else: ?>
-                                <?php echo isset($_SESSION['user']) ? strtoupper(substr($_SESSION['user']['username'], 0, 1)) : 'G'; ?>
+                                <?php echo isset($_SESSION['user']) ? strtoupper(substr($_SESSION['user']['first_name'], 0, 1)) : 'G'; ?>
                             <?php endif; ?>
                         </div>
                         <h3 class="mt-2 font-semibold text-gray-800 hover:underline">
-                            <?php echo isset($_SESSION['user']) ? htmlspecialchars($_SESSION['user']['username']) : 'Guest User'; ?>
+                            <?php echo isset($_SESSION['user']) ? htmlspecialchars($_SESSION['user']['first_name'] . ' ' . $_SESSION['user']['last_name']) : 'Guest User'; ?>
                         </h3>
                         <p class="text-gray-500 text-sm">
                             <?php echo isset($_SESSION['user']) ? htmlspecialchars($_SESSION['user']['email']) : 'Not logged in'; ?>
                         </p>
                     </div>
                 </a>
-                <div class="border-t border-gray-200 px-4 py-3">
-                    <div class="flex justify-between text-sm">
-                        <span class="text-gray-600">Profile views</span>
-                        <span class="font-semibold text-gray-800"><?php echo rand(100, 5000); ?></span>
-                    </div>
-                    <div class="flex justify-between text-sm mt-2">
-                        <span class="text-gray-600">Post impressions</span>
-                        <span class="font-semibold text-gray-800"><?php echo rand(500, 10000); ?></span>
-                    </div>
-                </div>
+
             </div>
         </div>
 
@@ -854,12 +903,12 @@ include 'includes/header.php';
                                 <?php if (isset($_SESSION['user']) && !empty($_SESSION['user']['profile_pic'])): ?>
                                     <img src="<?php echo htmlspecialchars($_SESSION['user']['profile_pic']); ?>" alt="Profile photo" class="w-full h-full object-cover">
                                 <?php else: ?>
-                                    <?php echo isset($_SESSION['user']) ? strtoupper(substr($_SESSION['user']['username'], 0, 1)) : 'G'; ?>
+                                    <?php echo isset($_SESSION['user']) ? strtoupper(substr($_SESSION['user']['first_name'], 0, 1)) : 'G'; ?>
                                 <?php endif; ?>
                             </div>
                             <div>
                                 <p class="font-semibold text-gray-900">
-                                    <?php echo isset($_SESSION['user']) ? htmlspecialchars($_SESSION['user']['username']) : 'Guest'; ?>
+                                    <?php echo isset($_SESSION['user']) ? htmlspecialchars($_SESSION['user']['first_name'] . ' ' . $_SESSION['user']['last_name']) : 'Guest'; ?>
                                 </p>
                                 <p class="text-xs text-gray-500">Posting to Home</p>
                             </div>
@@ -934,7 +983,7 @@ include 'includes/header.php';
             $dbComments = [];
             try {
                 $pdo = get_db_connection();
-                $stmt = $pdo->query('SELECT p.*, u.username, u.email, u.profile_pic as avatar FROM posts p JOIN users u ON p.user_id = u.user_id ORDER BY p.created_at DESC');
+                $stmt = $pdo->query('SELECT p.*, u.first_name, u.last_name, u.email, u.profile_pic as avatar FROM posts p JOIN users u ON p.user_id = u.user_id ORDER BY p.created_at DESC');
                 $postsData = $stmt->fetchAll();
                 
                 // Load all tags for posts
@@ -947,14 +996,34 @@ include 'includes/header.php';
                     $postTags[$tagRow['post_id']][] = $tagRow['tag'];
                 }
                 
+                // Load all attachments for posts
+                $attachStmt = $pdo->query('SELECT post_id, file_path, mime_type FROM post_attachments');
+                $postAttachments = [];
+                while ($attachRow = $attachStmt->fetch()) {
+                    $postAttachments[$attachRow['post_id']] = [
+                        'path' => $attachRow['file_path'],
+                        'mime' => $attachRow['mime_type']
+                    ];
+                }
+                
+                // Load all job post details
+                $jobStmt = $pdo->query('SELECT post_id, is_hiring, enable_apply FROM job_post_details');
+                $postJobDetails = [];
+                while ($jobRow = $jobStmt->fetch()) {
+                    $postJobDetails[$jobRow['post_id']] = [
+                        'is_hiring' => (bool)$jobRow['is_hiring'],
+                        'enable_apply' => (bool)$jobRow['enable_apply']
+                    ];
+                }
+                
                 // Load all reactions (likes) for posts
-                $reactionStmt = $pdo->query('SELECT post_id, emoji, user_id FROM post_likes');
+                $reactionStmt = $pdo->query('SELECT post_id, user_id FROM post_likes');
                 $postReactions = [];
                 $userReactions = [];
                 while ($reactRow = $reactionStmt->fetch()) {
                     $postId = $reactRow['post_id'];
-                    $emoji = $reactRow['emoji'];
                     $userId = $reactRow['user_id'];
+                    $emoji = '👍'; // Default to thumbs up for backward compatibility
                     if (!isset($postReactions[$postId])) {
                         $postReactions[$postId] = [];
                     }
@@ -972,42 +1041,57 @@ include 'includes/header.php';
                 $_SESSION['my_reactions'] = $userReactions;
                 
                 foreach ($postsData as $row) {
+                    $username = trim($row['first_name'] . ' ' . $row['last_name']);
+                    $attachment = null;
+                    if (isset($postAttachments[$row['post_id']])) {
+                        $att = $postAttachments[$row['post_id']];
+                        $kind = $att['mime'] ? (
+                            str_starts_with($att['mime'], 'image/') ? 'image' :
+                            (str_starts_with($att['mime'], 'video/') ? 'video' : 'document')
+                        ) : null;
+                        $attachment = [
+                            'path' => $att['path'],
+                            'mime' => $att['mime'],
+                            'kind' => $kind
+                        ];
+                    }
+                    $hiring = false;
+                    $enableApply = false;
+                    if (isset($postJobDetails[$row['post_id']])) {
+                        $hiring = $postJobDetails[$row['post_id']]['is_hiring'];
+                        $enableApply = $postJobDetails[$row['post_id']]['enable_apply'];
+                    }
+                    
                     $dbPosts[] = [
                         'type' => 'user',
                         'id' => $row['post_id'],
-                        'username' => $row['username'],
+                        'username' => $username,
                         'email' => $row['email'],
                         'avatar' => $row['avatar'],
                         'time' => date('M j, Y g:i A', strtotime($row['created_at'])),
                         'content' => $row['content'],
-                        'attachment' => $row['attachment_path'] ? [
-                            'path' => $row['attachment_path'],
-                            'mime' => $row['attachment_mime'],
-                            'kind' => $row['attachment_mime'] ? (
-                                str_starts_with($row['attachment_mime'], 'image/') ? 'image' :
-                                (str_starts_with($row['attachment_mime'], 'video/') ? 'video' : 'document')
-                            ) : null
-                        ] : null,
+                        'attachment' => $attachment,
                         'tags' => $postTags[$row['post_id']] ?? [],
-                        'hiring' => (bool)$row['is_hiring'],
-                        'enable_apply' => (bool)$row['enable_apply'],
+                        'hiring' => $hiring,
+                        'enable_apply' => $enableApply,
                     ];
                 }
                 // Load comments from DB
-                $commentStmt = $pdo->query('SELECT c.*, u.username, u.profile_pic as avatar FROM comments c JOIN users u ON c.user_id = u.user_id ORDER BY c.created_at ASC');
+                $commentStmt = $pdo->query('SELECT c.*, u.first_name, u.last_name, u.profile_pic as avatar FROM comments c JOIN users u ON c.user_id = u.user_id ORDER BY c.created_at ASC');
                 while ($cmRow = $commentStmt->fetch()) {
                     $postId = $cmRow['post_id'];
                     if (!isset($dbComments[$postId])) {
                         $dbComments[$postId] = [];
                     }
+                    $username = trim($cmRow['first_name'] . ' ' . $cmRow['last_name']);
                     $dbComments[$postId][] = [
                         'id' => $cmRow['comment_id'],
-                        'user' => $cmRow['username'],
+                        'user' => $username,
                         'avatar' => $cmRow['avatar'],
                         'text' => $cmRow['content'],
                         'time' => date('M j, Y g:i A', strtotime($cmRow['created_at'])),
                         'user_id' => $cmRow['user_id'],
-                        'username' => $cmRow['username'],
+                        'username' => $username,
                     ];
                 }
                 // Merge DB comments with session comments
@@ -1344,14 +1428,16 @@ include 'includes/header.php';
                             Share<?php echo $totalShares > 0 ? ' ' . $totalShares : ''; ?>
                         </button>
 
-                        <?php if (isset($_SESSION['user']) && ($post['email'] ?? '') === $_SESSION['user']['email'] && !empty($_SESSION['applications'][$pid])): ?>
+                        <?php 
+                        $postApps = cs_get_applications_for_post($pid);
+                        if (isset($_SESSION['user']) && ($post['email'] ?? '') === $_SESSION['user']['email'] && !empty($postApps)): ?>
                             <button
                                 class="view-apps-toggle flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-gray-100 transition text-gray-700 font-medium"
                                 data-post-id="<?php echo htmlspecialchars($pid); ?>">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                                 </svg>
-                                Apps (<?php echo count($_SESSION['applications'][$pid]); ?>)
+                                Apps (<?php echo count($postApps); ?>)
                             </button>
                         <?php endif; ?>
                     </div>
@@ -1396,11 +1482,13 @@ include 'includes/header.php';
                         <?php endif; ?>
                     </div>
 
-                    <?php if (isset($_SESSION['user']) && ($post['email'] ?? '') === $_SESSION['user']['email'] && !empty($_SESSION['applications'][$pid])): ?>
+                    <?php 
+                    $postApps = cs_get_applications_for_post($pid);
+                    if (isset($_SESSION['user']) && ($post['email'] ?? '') === $_SESSION['user']['email'] && !empty($postApps)): ?>
                         <div class="apps-section hidden border-t border-gray-100 px-4 py-3 bg-blue-50" data-post-id="<?php echo htmlspecialchars($pid); ?>">
                             <h5 class="font-bold text-gray-800 text-sm mb-3">Job Applications</h5>
                             <div class="space-y-3">
-                                <?php foreach ($_SESSION['applications'][$pid] as $app): ?>
+                                <?php foreach ($postApps as $app): ?>
                                     <div class="bg-white p-3 rounded-xl shadow-sm border border-gray-200 text-sm">
                                         <div class="flex justify-between items-start mb-1">
                                             <div class="flex items-center gap-2">
@@ -1544,9 +1632,15 @@ include 'includes/header.php';
         <form id="applyForm" class="p-5 space-y-4" enctype="multipart/form-data">
             <input type="hidden" name="action" value="apply_job">
             <input type="hidden" id="applyPostId" name="post_id" value="">
-            <div>
-                <label class="block text-sm font-semibold text-gray-700 mb-1">Full Name <span class="text-red-500">*</span></label>
-                <input type="text" name="app_name" required class="w-full px-4 py-2 rounded-xl border border-gray-200 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" placeholder="Your full name">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">First Name <span class="text-red-500">*</span></label>
+                    <input type="text" name="app_first_name" required class="w-full px-4 py-2 rounded-xl border border-gray-200 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" placeholder="John">
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">Last Name <span class="text-red-500">*</span></label>
+                    <input type="text" name="app_last_name" required class="w-full px-4 py-2 rounded-xl border border-gray-200 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" placeholder="Doe">
+                </div>
             </div>
             <div>
                 <label class="block text-sm font-semibold text-gray-700 mb-1">Email <span class="text-red-500">*</span></label>
@@ -1557,8 +1651,8 @@ include 'includes/header.php';
                 <input type="tel" name="app_phone" class="w-full px-4 py-2 rounded-xl border border-gray-200 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" placeholder="+1 555 000 0000">
             </div>
             <div>
-                <label class="block text-sm font-semibold text-gray-700 mb-1">Resume / CV</label>
-                <input type="file" name="app_resume" accept=".pdf,.doc,.docx" class="w-full text-sm">
+                <label class="block text-sm font-semibold text-gray-700 mb-1">Resume / CV <span class="text-red-500">*</span></label>
+                <input type="file" name="app_resume" accept=".pdf,.doc,.docx" required class="w-full text-sm">
                 <p class="text-xs text-gray-400 mt-1">PDF, DOC or DOCX (max 25MB)</p>
             </div>
             <div>

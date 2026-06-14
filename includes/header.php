@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/bootstrap.php';
+require_once __DIR__ . '/../role_helpers.php';
 
 // ── AJAX: Mark all notifications read (Global) ──
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'mark_notifs_read') {
@@ -132,11 +133,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'mark_
                                     <?php if (!empty($_SESSION['user']['profile_pic'])): ?>
                                         <img src="<?php echo htmlspecialchars($_SESSION['user']['profile_pic']); ?>" alt="Profile photo" class="w-full h-full object-cover">
                                     <?php else: ?>
-                                        <?php echo strtoupper(substr($_SESSION['user']['username'], 0, 1)); ?>
+                                        <?php echo strtoupper(substr($_SESSION['user']['first_name'], 0, 1)); ?>
                                     <?php endif; ?>
                                 </button>
                                 <div id="userMenu" class="absolute right-0 top-full mt-2 w-48 bg-white rounded-lg shadow-lg py-2 hidden">
                                     <a href="profile.php" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">Profile</a>
+                                    <?php if (cs_is_employer() || cs_is_admin()): ?>
+                                        <a href="employer_dashboard.php" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">Employer Dashboard</a>
+                                    <?php endif; ?>
                                     <a href="logout.php" class="block px-4 py-2 text-red-600 hover:bg-gray-100">Logout</a>
                                 </div>
                             </div>

@@ -10,19 +10,21 @@ try {
 
     if (isset($_GET['id']) && is_numeric($_GET['id'])) {
         $stmt = $pdo->prepare(
-            'SELECT user_id, username, email, role, profile_pic, cover_pic, bio, location, work, education, website, phone
+            'SELECT user_id, first_name, last_name, email, role, status, created_at
              FROM users WHERE user_id = ? AND status = "active" LIMIT 1'
         );
         $stmt->execute([(int)$_GET['id']]);
         $viewedUser = $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
-
-    } elseif (isset($_GET['username'])) {
-        $stmt = $pdo->prepare(
-            'SELECT user_id, username, email, role, profile_pic, cover_pic, bio, location, work, education, website, phone
-             FROM users WHERE username = ? AND status = "active" LIMIT 1'
-        );
-        $stmt->execute([trim($_GET['username'])]);
-        $viewedUser = $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
+        if ($viewedUser) {
+            // Get profile data
+            $profileStmt = $pdo->prepare('SELECT profile_pic, cover_pic, bio, location, website, phone FROM user_profiles WHERE user_id = ? LIMIT 1');
+            $profileStmt->execute([$viewedUser['user_id']]);
+            $profile = $profileStmt->fetch(PDO::FETCH_ASSOC);
+            if ($profile) {
+                $viewedUser = array_merge($viewedUser, $profile);
+            }
+            $viewedUser['username'] = $viewedUser['first_name'] . ' ' . $viewedUser['last_name'];
+        }
     }
 } catch (Exception $e) {
     $viewedUser = null;

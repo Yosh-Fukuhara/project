@@ -10,27 +10,8 @@ if (session_status() === PHP_SESSION_NONE) {
 require_once __DIR__ . '/../config/database.php';
 
 // ── Database migrations ──
-try {
-    $pdo = get_db_connection();
-    // Add emoji column to post_likes if not exists
-    $checkCol = $pdo->query("SHOW COLUMNS FROM post_likes LIKE 'emoji'");
-    if (!$checkCol->fetch()) {
-        $pdo->exec("ALTER TABLE post_likes ADD COLUMN emoji VARCHAR(10) NOT NULL DEFAULT '👍' AFTER user_id");
-    }
-    // Add is_hiring and enable_apply to posts if not exists
-    $checkHiring = $pdo->query("SHOW COLUMNS FROM posts LIKE 'is_hiring'");
-    if (!$checkHiring->fetch()) {
-        $pdo->exec("ALTER TABLE posts ADD COLUMN is_hiring TINYINT(1) DEFAULT 0 AFTER attachment_mime");
-    }
-    $checkEnableApply = $pdo->query("SHOW COLUMNS FROM posts LIKE 'enable_apply'");
-    if (!$checkEnableApply->fetch()) {
-        $pdo->exec("ALTER TABLE posts ADD COLUMN enable_apply TINYINT(1) DEFAULT 0 AFTER is_hiring");
-    }
-    // Delete orphaned post_likes entries (reactions for posts that no longer exist)
-    $pdo->exec("DELETE pl FROM post_likes pl LEFT JOIN posts p ON pl.post_id = p.post_id WHERE p.post_id IS NULL");
-} catch (Exception $e) {
-    // Ignore migration errors for now
-}
+// For now, we assume the database is already set up with the schema in database.sql
+// No automatic migrations here, to avoid conflicts with user's manual setup
 
 // ── String helpers (works even without mbstring) ──
 function cs_strlen(string $s): int {
@@ -84,6 +65,32 @@ function cs_save_notification($user_id, $message, $link = null) {
         return true;
     } catch (Exception $e) {
         return false;
+    }
+}
+
+// Load user and profile from database if logged in
+if (isset($_SESSION['user']) && isset($_SESSION['user']['user_id'])) {
+    try {
+        $pdo = get_db_connection();
+        // Load user data
+        $stmtUser = $pdo->prepare('SELECT user_id, first_name, last_name, email, role, status, created_at FROM users WHERE user_id = ?');
+        $stmtUser->execute([$_SESSION['user']['user_id']]);
+        $userFromDb = $stmtUser->fetch(PDO::FETCH_ASSOC);
+        
+        if ($userFromDb) {
+            $_SESSION['user'] = $userFromDb;
+            
+            // Load profile data
+            $stmtProfile = $pdo->prepare('SELECT profile_pic, cover_pic, bio, location, website, phone, updated_at FROM user_profiles WHERE user_id = ?');
+            $stmtProfile->execute([$userFromDb['user_id']]);
+            $profileFromDb = $stmtProfile->fetch(PDO::FETCH_ASSOC);
+            
+            if ($profileFromDb) {
+                $_SESSION['user'] = array_merge($_SESSION['user'], $profileFromDb);
+            }
+        }
+    } catch (Exception $e) {
+        // Fall back to existing session data if DB fails
     }
 }
 

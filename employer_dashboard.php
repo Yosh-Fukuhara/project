@@ -166,7 +166,41 @@ if (isset($_GET['flash'])) { $flash = $_GET['flash']; $flashType = $_GET['ft'] ?
 // ── Data ───────────────────────────────────────────────────────────────────
 $myApplications  = cs_get_all_employer_post_applications($myEmail);
 $myAssessments   = cs_get_assessments_by_employer($myEmail);
-$myPosts         = array_values(array_filter($_SESSION['posts'] ?? [], fn($p) => ($p['email'] ?? '') === $myEmail && !empty($p['hiring'])));
+
+// Load $myPosts from database
+try {
+    $pdo = get_db_connection();
+    // Get user id from email first
+    $stmtUserId = $pdo->prepare('SELECT user_id FROM users WHERE email = ?');
+    $stmtUserId->execute([$myEmail]);
+    $userId = $stmtUserId->fetchColumn();
+    
+    if ($userId) {
+        $stmtPosts = $pdo->prepare('SELECT post_id, user_id, type, content, created_at FROM posts WHERE user_id = ? AND (type = "job") ORDER BY created_at DESC');
+        $stmtPosts->execute([$userId]);
+        $myPostsFromDB = $stmtPosts->fetchAll(PDO::FETCH_ASSOC);
+        
+        // Load job details
+        $jobStmt = $pdo->prepare('SELECT post_id, is_hiring, enable_apply FROM job_post_details WHERE post_id = ?');
+        $myPosts = [];
+        foreach ($myPostsFromDB as $post) {
+            $jobStmt->execute([$post['post_id']]);
+            $jobDetails = $jobStmt->fetch(PDO::FETCH_ASSOC);
+            $myPosts[] = array_merge($post, [
+                'is_hiring' => (bool)($jobDetails['is_hiring'] ?? true),
+                'enable_apply' => (bool)($jobDetails['enable_apply'] ?? false),
+                'id' => $post['post_id'],
+                'time' => date('M j, Y g:i A', strtotime($post['created_at']))
+            ]);
+        }
+    } else {
+        // Fall back to session
+        $myPosts = array_values(array_filter($_SESSION['posts'] ?? [], fn($p) => ($p['email'] ?? '') === $myEmail && !empty($p['hiring'])));
+    }
+} catch (Exception $e) {
+    // Fall back to session
+    $myPosts = array_values(array_filter($_SESSION['posts'] ?? [], fn($p) => ($p['email'] ?? '') === $myEmail && !empty($p['hiring'])));
+}
 
 include 'includes/header.php';
 ?>
