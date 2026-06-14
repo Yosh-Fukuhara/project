@@ -369,32 +369,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delet
     exit;
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_project') {
-    if (!isset($_SESSION['user']['projects_list'])) $_SESSION['user']['projects_list'] = [];
-    $title = trim($_POST['proj_title'] ?? '');
-    $url   = trim($_POST['proj_url']   ?? '');
-    $desc  = trim($_POST['proj_desc']  ?? '');
-    if ($title !== '') {
-        array_unshift($_SESSION['user']['projects_list'], [
-            'id'    => uniqid('proj_'),
-            'title' => $title,
-            'url'   => $url,
-            'desc'  => $desc,
-        ]);
-    }
-    header('Location: profile.php');
-    exit;
-}
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delete_project') {
-    $delId = $_POST['proj_id'] ?? '';
-    $_SESSION['user']['projects_list'] = array_values(array_filter(
-        $_SESSION['user']['projects_list'] ?? [],
-        fn($e) => $e['id'] !== $delId
-    ));
-    header('Location: profile.php');
-    exit;
-}
 
 $profileErrors = [];
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'upload_profile') {
@@ -1038,92 +1013,8 @@ include 'includes/header.php';
             <?php endif; ?>
         </div>
 
-        <!-- ══════════════════════════════════════════
-             PROJECTS
-        ══════════════════════════════════════════ -->
-        <div class="bg-white border border-gray-200 rounded-xl p-6">
-            <div class="flex items-center justify-between mb-4">
-                <h2 class="text-xl font-bold text-gray-900 flex items-center gap-2">
-                    <svg class="w-5 h-5 text-blue-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
-                    </svg>
-                    Projects
-                </h2>
-                <button onclick="document.getElementById('projForm').classList.toggle('hidden')"
-                        class="text-xs font-semibold text-blue-700 border border-blue-200 px-3 py-1.5 rounded-lg hover:bg-blue-50 transition flex items-center gap-1">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                    </svg>
-                    Add
-                </button>
-            </div>
 
-            <form method="POST" id="projForm" class="hidden mb-5 bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-3">
-                <input type="hidden" name="action" value="save_project">
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-600 mb-1">Project Title *</label>
-                        <input type="text" name="proj_title" required placeholder="e.g. CyberSphere Platform"
-                               class="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-600 mb-1">URL (optional)</label>
-                        <input type="url" name="proj_url" placeholder="https://..."
-                               class="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
-                    </div>
-                    <div class="sm:col-span-2">
-                        <label class="block text-xs font-semibold text-gray-600 mb-1">Description</label>
-                        <textarea name="proj_desc" rows="2" placeholder="What does it do? What tech did you use?"
-                                  class="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm resize-none"></textarea>
-                    </div>
-                </div>
-                <div class="flex gap-2">
-                    <button type="submit" class="bg-blue-900 text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-blue-800 transition">Save</button>
-                    <button type="button" onclick="document.getElementById('projForm').classList.add('hidden')"
-                            class="border border-gray-300 text-gray-600 text-sm font-semibold px-4 py-2 rounded-lg hover:bg-gray-50 transition">Cancel</button>
-                </div>
-            </form>
 
-            <?php $projList = $_SESSION['user']['projects_list'] ?? []; ?>
-            <?php if (empty($projList)): ?>
-                <p class="text-gray-400 text-sm italic">No projects added yet.</p>
-            <?php else: ?>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <?php foreach ($projList as $proj): ?>
-                    <div class="border border-gray-200 rounded-xl p-4 hover:shadow-sm transition group relative">
-                        <div class="flex items-start justify-between gap-2 mb-1">
-                            <div class="flex items-center gap-2 min-w-0">
-                                <span class="text-lg">🖥️</span>
-                                <?php if (!empty($proj['url'])): ?>
-                                    <a href="<?php echo htmlspecialchars($proj['url']); ?>" target="_blank" rel="noopener"
-                                       class="font-semibold text-blue-800 hover:underline text-sm truncate">
-                                        <?php echo htmlspecialchars($proj['title']); ?>
-                                    </a>
-                                <?php else: ?>
-                                    <p class="font-semibold text-gray-900 text-sm truncate"><?php echo htmlspecialchars($proj['title']); ?></p>
-                                <?php endif; ?>
-                            </div>
-                            <form method="POST" class="flex-shrink-0 opacity-0 group-hover:opacity-100 transition">
-                                <input type="hidden" name="action" value="delete_project">
-                                <input type="hidden" name="proj_id" value="<?php echo htmlspecialchars($proj['id']); ?>">
-                                <button type="submit" class="text-gray-300 hover:text-red-400 transition" title="Remove">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                                    </svg>
-                                </button>
-                            </form>
-                        </div>
-                        <?php if (!empty($proj['url'])): ?>
-                            <p class="text-xs text-gray-400 truncate mb-1"><?php echo htmlspecialchars($proj['url']); ?></p>
-                        <?php endif; ?>
-                        <?php if (!empty($proj['desc'])): ?>
-                            <p class="text-gray-600 text-xs leading-relaxed"><?php echo htmlspecialchars($proj['desc']); ?></p>
-                        <?php endif; ?>
-                    </div>
-                <?php endforeach; ?>
-                </div>
-            <?php endif; ?>
-        </div>
 
         <!-- POSTS SECTION BELOW -->
         <div class="bg-white border border-gray-200 rounded-xl p-6">
