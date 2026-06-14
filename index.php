@@ -357,6 +357,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'react
             exit;
         }
         $pid = $_POST['post_id'] ?? '';
+        $emoji = $_POST['emoji'] ?? '👍'; // Default to thumbs up
         if (!$pid) {
             echo json_encode(['ok' => false, 'msg' => 'Invalid request']);
             exit;
@@ -371,47 +372,65 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'react
         
         if ($isDbPost) {
             // Check existing reaction in DB
-            $checkStmt = $pdo->prepare('SELECT 1 FROM post_likes WHERE post_id = ? AND user_id = ?');
+            $checkStmt = $pdo->prepare('SELECT emoji FROM post_likes WHERE post_id = ? AND user_id = ?');
             $checkStmt->execute([$pid, $userId]);
-            $prev = $checkStmt->fetchColumn();
+            $prevRow = $checkStmt->fetch(PDO::FETCH_ASSOC);
+            $prevEmoji = $prevRow ? $prevRow['emoji'] : null;
             
-            if ($prev) {
-                // Unlike
-                $deleteStmt = $pdo->prepare('DELETE FROM post_likes WHERE post_id = ? AND user_id = ?');
-                $deleteStmt->execute([$pid, $userId]);
-                unset($_SESSION['my_reactions'][$pid]);
+            if ($prevEmoji) {
+                if ($prevEmoji === $emoji) {
+                    // If same emoji, unlike
+                    $deleteStmt = $pdo->prepare('DELETE FROM post_likes WHERE post_id = ? AND user_id = ?');
+                    $deleteStmt->execute([$pid, $userId]);
+                    unset($_SESSION['my_reactions'][$pid]);
+                } else {
+                    // If different emoji, update
+                    $updateStmt = $pdo->prepare('UPDATE post_likes SET emoji = ? WHERE post_id = ? AND user_id = ?');
+                    $updateStmt->execute([$emoji, $pid, $userId]);
+                    $_SESSION['my_reactions'][$pid] = $emoji;
+                }
             } else {
-                // Like
-                $insertStmt = $pdo->prepare('INSERT INTO post_likes (post_id, user_id) VALUES (?, ?)');
-                $insertStmt->execute([$pid, $userId]);
-                $_SESSION['my_reactions'][$pid] = '👍'; // For backward compatibility
+                // Like with selected emoji
+                $insertStmt = $pdo->prepare('INSERT INTO post_likes (post_id, user_id, emoji) VALUES (?, ?, ?)');
+                $insertStmt->execute([$pid, $userId, $emoji]);
+                $_SESSION['my_reactions'][$pid] = $emoji;
                 // find post owner and notify
                 try {
                     $stmt = $pdo->prepare('SELECT user_id FROM posts WHERE post_id = ?');
                     $stmt->execute([$pid]);
                     $post_owner = $stmt->fetchColumn();
                     if ($post_owner && $post_owner != $_SESSION['user']['user_id']) {
-                        cs_save_notification($post_owner, htmlspecialchars($_SESSION['user']['first_name'] . ' ' . $_SESSION['user']['last_name']) . ' liked your post.', 'index.php?post=' . urlencode($pid));
+                        cs_save_notification($post_owner, htmlspecialchars($_SESSION['user']['first_name'] . ' ' . $_SESSION['user']['last_name']) . ' reacted to your post.', 'index.php?post=' . urlencode($pid));
                     }
                 } catch (Exception $e) {
                     // Fall back to old session method if needed
                 }
             }
             
-            // Recalculate reactions from DB
-            $recalcStmt = $pdo->prepare('SELECT COUNT(*) as cnt FROM post_likes WHERE post_id = ?');
+            // Recalculate reactions from DB per emoji
+            $recalcStmt = $pdo->prepare('SELECT emoji, COUNT(*) as cnt FROM post_likes WHERE post_id = ? GROUP BY emoji');
             $recalcStmt->execute([$pid]);
-            $count = $recalcStmt->fetchColumn();
-            $newReactions = ['👍' => (int)$count];
+            $newReactions = [];
+            while ($row = $recalcStmt->fetch(PDO::FETCH_ASSOC)) {
+                $newReactions[$row['emoji']] = (int)$row['cnt'];
+            }
             $_SESSION['reactions'][$pid] = $newReactions;
         } else {
             // Not a database post, use session storage only
             $prev = $_SESSION['my_reactions'][$pid] ?? null;
             if ($prev) {
-                $_SESSION['reactions'][$pid][$prev] = max(0, ($_SESSION['reactions'][$pid][$prev] ?? 1) - 1);
-                unset($_SESSION['my_reactions'][$pid]);
+                if ($prev === $emoji) {
+                    // Remove reaction if same emoji
+                    $_SESSION['reactions'][$pid][$prev] = max(0, ($_SESSION['reactions'][$pid][$prev] ?? 1) - 1);
+                    unset($_SESSION['my_reactions'][$pid]);
+                } else {
+                    // Change reaction to new emoji
+                    $_SESSION['reactions'][$pid][$prev] = max(0, ($_SESSION['reactions'][$pid][$prev] ?? 1) - 1);
+                    $_SESSION['reactions'][$pid][$emoji] = ($_SESSION['reactions'][$pid][$emoji] ?? 0) + 1;
+                    $_SESSION['my_reactions'][$pid] = $emoji;
+                }
             } else {
-                $emoji = '👍';
+                // Add new reaction
                 $_SESSION['reactions'][$pid][$emoji] = ($_SESSION['reactions'][$pid][$emoji] ?? 0) + 1;
                 $_SESSION['my_reactions'][$pid] = $emoji;
                 // Notify
@@ -419,7 +438,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'react
                     if (($p['id'] ?? '') === $pid) {
                         if (($p['email'] ?? '') !== ($_SESSION['user']['email'] ?? '')) {
                             array_unshift($_SESSION['notifications'], [
-                                'msg' => htmlspecialchars($_SESSION['user']['username']) . ' liked your post.',
+                                'msg' => htmlspecialchars($_SESSION['user']['username']) . ' reacted to your post.',
                                 'time' => date('M j, Y g:i A'),
                                 'read' => false,
                                 'link' => 'index.php?post=' . urlencode($pid),
@@ -1017,13 +1036,13 @@ include 'includes/header.php';
                 }
                 
                 // Load all reactions (likes) for posts
-                $reactionStmt = $pdo->query('SELECT post_id, user_id FROM post_likes');
+                $reactionStmt = $pdo->query('SELECT post_id, user_id, emoji FROM post_likes');
                 $postReactions = [];
                 $userReactions = [];
                 while ($reactRow = $reactionStmt->fetch()) {
                     $postId = $reactRow['post_id'];
                     $userId = $reactRow['user_id'];
-                    $emoji = '👍'; // Default to thumbs up for backward compatibility
+                    $emoji = $reactRow['emoji'] ?? '👍'; // Get emoji from DB, default to thumbs up
                     if (!isset($postReactions[$postId])) {
                         $postReactions[$postId] = [];
                     }

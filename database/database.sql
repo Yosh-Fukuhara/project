@@ -77,6 +77,7 @@ CREATE TABLE IF NOT EXISTS post_likes (
     like_id INT AUTO_INCREMENT PRIMARY KEY,
     post_id INT NOT NULL,
     user_id INT NOT NULL,
+    emoji VARCHAR(10) NOT NULL DEFAULT '👍',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE KEY unique_like (post_id, user_id),
     FOREIGN KEY (post_id) REFERENCES posts(post_id) ON DELETE CASCADE,
