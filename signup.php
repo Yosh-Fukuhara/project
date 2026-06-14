@@ -35,7 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (empty($errors)) {
         $pdo = get_db_connection();
         
-        $checkStmt = $pdo->prepare('SELECT id FROM users WHERE email = ? OR username = ? LIMIT 1');
+        $checkStmt = $pdo->prepare('SELECT user_id FROM users WHERE email = ? OR username = ? LIMIT 1');
         $checkStmt->execute([$email, $username]);
         if ($checkStmt->fetch()) {
             $errors[] = 'Email or username already exists';
@@ -46,7 +46,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $userId = $pdo->lastInsertId();
 
             $_SESSION['user'] = [
-                'id' => $userId,
+                'user_id' => $userId,
                 'username' => $username,
                 'email' => $email,
                 'role' => 'user',
@@ -145,13 +145,24 @@ $currentPage = 'signup';
 
             <div>
                 <label class="block text-xl font-semibold mb-1">Confirm Password</label>
-                <input 
-                    type="password" 
-                    name="confirm_password"
-                    id="confirm_password"
-                    class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 shadow-md"
-                    placeholder="************"
-                >
+                <div class="relative">
+                    <input 
+                        type="password" 
+                        name="confirm_password"
+                        id="confirm_password"
+                        class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 shadow-md pr-12"
+                        placeholder="************"
+                    >
+                    <button type="button" class="togglePassword absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-blue-900 focus:outline-none" data-target="confirm_password">
+                        <svg class="eyeOpen w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                        </svg>
+                        <svg class="eyeClosed w-6 h-6 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.542-7a10.024 10.024 0 014.13-5.555M15.812 4.138A10.042 10.042 0 0112 5c4.478 0 8.268 2.943 9.542 7a10.025 10.025 0 01-4.132 5.555m-1.292-1.292a3 3 0 11-4.243-4.243M3 3l18 18"></path>
+                        </svg>
+                    </button>
+                </div>
             </div>
 
             <script>

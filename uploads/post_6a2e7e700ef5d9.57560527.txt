@@ -1,0 +1,230 @@
+CREATE TABLE 
+students(
+student_ID INT PRIMARY KEY AUTO_INCREMENT,
+name VARCHAR(50) NOT NULL,
+course VARCHAR(40),
+year_level INT,
+gpa DECIMAL (3,2)
+);
+
+INSERT INTO 
+students(name, course, year_level, gpa)
+VALUES
+('Mia', 'IT',1,1.75),
+placeholder no need to prac more of this
+(last row);
+
+UPDATE 
+students
+SET gpa=1.25
+WHERE name IN ('Mia','Lea');
+
+UPDATE 
+students
+SET gpa=gpa+0.10
+WHERE year_level=2;
+
+DELETE FROM
+students
+WHERE gpa>2.30 AND year_level=1;
+
+ALTER TABLE
+students
+ADD email VARCHAR(100),
+ADD status VARCHAR(20);
+
+PROBLEM 1
+
+CREATE TABLE employees (
+emp_id INT PRIMARY KEY AUTO_INCREMENT,
+name VARCHAR(50) NOT NULL,
+position VARCHAR(40),
+salary DECIMAL(10,2),
+hire_date DATE
+);
+
+INSERT INTO
+employees(name,position,salary,hire_date)
+VALUES
+('John Doe', 'Developer', 55000.00, '2024-01-10'),
+('Jane Smith', 'Designer', 60000.00, '2023-11-05'),
+('Alex Tan', 'Analyst', 50000.00, '2024-03-20');
+
+UPDATE 
+employees
+SET salary=salary+salary*0.10
+WHERE position='Developer';
+
+DELETE FROM
+employees
+WHERE salary<52000 AND hire_date<'2024-01-01';
+
+ALTER TABLE
+employees
+ADD department VARCHAR(30);
+
+
+PROBLEM 2
+
+CREATE TABLE products (
+product_id INT PRIMARY KEY AUTO_INCREMENT,
+product_name VARCHAR(80) NOT NULL,
+price DECIMAL(8,2) CHECK (price>0),
+stock INT, DEFAULT 0,
+created_at DATE
+);
+
+INSERT INTO
+products(product_name, price, stock, created_at)
+VALUES
+('Keyboard',1200.50,10,CURRENT_DATE),
+('Mouse',500.00,25,CURRENT_DATE),
+('Monitor',8500.00,5);
+
+
+UPDATE products
+SET price = price + price*0.15
+WHERE price<1000;
+
+DELETE FROM
+products
+WHERE stock=0;
+
+
+
+PROBLEM 3 (Gemini)
+
+CREATE TABLE Products(
+ID INT,
+Name VARCHAR(100),
+Price DECIMAL(10,2)
+);
+
+INSERT INTO 
+Products(ID, Name, Price)
+VALUES
+(1, 'Apple', 10),
+(2, 'Banana', 20),
+(3, 'Cherry', 30);
+
+UPDATE 
+Products
+SET price=40
+WHERE ID=3;
+
+DELETE FROM
+Products
+WHERE ID=1;
+
+SELECT *
+FROM Products;
+
+
+CREATE TABLE Students(
+StudentID INT PRIMARY KEY,
+Name VARCHAR(50),
+GPA DECIMAL(3,2)
+);
+
+ALTER TABLE
+Students
+ADD Email VARCHAR(50);
+
+ALTER TABLE
+Students
+RENAME Name TO Full_Name;
+
+INSERT INTO 
+Students(StudentID, Name, GPA, Email)
+VALUES
+(101, 'Alice Vance', 3.8, 'alice@example.com'),
+(102, 'Bob Smith', NULL, NULL);
+
+UPDATE 
+Students  
+SET gpa=3.5,
+    email='bob@example.com'
+WHERE StudentID=102;
+
+DELETE FROM
+Students
+WHERE StudentID=101;
+
+TRUNCATE TABLE Students;
+
+DROP TABLE Students;
+
+
+SELECT Emp_No, LName, Overtime, Total Salary
+FROM tblpayroll
+WHERE 
+
+
+
+
+
+UPDATE 
+tblpayroll
+SET TotalSalary='D
+
+
+
+Display the FName, LName, Role, a 10% increase in the BasicPay  (Amt_Increase) and the New Basic salary of the employees
+
+SELECT FName, LName, Role,
+(BasicPay+BasicPay*0.10) AS Amt_Increase, Amt_Increase 
+FROM tblpayroll
+
+cant figure it out
+
+
+SELECT FName, 
+       LName, 
+       Role,
+       (BasicPay * 0.10) AS Amt_Increase,
+       (BasicPay + (BasicPay * 0.10)) AS New_Basic_Salary
+FROM tblpayroll;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -195,10 +195,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             $pdo = get_db_connection();
             $stmt = $pdo->prepare('INSERT INTO posts (user_id, content, attachment_path) VALUES (?, ?, ?)');
             $stmt->execute([
-                $_SESSION['user']['id'],
-                $content,
-                $attachmentPath
-            ]);
+            $_SESSION['user']['user_id'],
+            $content,
+            $attachmentPath
+        ]);
             $postId = $pdo->lastInsertId();
 
             // Also keep in session for backward compatibility
@@ -387,13 +387,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'add_c
         echo json_encode(['ok' => false]);
         exit;
     }
-    $commentId = 'c_' . uniqid('', true);
+    // Save comment to database
+    try {
+        $pdo = get_db_connection();
+        $stmt = $pdo->prepare('INSERT INTO comments (post_id, user_id, content) VALUES (?, ?, ?)');
+        $stmt->execute([$pid, $_SESSION['user']['user_id'], $text]);
+        $commentId = $pdo->lastInsertId();
+    } catch (Exception $e) {
+        $commentId = 'c_' . uniqid('', true);
+    }
     $comment = [
         'id'     => $commentId,
         'user'   => $_SESSION['user']['username'],
         'avatar' => $_SESSION['user']['profile_pic'] ?? null,
         'text'   => $text,
         'time'   => date('M j, Y g:i A'),
+        'username' => $_SESSION['user']['username'],
     ];
     if (!isset($_SESSION['comments'][$pid])) $_SESSION['comments'][$pid] = [];
     $_SESSION['comments'][$pid][] = $comment;
@@ -810,13 +819,14 @@ include 'includes/header.php';
 
             <?php
             $dbPosts = [];
+            $dbComments = [];
             try {
                 $pdo = get_db_connection();
-                $stmt = $pdo->query('SELECT p.*, u.username, u.email, u.profile_pic as avatar FROM posts p JOIN users u ON p.user_id = u.id ORDER BY p.created_at DESC');
+                $stmt = $pdo->query('SELECT p.*, u.username, u.email, u.profile_pic as avatar FROM posts p JOIN users u ON p.user_id = u.user_id ORDER BY p.created_at DESC');
                 while ($row = $stmt->fetch()) {
                     $dbPosts[] = [
                         'type' => 'user',
-                        'id' => $row['id'],
+                        'id' => $row['post_id'],
                         'username' => $row['username'],
                         'email' => $row['email'],
                         'avatar' => $row['avatar'],
@@ -827,6 +837,27 @@ include 'includes/header.php';
                         'hiring' => false,
                         'enable_apply' => false,
                     ];
+                }
+                // Load comments from DB
+                $commentStmt = $pdo->query('SELECT c.*, u.username, u.profile_pic as avatar FROM comments c JOIN users u ON c.user_id = u.user_id ORDER BY c.created_at ASC');
+                while ($cmRow = $commentStmt->fetch()) {
+                    $postId = $cmRow['post_id'];
+                    if (!isset($dbComments[$postId])) {
+                        $dbComments[$postId] = [];
+                    }
+                    $dbComments[$postId][] = [
+                        'id' => $cmRow['comment_id'],
+                        'user' => $cmRow['username'],
+                        'avatar' => $cmRow['avatar'],
+                        'text' => $cmRow['content'],
+                        'time' => date('M j, Y g:i A', strtotime($cmRow['created_at'])),
+                        'user_id' => $cmRow['user_id'],
+                        'username' => $cmRow['username'],
+                    ];
+                }
+                // Merge DB comments with session comments
+                foreach ($dbComments as $pid => $comments) {
+                    $_SESSION['comments'][$pid] = array_merge($comments, $_SESSION['comments'][$pid] ?? []);
                 }
             } catch (Exception $e) {
                 // Fallback to session
@@ -1173,17 +1204,20 @@ include 'includes/header.php';
                     <div class="comment-section hidden border-t border-gray-100 px-4 py-3 bg-gray-50" data-post-id="<?php echo htmlspecialchars($pid); ?>">
                         <div class="comments-list space-y-3 mb-3">
                             <?php foreach (($_SESSION['comments'][$pid] ?? []) as $cm): ?>
-                                <?php $cmid = $cm['id'] ?? ''; ?>
+                                <?php $cmid = $cm['id'] ?? '';
+                                $cmUsername = $cm['username'] ?? $cm['user'] ?? '';
+                                $commentProfileUrl = 'view_profile.php?username=' . urlencode($cmUsername);
+                                ?>
                                 <div <?php echo $cmid ? ('id="comment_' . htmlspecialchars($cmid) . '"') : ''; ?> class="flex gap-2 items-start">
-                                    <div class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-900 font-bold text-sm overflow-hidden flex-shrink-0">
+                                    <a href="<?php echo htmlspecialchars($commentProfileUrl); ?>" class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-900 font-bold text-sm overflow-hidden flex-shrink-0">
                                         <?php if (!empty($cm['avatar'])): ?>
                                             <img src="<?php echo htmlspecialchars($cm['avatar']); ?>" class="w-full h-full object-cover" alt="">
                                         <?php else: ?>
                                             <?php echo strtoupper(substr($cm['user'], 0, 1)); ?>
                                         <?php endif; ?>
-                                    </div>
+                                    </a>
                                     <div class="bg-white rounded-xl px-3 py-2 text-sm shadow-sm flex-1">
-                                        <span class="font-semibold text-gray-800"><?php echo htmlspecialchars($cm['user']); ?></span>
+                                        <a href="<?php echo htmlspecialchars($commentProfileUrl); ?>" class="font-semibold text-gray-800 hover:underline"><?php echo htmlspecialchars($cm['user']); ?></a>
                                         <span class="text-gray-400 text-xs ml-2"><?php echo htmlspecialchars($cm['time']); ?></span>
                                         <p class="text-gray-700 mt-0.5"><?php echo htmlspecialchars($cm['text']); ?></p>
                                     </div>
@@ -1200,6 +1234,7 @@ include 'includes/header.php';
                                     <?php endif; ?>
                                 </div>
                                 <input type="text" class="comment-input flex-1 px-3 py-2 rounded-full border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400" placeholder="Write a comment…" data-post-id="<?php echo htmlspecialchars($pid); ?>">
+                                <button type="button" class="send-comment-btn bg-blue-900 text-white px-4 py-2 rounded-full text-sm font-semibold hover:bg-blue-800 transition" data-post-id="<?php echo htmlspecialchars($pid); ?>">Send</button>
                             </div>
                         <?php else: ?>
                             <p class="text-sm text-gray-500">Please <a href="login.php" class="text-blue-900 font-semibold hover:underline">sign in</a> to comment.</p>
@@ -1640,6 +1675,109 @@ include 'includes/header.php';
                         }
                     });
                 e.stopPropagation();
+                return;
+            }
+
+            const reactBtn = e.target.closest('.react-btn');
+            if (reactBtn) {
+                const pid = reactBtn.dataset.postId;
+                const fd = new FormData();
+                fd.append('action', 'react_post');
+                fd.append('post_id', pid);
+                fd.append('emoji', '👍'); // Default to thumbs up!
+                fetch('', {
+                        method: 'POST',
+                        body: fd
+                    })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (!data.ok) {
+                            alert(data.msg || 'Please sign in to react.');
+                            return;
+                        }
+                        const btn = document.querySelector(`.react-btn[data-post-id="${pid}"]`);
+                        const label = btn ? btn.querySelector('.react-label') : null;
+                        if (label) {
+                            const total = Object.values(data.reactions || {}).reduce((a, b) => a + b, 0);
+                            label.textContent = data.mine ? data.mine + ' ' + total : 'React' + (total > 0 ? ' ' + total : '');
+                            btn.classList.toggle('text-blue-700', !!data.mine);
+                            btn.classList.toggle('text-gray-700', !data.mine);
+                        }
+                        const picker = document.querySelector(`.emoji-picker[data-post-id="${pid}"]`);
+                        if (picker) picker.classList.add('hidden');
+                        // add notification badge
+                        const badge = document.getElementById('notifBadge');
+                        if (badge && window.updateBadge && window.prependNotif) {
+                            const cur = parseInt(badge.textContent) || 0;
+                            window.updateBadge(cur + 1);
+                            // prepend to panel
+                            window.prependNotif('Someone reacted to a post.', 'index.php?post=' + encodeURIComponent(pid));
+                        }
+                    });
+                e.stopPropagation();
+                return;
+            }
+
+            const sendBtn = e.target.closest('.send-comment-btn');
+            if (sendBtn) {
+                const pid = sendBtn.dataset.postId;
+                const sec = document.querySelector(`.comment-section[data-post-id="${pid}"]`);
+                const input = sec ? sec.querySelector('.comment-input') : null;
+                if (!input) return;
+                const text = input.value.trim();
+                if (!text) return;
+                const fd = new FormData();
+                fd.append('action', 'add_comment');
+                fd.append('post_id', pid);
+                fd.append('text', text);
+                fetch('', {
+                        method: 'POST',
+                        body: fd
+                    })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (!data.ok) {
+                            alert(data.msg || 'Please sign in to comment.');
+                            return;
+                        }
+                        input.value = '';
+                        const list = sec ? sec.querySelector('.comments-list') : null;
+                        if (list) {
+                            const c = data.comment;
+                            const cmUsername = c.username || c.user || '';
+                            const commentProfileUrl = 'view_profile.php?username=' + encodeURIComponent(cmUsername);
+                            const initials = c.user ? c.user[0].toUpperCase() : '?';
+                            const el = document.createElement('div');
+                            el.className = 'flex gap-2 items-start';
+                            if (c.id) el.id = 'comment_' + c.id;
+                            let avatarHtml = `<div class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-900 font-bold text-sm flex-shrink-0">${initials}</div>`;
+                            if (c.avatar) {
+                                avatarHtml = `<a href="${escapeHtml(commentProfileUrl)}" class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-900 font-bold text-sm overflow-hidden flex-shrink-0">
+                                    <img src="${escapeHtml(c.avatar)}" class="w-full h-full object-cover" alt="">
+                                </a>`;
+                            } else {
+                                avatarHtml = `<a href="${escapeHtml(commentProfileUrl)}" class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-900 font-bold text-sm flex-shrink-0">
+                                    ${initials}
+                                </a>`;
+                            }
+                            el.innerHTML = `${avatarHtml}
+                            <div class="bg-white rounded-xl px-3 py-2 text-sm shadow-sm flex-1">
+                                <a href="${escapeHtml(commentProfileUrl)}" class="font-semibold text-gray-800 hover:underline">${escapeHtml(c.user)}</a>
+                                <span class="text-gray-400 text-xs ml-2">${escapeHtml(c.time)}</span>
+                                <p class="text-gray-700 mt-0.5">${escapeHtml(c.text)}</p>
+                            </div>`;
+                            list.appendChild(el);
+                        }
+                        // update button label
+                        const btn2 = document.querySelector(`.comment-toggle-btn[data-post-id="${pid}"]`);
+                        if (btn2) btn2.childNodes[btn2.childNodes.length - 1].textContent = ' Comment ' + data.total;
+                        if (window.prependNotif && window.updateBadge) {
+                            const link = 'index.php?post=' + encodeURIComponent(pid) + (data.comment && data.comment.id ? '&comment=' + encodeURIComponent(data.comment.id) : '');
+                            window.prependNotif('You commented on a post.', link);
+                            const badge = document.getElementById('notifBadge');
+                            if (badge) window.updateBadge((parseInt(badge.textContent) || 0) + 1);
+                        }
+                    });
             }
         });
 
@@ -1716,15 +1854,27 @@ include 'includes/header.php';
                         const list = sec ? sec.querySelector('.comments-list') : null;
                         if (list) {
                             const c = data.comment;
+                            const cmUsername = c.username || c.user || '';
+                            const commentProfileUrl = 'view_profile.php?username=' + encodeURIComponent(cmUsername);
                             const initials = c.user ? c.user[0].toUpperCase() : '?';
                             const el = document.createElement('div');
                             el.className = 'flex gap-2 items-start';
                             if (c.id) el.id = 'comment_' + c.id;
-                            el.innerHTML = `<div class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-900 font-bold text-sm flex-shrink-0">${initials}</div>
+                            let avatarHtml = `<div class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-900 font-bold text-sm flex-shrink-0">${initials}</div>`;
+                            if (c.avatar) {
+                                avatarHtml = `<a href="${escapeHtml(commentProfileUrl)}" class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-900 font-bold text-sm overflow-hidden flex-shrink-0">
+                                    <img src="${escapeHtml(c.avatar)}" class="w-full h-full object-cover" alt="">
+                                </a>`;
+                            } else {
+                                avatarHtml = `<a href="${escapeHtml(commentProfileUrl)}" class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-900 font-bold text-sm flex-shrink-0">
+                                    ${initials}
+                                </a>`;
+                            }
+                            el.innerHTML = `${avatarHtml}
                             <div class="bg-white rounded-xl px-3 py-2 text-sm shadow-sm flex-1">
-                                <span class="font-semibold text-gray-800">${c.user}</span>
-                                <span class="text-gray-400 text-xs ml-2">${c.time}</span>
-                                <p class="text-gray-700 mt-0.5">${c.text.replace(/</g,'&lt;')}</p>
+                                <a href="${escapeHtml(commentProfileUrl)}" class="font-semibold text-gray-800 hover:underline">${escapeHtml(c.user)}</a>
+                                <span class="text-gray-400 text-xs ml-2">${escapeHtml(c.time)}</span>
+                                <p class="text-gray-700 mt-0.5">${escapeHtml(c.text)}</p>
                             </div>`;
                             list.appendChild(el);
                         }

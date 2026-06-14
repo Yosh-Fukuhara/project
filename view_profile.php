@@ -10,15 +10,15 @@ try {
 
     if (isset($_GET['id']) && is_numeric($_GET['id'])) {
         $stmt = $pdo->prepare(
-            'SELECT id, username, email, role, profile_pic, cover_pic, bio, location, work, education, website, phone
-             FROM users WHERE id = ? AND status = "active" LIMIT 1'
+            'SELECT user_id, username, email, role, profile_pic, cover_pic, bio, location, work, education, website, phone
+             FROM users WHERE user_id = ? AND status = "active" LIMIT 1'
         );
         $stmt->execute([(int)$_GET['id']]);
         $viewedUser = $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
 
     } elseif (isset($_GET['username'])) {
         $stmt = $pdo->prepare(
-            'SELECT id, username, email, role, profile_pic, cover_pic, bio, location, work, education, website, phone
+            'SELECT user_id, username, email, role, profile_pic, cover_pic, bio, location, work, education, website, phone
              FROM users WHERE username = ? AND status = "active" LIMIT 1'
         );
         $stmt->execute([trim($_GET['username'])]);
@@ -29,7 +29,7 @@ try {
 }
 
 // Fallback: if this is the logged-in user, redirect to their own profile page
-if ($viewedUser && isset($_SESSION['user']) && (int)$viewedUser['id'] === (int)$_SESSION['user']['id']) {
+if ($viewedUser && isset($_SESSION['user']) && (int)$viewedUser['user_id'] === (int)$_SESSION['user']['user_id']) {
     header('Location: profile.php');
     exit;
 }
