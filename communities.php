@@ -11,6 +11,7 @@ $currentPage = 'communities';
 
 $meEmail = $_SESSION['user']['email'] ?? '';
 $meName  = $_SESSION['user']['username'] ?? 'User';
+$meId    = $_SESSION['user']['user_id'];
 
 function cs_now_label(): string {
     return date('M j, Y g:i A');
@@ -20,37 +21,134 @@ function cs_make_id(string $prefix): string {
     return $prefix . '_' . uniqid('', true);
 }
 
-// Seed communities
-if (!isset($_SESSION['communities']) || !is_array($_SESSION['communities'])) {
-    $_SESSION['communities'] = [
-        [
-            'id' => 'c_cybernews',
-            'name' => 'Cyber News & Updates',
-            'type' => 'group',
-            'description' => 'Daily cybersecurity news, CVEs, and threat intel discussions.',
-            'created_by' => 'system',
-            'created_at' => 'May 1, 2026',
-            'members' => 1240,
-        ],
-        [
-            'id' => 'c_dfir',
-            'name' => 'DFIR Philippines',
-            'type' => 'organization',
-            'description' => 'Incident response and forensics community for PH practitioners.',
-            'created_by' => 'system',
-            'created_at' => 'Apr 19, 2026',
-            'members' => 620,
-        ],
-        [
-            'id' => 'c_pentest',
-            'name' => 'PenTest Lab',
-            'type' => 'group',
-            'description' => 'Share writeups, tools, and lab tips. Beginner-friendly.',
-            'created_by' => 'system',
-            'created_at' => 'Mar 12, 2026',
-            'members' => 980,
-        ],
-    ];
+// Load communities from database into session (for backwards compatibility)
+try {
+    $pdo = get_db_connection();
+    
+    // Get all communities with member counts
+    $stmt = $pdo->query("
+        SELECT 
+            c.community_id, 
+            c.name, 
+            c.description, 
+            c.type, 
+            c.created_by, 
+            c.created_at, 
+            COUNT(cm.user_id) AS members 
+        FROM communities c
+        LEFT JOIN community_members cm ON c.community_id = cm.community_id
+        GROUP BY c.community_id
+        ORDER BY members DESC
+    ");
+    $dbCommunities = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    $_SESSION['communities'] = [];
+    foreach ($dbCommunities as $c) {
+        $_SESSION['communities'][] = [
+            'id' => (string)$c['community_id'],
+            'name' => $c['name'],
+            'type' => $c['type'],
+            'description' => $c['description'],
+            'created_by' => $c['created_by'],
+            'created_at' => date('M j, Y g:i A', strtotime($c['created_at'])),
+            'members' => (int)$c['members']
+        ];
+    }
+    
+    // Get user's joined communities
+    $stmtJoined = $pdo->prepare("SELECT community_id FROM community_members WHERE user_id = ?");
+    $stmtJoined->execute([$meId]);
+    $joinedIds = $stmtJoined->fetchAll(PDO::FETCH_COLUMN);
+    $_SESSION['joined_communities'][$meEmail] = array_map('strval', $joinedIds);
+    
+    // If no communities exist in DB, seed some basic ones
+    if (empty($_SESSION['communities'])) {
+        $seedCommunities = [
+            [
+                'name' => 'Cyber News & Updates',
+                'type' => 'group',
+                'description' => 'Daily cybersecurity news, CVEs, and threat intel discussions.',
+            ],
+            [
+                'name' => 'DFIR Philippines',
+                'type' => 'organization',
+                'description' => 'Incident response and forensics community for PH practitioners.',
+            ],
+            [
+                'name' => 'PenTest Lab',
+                'type' => 'group',
+                'description' => 'Share writeups, tools, and lab tips. Beginner-friendly.',
+            ],
+        ];
+        
+        foreach ($seedCommunities as $seed) {
+            $stmtInsert = $pdo->prepare("INSERT INTO communities (created_by, name, type, description) VALUES (?, ?, ?, ?)");
+            $stmtInsert->execute([1, $seed['name'], $seed['type'], $seed['description']]);
+        }
+        
+        // Refresh the communities list
+        $stmt = $pdo->query("
+            SELECT 
+                c.community_id, 
+                c.name, 
+                c.description, 
+                c.type, 
+                c.created_by, 
+                c.created_at, 
+                COUNT(cm.user_id) AS members 
+            FROM communities c
+            LEFT JOIN community_members cm ON c.community_id = cm.community_id
+            GROUP BY c.community_id
+            ORDER BY members DESC
+        ");
+        $dbCommunities = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        $_SESSION['communities'] = [];
+        foreach ($dbCommunities as $c) {
+            $_SESSION['communities'][] = [
+                'id' => (string)$c['community_id'],
+                'name' => $c['name'],
+                'type' => $c['type'],
+                'description' => $c['description'],
+                'created_by' => $c['created_by'],
+                'created_at' => date('M j, Y g:i A', strtotime($c['created_at'])),
+                'members' => (int)$c['members']
+            ];
+        }
+    }
+} catch (Exception $e) {
+    // Fallback to session-only if DB fails
+    if (!isset($_SESSION['communities']) || !is_array($_SESSION['communities'])) {
+        $_SESSION['communities'] = [
+            [
+                'id' => 'c_cybernews',
+                'name' => 'Cyber News & Updates',
+                'type' => 'group',
+                'description' => 'Daily cybersecurity news, CVEs, and threat intel discussions.',
+                'created_by' => 'system',
+                'created_at' => 'May 1, 2026',
+                'members' => 1240,
+            ],
+            [
+                'id' => 'c_dfir',
+                'name' => 'DFIR Philippines',
+                'type' => 'organization',
+                'description' => 'Incident response and forensics community for PH practitioners.',
+                'created_by' => 'system',
+                'created_at' => 'Apr 19, 2026',
+                'members' => 620,
+            ],
+            [
+                'id' => 'c_pentest',
+                'name' => 'PenTest Lab',
+                'type' => 'group',
+                'description' => 'Share writeups, tools, and lab tips. Beginner-friendly.',
+                'created_by' => 'system',
+                'created_at' => 'Mar 12, 2026',
+                'members' => 980,
+            ],
+        ];
+    }
 }
 
 if (!isset($_SESSION['joined_communities']) || !is_array($_SESSION['joined_communities'])) {
@@ -89,35 +187,95 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($name === '') $errors[] = 'Community name is required.';
         if (!in_array($type, ['group','organization'], true)) $errors[] = 'Invalid community type.';
-        if (cs_strlen($name) > 60) $errors[] = 'Community name is too long (max 60 chars).';
-        if (cs_strlen($desc) > 240) $errors[] = 'Description is too long (max 240 chars).';
+        if (cs_strlen($name) > 100) $errors[] = 'Community name is too long (max 100 characters).';
+        if (cs_strlen($desc) > 240) $errors[] = 'Description is too long (max 240 characters).';
 
-        // Ensure unique name (simple check)
-        foreach ($_SESSION['communities'] as $c) {
-            if (strcasecmp($c['name'] ?? '', $name) === 0) {
+        // Ensure unique name (check database)
+        try {
+            $pdo = get_db_connection();
+            $checkStmt = $pdo->prepare("SELECT community_id FROM communities WHERE name = ?");
+            $checkStmt->execute([$name]);
+            if ($checkStmt->fetch()) {
                 $errors[] = 'A community with that name already exists.';
-                break;
+            }
+        } catch (Exception $e) {
+            // Fallback to session check if DB fails
+            foreach ($_SESSION['communities'] as $c) {
+                if (strcasecmp($c['name'] ?? '', $name) === 0) {
+                    $errors[] = 'A community with that name already exists.';
+                    break;
+                }
             }
         }
 
         if (empty($errors)) {
-            $cid = cs_make_id('c');
-            array_unshift($_SESSION['communities'], [
-                'id' => $cid,
-                'name' => $name,
-                'type' => $type,
-                'description' => $desc,
-                'created_by' => $meEmail,
-                'created_at' => cs_now_label(),
-                'members' => 1,
-            ]);
-
-            // Auto-join creator
-            $_SESSION['joined_communities'][$meEmail][] = $cid;
-
-            // Notification
-            cs_save_notification($_SESSION['user']['user_id'], 'You created a new community: ' . htmlspecialchars($name), 'communities.php?c=' . urlencode($cid));
-
+            try {
+                $pdo = get_db_connection();
+                $stmtInsert = $pdo->prepare("INSERT INTO communities (created_by, name, type, description) VALUES (?, ?, ?, ?)");
+                $stmtInsert->execute([$meId, $name, $type, $desc]);
+                $newCommunityId = $pdo->lastInsertId();
+                
+                // Add creator as member
+                $stmtMember = $pdo->prepare("INSERT INTO community_members (community_id, user_id) VALUES (?, ?)");
+                $stmtMember->execute([$newCommunityId, $meId]);
+                
+                // Refresh communities in session
+                $stmt = $pdo->query("
+                    SELECT 
+                        c.community_id, 
+                        c.name, 
+                        c.description, 
+                        c.type, 
+                        c.created_by, 
+                        c.created_at, 
+                        COUNT(cm.user_id) AS members 
+                    FROM communities c
+                    LEFT JOIN community_members cm ON c.community_id = cm.community_id
+                    GROUP BY c.community_id
+                    ORDER BY members DESC
+                ");
+                $dbCommunities = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                
+                $_SESSION['communities'] = [];
+                foreach ($dbCommunities as $c) {
+                    $_SESSION['communities'][] = [
+                        'id' => (string)$c['community_id'],
+                        'name' => $c['name'],
+                        'type' => $c['type'],
+                        'description' => $c['description'],
+                        'created_by' => $c['created_by'],
+                        'created_at' => date('M j, Y g:i A', strtotime($c['created_at'])),
+                        'members' => (int)$c['members']
+                    ];
+                }
+                
+                // Refresh joined communities
+                $stmtJoined = $pdo->prepare("SELECT community_id FROM community_members WHERE user_id = ?");
+                $stmtJoined->execute([$meId]);
+                $joinedIds = $stmtJoined->fetchAll(PDO::FETCH_COLUMN);
+                $_SESSION['joined_communities'][$meEmail] = array_map('strval', $joinedIds);
+                
+                $cid = (string)$newCommunityId;
+                
+                // Notification
+                cs_save_notification($meId, 'You created a new community: ' . htmlspecialchars($name), 'communities.php?c=' . urlencode($cid));
+                
+            } catch (Exception $e) {
+                // Fallback to session-only
+                $cid = cs_make_id('c');
+                array_unshift($_SESSION['communities'], [
+                    'id' => $cid,
+                    'name' => $name,
+                    'type' => $type,
+                    'description' => $desc,
+                    'created_by' => $meEmail,
+                    'created_at' => cs_now_label(),
+                    'members' => 1,
+                ]);
+                $_SESSION['joined_communities'][$meEmail][] = $cid;
+                cs_save_notification($meId, 'You created a new community: ' . htmlspecialchars($name), 'communities.php?c=' . urlencode($cid));
+            }
+            
             header('Location: communities.php?c=' . urlencode($cid) . '&created=1');
             exit;
         }
@@ -129,10 +287,61 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($idx === null) $errors[] = 'Community not found.';
 
         if (empty($errors)) {
-            if (!cs_is_joined($meEmail, $cid)) {
-                $_SESSION['joined_communities'][$meEmail][] = $cid;
-                $_SESSION['communities'][$idx]['members'] = (int)($_SESSION['communities'][$idx]['members'] ?? 0) + 1;
+            try {
+                $pdo = get_db_connection();
+                $cidInt = (int)$cid;
+                
+                // Check if already joined
+                $checkStmt = $pdo->prepare("SELECT member_id FROM community_members WHERE community_id = ? AND user_id = ?");
+                $checkStmt->execute([$cidInt, $meId]);
+                if (!$checkStmt->fetch()) {
+                    $stmtInsert = $pdo->prepare("INSERT INTO community_members (community_id, user_id) VALUES (?, ?)");
+                    $stmtInsert->execute([$cidInt, $meId]);
+                    
+                    // Refresh communities in session
+                    $stmt = $pdo->query("
+                        SELECT 
+                            c.community_id, 
+                            c.name, 
+                            c.description, 
+                            c.type, 
+                            c.created_by, 
+                            c.created_at, 
+                            COUNT(cm.user_id) AS members 
+                        FROM communities c
+                        LEFT JOIN community_members cm ON c.community_id = cm.community_id
+                        GROUP BY c.community_id
+                        ORDER BY members DESC
+                    ");
+                    $dbCommunities = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                    
+                    $_SESSION['communities'] = [];
+                    foreach ($dbCommunities as $c) {
+                        $_SESSION['communities'][] = [
+                            'id' => (string)$c['community_id'],
+                            'name' => $c['name'],
+                            'type' => $c['type'],
+                            'description' => $c['description'],
+                            'created_by' => $c['created_by'],
+                            'created_at' => date('M j, Y g:i A', strtotime($c['created_at'])),
+                            'members' => (int)$c['members']
+                        ];
+                    }
+                    
+                    // Refresh joined communities
+                    $stmtJoined = $pdo->prepare("SELECT community_id FROM community_members WHERE user_id = ?");
+                    $stmtJoined->execute([$meId]);
+                    $joinedIds = $stmtJoined->fetchAll(PDO::FETCH_COLUMN);
+                    $_SESSION['joined_communities'][$meEmail] = array_map('strval', $joinedIds);
+                }
+            } catch (Exception $e) {
+                // Fallback to session-only
+                if (!cs_is_joined($meEmail, $cid)) {
+                    $_SESSION['joined_communities'][$meEmail][] = $cid;
+                    $_SESSION['communities'][$idx]['members'] = (int)($_SESSION['communities'][$idx]['members'] ?? 0) + 1;
+                }
             }
+            
             header('Location: communities.php?c=' . urlencode($cid));
             exit;
         }
@@ -144,12 +353,59 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($idx === null) $errors[] = 'Community not found.';
 
         if (empty($errors)) {
-            $list = $_SESSION['joined_communities'][$meEmail] ?? [];
-            $pos = array_search($cid, $list, true);
-            if ($pos !== false) {
-                array_splice($_SESSION['joined_communities'][$meEmail], $pos, 1);
-                $_SESSION['communities'][$idx]['members'] = max(0, (int)($_SESSION['communities'][$idx]['members'] ?? 0) - 1);
+            try {
+                $pdo = get_db_connection();
+                $cidInt = (int)$cid;
+                
+                $stmtDelete = $pdo->prepare("DELETE FROM community_members WHERE community_id = ? AND user_id = ?");
+                $stmtDelete->execute([$cidInt, $meId]);
+                
+                // Refresh communities in session
+                $stmt = $pdo->query("
+                    SELECT 
+                        c.community_id, 
+                        c.name, 
+                        c.description, 
+                        c.type, 
+                        c.created_by, 
+                        c.created_at, 
+                        COUNT(cm.user_id) AS members 
+                    FROM communities c
+                    LEFT JOIN community_members cm ON c.community_id = cm.community_id
+                    GROUP BY c.community_id
+                    ORDER BY members DESC
+                ");
+                $dbCommunities = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                
+                $_SESSION['communities'] = [];
+                foreach ($dbCommunities as $c) {
+                    $_SESSION['communities'][] = [
+                        'id' => (string)$c['community_id'],
+                        'name' => $c['name'],
+                        'type' => $c['type'],
+                        'description' => $c['description'],
+                        'created_by' => $c['created_by'],
+                        'created_at' => date('M j, Y g:i A', strtotime($c['created_at'])),
+                        'members' => (int)$c['members']
+                    ];
+                }
+                
+                // Refresh joined communities
+                $stmtJoined = $pdo->prepare("SELECT community_id FROM community_members WHERE user_id = ?");
+                $stmtJoined->execute([$meId]);
+                $joinedIds = $stmtJoined->fetchAll(PDO::FETCH_COLUMN);
+                $_SESSION['joined_communities'][$meEmail] = array_map('strval', $joinedIds);
+                
+            } catch (Exception $e) {
+                // Fallback to session-only
+                $list = $_SESSION['joined_communities'][$meEmail] ?? [];
+                $pos = array_search($cid, $list, true);
+                if ($pos !== false) {
+                    array_splice($_SESSION['joined_communities'][$meEmail], $pos, 1);
+                    $_SESSION['communities'][$idx]['members'] = max(0, (int)($_SESSION['communities'][$idx]['members'] ?? 0) - 1);
+                }
             }
+            
             header('Location: communities.php');
             exit;
         }
@@ -163,26 +419,82 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($idx === null) $errors[] = 'Community not found.';
         if (!cs_is_joined($meEmail, $cid)) $errors[] = 'Join the community to post.';
         if ($content === '') $errors[] = 'Post content is empty.';
-        if (cs_strlen($content) > 2000) $errors[] = 'Post is too long (max 2000 chars).';
+        if (cs_strlen($content) > 2000) $errors[] = 'Post is too long (max 2000 characters).';
 
         if (empty($errors)) {
-            if (!isset($_SESSION['community_posts'][$cid]) || !is_array($_SESSION['community_posts'][$cid])) {
-                $_SESSION['community_posts'][$cid] = [];
+            try {
+                $pdo = get_db_connection();
+                $cidInt = (int)$cid;
+                $stmtInsert = $pdo->prepare("INSERT INTO community_posts (community_id, post_author_id, content) VALUES (?, ?, ?)");
+                $stmtInsert->execute([$cidInt, $meId, $content]);
+                $postId = (string)$pdo->lastInsertId();
+                
+                // Refresh community posts in session
+                cs_load_community_posts($pdo, $cid, $meEmail);
+                
+                header('Location: communities.php?c=' . urlencode($cid) . '&post=' . urlencode($postId));
+                exit;
+                
+            } catch (Exception $e) {
+                // Fallback to session-only
+                if (!isset($_SESSION['community_posts'][$cid]) || !is_array($_SESSION['community_posts'][$cid])) {
+                    $_SESSION['community_posts'][$cid] = [];
+                }
+                $postId = cs_make_id('cp');
+                array_unshift($_SESSION['community_posts'][$cid], [
+                    'id' => $postId,
+                    'community_id' => $cid,
+                    'user' => $meName,
+                    'email' => $meEmail,
+                    'avatar' => $_SESSION['user']['profile_pic'] ?? null,
+                    'time' => cs_now_label(),
+                    'content' => $content,
+                ]);
+                
+                header('Location: communities.php?c=' . urlencode($cid) . '&post=' . urlencode($postId));
+                exit;
             }
-            $postId = cs_make_id('cp');
-            array_unshift($_SESSION['community_posts'][$cid], [
-                'id' => $postId,
-                'community_id' => $cid,
-                'user' => $meName,
-                'email' => $meEmail,
-                'avatar' => $_SESSION['user']['profile_pic'] ?? null,
-                'time' => cs_now_label(),
-                'content' => $content,
-            ]);
-
-            header('Location: communities.php?c=' . urlencode($cid) . '&post=' . urlencode($postId));
-            exit;
         }
+    }
+}
+
+// Helper function to load community posts into session
+function cs_load_community_posts($pdo, $cid, $meEmail) {
+    try {
+        $cidInt = (int)$cid;
+        $stmt = $pdo->prepare("
+            SELECT 
+                cp.post_id,
+                cp.community_id,
+                cp.post_author_id,
+                cp.content,
+                cp.created_at,
+                u.first_name,
+                u.last_name,
+                up.profile_pic
+            FROM community_posts cp
+            JOIN users u ON cp.post_author_id = u.user_id
+            LEFT JOIN user_profiles up ON u.user_id = up.user_id
+            WHERE cp.community_id = ?
+            ORDER BY cp.created_at DESC
+        ");
+        $stmt->execute([$cidInt]);
+        $posts = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        $_SESSION['community_posts'][$cid] = [];
+        foreach ($posts as $p) {
+            $_SESSION['community_posts'][$cid][] = [
+                'id' => (string)$p['post_id'],
+                'community_id' => (string)$p['community_id'],
+                'user' => $p['first_name'] . ' ' . $p['last_name'],
+                'email' => '',
+                'avatar' => $p['profile_pic'],
+                'time' => date('M j, Y g:i A', strtotime($p['created_at'])),
+                'content' => $p['content']
+            ];
+        }
+    } catch (Exception $e) {
+        // Do nothing if fails
     }
 }
 
@@ -191,7 +503,17 @@ $activeCommunityId = $_GET['c'] ?? '';
 $activeCommunity = null;
 if ($activeCommunityId) {
     $idx = cs_find_community_index($activeCommunityId);
-    if ($idx !== null) $activeCommunity = $_SESSION['communities'][$idx];
+    if ($idx !== null) {
+        $activeCommunity = $_SESSION['communities'][$idx];
+        
+        // Load community posts from database
+        try {
+            $pdo = get_db_connection();
+            cs_load_community_posts($pdo, $activeCommunityId, $meEmail);
+        } catch (Exception $e) {
+            // Do nothing if fails
+        }
+    }
 }
 
 $search = trim($_GET['q'] ?? '');
