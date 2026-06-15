@@ -182,6 +182,12 @@ $currentPage = 'login';
         <a href="signup.php" class="block w-full bg-white text-pink-600 font-bold py-4 rounded-xl hover:bg-gray-50 transition border-2 border-pink-600 text-center text-2xl">
             Sign Up
         </a>
+
+        <div class="text-center mt-6">
+            <a href="employer_apply.php" class="text-blue-600 hover:underline text-sm">
+                Are you an employer? Apply here.
+            </a>
+        </div>
     </div>
 </body>
 </html>
