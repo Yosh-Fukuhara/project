@@ -43,6 +43,17 @@ function ensure_tables_exist() {
                 FOREIGN KEY (conversation_id) REFERENCES conversations(conversation_id) ON DELETE CASCADE,
                 FOREIGN KEY (sender_id) REFERENCES users(user_id) ON DELETE CASCADE
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+        } else {
+            // Check if is_read column exists, add if not
+            $checkCol = $pdo->query("SHOW COLUMNS FROM messages LIKE 'is_read'");
+            if (!$checkCol->fetch()) {
+                $pdo->exec("ALTER TABLE messages ADD COLUMN is_read TINYINT(1) DEFAULT 0");
+            }
+            // Check if sent_at column exists, add if not
+            $checkCol = $pdo->query("SHOW COLUMNS FROM messages LIKE 'sent_at'");
+            if (!$checkCol->fetch()) {
+                $pdo->exec("ALTER TABLE messages ADD COLUMN sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
+            }
         }
         
         // Check if message_attachments table exists
