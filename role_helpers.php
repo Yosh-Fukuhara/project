@@ -434,6 +434,11 @@ function cs_get_assessments_by_employer(string $email): array {
             // Format challenges like session format
             $formattedChallenges = [];
             foreach ($challenges as $ch) {
+                // Get attachments for this challenge
+                $stmtAttach = $pdo->prepare('SELECT attachment_id, file_name, file_path FROM challenge_attachments WHERE challenge_id = ?');
+                $stmtAttach->execute([$ch['challenge_id']]);
+                $attachments = $stmtAttach->fetchAll(PDO::FETCH_ASSOC);
+                
                 $formattedChallenges[] = [
                     'id' => 'c_' . $ch['challenge_id'],
                     'type' => $ch['type'],
@@ -443,6 +448,7 @@ function cs_get_assessments_by_employer(string $email): array {
                     'hint' => '', // Hint not in DB yet
                     'correct_flag' => $ch['correct_answer'],
                     'attachment' => null,
+                    'attachments' => $attachments,
                 ];
             }
             
@@ -496,6 +502,11 @@ function cs_get_assessment_by_id(string $id): ?array {
                     // Format challenges like session format
                     $formattedChallenges = [];
                     foreach ($challenges as $ch) {
+                        // Get attachments for this challenge
+                        $stmtAttach = $pdo->prepare('SELECT attachment_id, file_name, file_path FROM challenge_attachments WHERE challenge_id = ?');
+                        $stmtAttach->execute([$ch['challenge_id']]);
+                        $attachments = $stmtAttach->fetchAll(PDO::FETCH_ASSOC);
+                        
                         $formattedChallenges[] = [
                             'id' => 'c_' . $ch['challenge_id'],
                             'type' => $ch['type'],
@@ -505,6 +516,7 @@ function cs_get_assessment_by_id(string $id): ?array {
                             'hint' => '', // Hint not in DB yet
                             'correct_flag' => $ch['correct_answer'],
                             'attachment' => null,
+                            'attachments' => $attachments,
                         ];
                     }
                     

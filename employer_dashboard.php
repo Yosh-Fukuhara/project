@@ -36,7 +36,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creat
 
     $challengesRaw = $_POST['challenges'] ?? [];
     $challenges = [];
-    foreach ($challengesRaw as $c) {
+    // We'll collect attachments per challenge index
+    $challengeAttachments = [];
+    foreach ($challengesRaw as $index => $c) {
         $ctype  = trim($c['type'] ?? 'flag');
         $ctitle = trim($c['title'] ?? '');
         $cbody  = trim($c['body'] ?? '');
@@ -44,6 +46,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creat
         $chint  = trim($c['hint'] ?? '');
         $cflag  = trim($c['correct_flag'] ?? '');
         if (!$ctitle || !$cbody) continue;
+        
+        // Check for uploaded files for this challenge
+        $attachments = [];
+        if (isset($_FILES['challenges']) && isset($_FILES['challenges']['name'][$index]) && isset($_FILES['challenges']['name'][$index]['attachments'])) {
+            $fileNames = $_FILES['challenges']['name'][$index]['attachments'];
+            $fileTmpPaths = $_FILES['challenges']['tmp_name'][$index]['attachments'];
+            $fileErrors = $_FILES['challenges']['error'][$index]['attachments'];
+            
+            foreach ($fileNames as $fileIdx => $fileName) {
+                if ($fileErrors[$fileIdx] === UPLOAD_ERR_OK && !empty($fileName)) {
+                    $attachments[] = [
+                        'name' => $fileName,
+                        'tmp_name' => $fileTmpPaths[$fileIdx],
+                        'type' => $_FILES['challenges']['type'][$index]['attachments'][$fileIdx]
+                    ];
+                }
+            }
+        }
+        $challengeAttachments[] = $attachments;
+        
         $challenges[] = [
             'id'           => 'c_' . uniqid('', true),
             'type'         => in_array($ctype, ['flag','code','short']) ? $ctype : 'flag',
@@ -52,7 +74,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creat
             'points'       => $cpts,
             'hint'         => $chint,
             'correct_flag' => $cflag,
-            'attachment'   => null,
+            'attachments'  => $attachments,
         ];
     }
 
@@ -70,6 +92,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creat
             $userId = $stmtUserId->fetchColumn();
             if (!$userId) throw new Exception('User not found in database');
             
+            // Create upload directory if it doesn't exist
+            $uploadDir = __DIR__ . '/uploads/challenges/';
+            if (!is_dir($uploadDir)) {
+                mkdir($uploadDir, 0755, true);
+            }
+            
             // Insert assessment
             $stmt = $pdo->prepare('INSERT INTO assessments (title, instructions, time_limit_mins, created_by) VALUES (?, ?, ?, ?)');
             $stmt->execute([$title, $instructions, $timeLimit, $userId]);
@@ -79,6 +107,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creat
             foreach ($challenges as $index => $challenge) {
                 $stmt = $pdo->prepare('INSERT INTO assessment_challenges (assessment_id, type, title, body, points_available, correct_answer, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)');
                 $stmt->execute([$dbAssessId, $challenge['type'], $challenge['title'], $challenge['body'], $challenge['points'], $challenge['correct_flag'], $index]);
+                $challengeId = $pdo->lastInsertId();
+                
+                // Process and save attachments for this challenge
+                if (isset($challengeAttachments[$index])) {
+                    foreach ($challengeAttachments[$index] as $attachment) {
+                        // Generate a unique filename to avoid conflicts
+                        $fileExt = pathinfo($attachment['name'], PATHINFO_EXTENSION);
+                        $uniqueFileName = uniqid('challenge_', true) . '.' . $fileExt;
+                        $destinationPath = $uploadDir . $uniqueFileName;
+                        
+                        // Move the uploaded file
+                        if (move_uploaded_file($attachment['tmp_name'], $destinationPath)) {
+                            // Insert into challenge_attachments table
+                            $stmtAttach = $pdo->prepare('INSERT INTO challenge_attachments (challenge_id, file_name, file_path, icon) VALUES (?, ?, ?, ?)');
+                            $stmtAttach->execute([
+                                $challengeId,
+                                $attachment['name'],
+                                'uploads/challenges/' . $uniqueFileName,
+                                null // We can add icon later if needed
+                            ]);
+                        }
+                    }
+                }
             }
             $pdo->commit();
             
@@ -433,7 +484,7 @@ include 'includes/header.php';
         <h2 class="text-xl font-bold text-gray-900 mb-1">Create Skill Assessment</h2>
         <p class="text-gray-500 text-sm mb-6">Build a custom assessment to send to applicants. You can add flag-style, coding, or short-answer challenges.</p>
 
-        <form method="POST" id="assessForm" class="space-y-6">
+        <form method="POST" id="assessForm" class="space-y-6" enctype="multipart/form-data">
             <input type="hidden" name="action" value="create_assessment">
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
@@ -612,7 +663,7 @@ function addChallenge() {
             <textarea name="challenges[${i}][body]" rows="3" required placeholder="Describe the challenge…"
                       class="w-full px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"></textarea>
         </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
             <div class="flag-field-wrap">
                 <label class="block text-xs font-semibold text-gray-600 mb-1">Correct Flag / Answer</label>
                 <input name="challenges[${i}][correct_flag]" placeholder="FLAG{answer} or exact answer"
@@ -624,6 +675,12 @@ function addChallenge() {
                 <input name="challenges[${i}][hint]" maxlength="200" placeholder="Optional hint for applicants"
                        class="w-full px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
             </div>
+        </div>
+        <div>
+            <label class="block text-xs font-semibold text-gray-600 mb-1">Attachments (optional)</label>
+            <input type="file" name="challenges[${i}][attachments][]" multiple
+                   class="w-full px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+            <p class="text-xs text-gray-400 mt-1">Add files related to this challenge (e.g., PCAPs, data files).</p>
         </div>
     `;
 
