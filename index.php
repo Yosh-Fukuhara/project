@@ -212,7 +212,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         if (empty($postErrors)) {
             // Save to database
             $pdo = get_db_connection();
-            $type = $isHiringPost ? 'job' : 'text';
+            $type = $isHiringPost ? 'job' : 'post';
+            
             $stmt = $pdo->prepare('INSERT INTO posts (user_id, content, type) VALUES (?, ?, ?)');
             $stmt->execute([
                 $_SESSION['user']['user_id'],
@@ -1021,7 +1022,7 @@ include 'includes/header.php';
             $dbComments = [];
             try {
                 $pdo = get_db_connection();
-                $stmt = $pdo->query('SELECT p.*, u.first_name, u.last_name, u.email, u.profile_pic as avatar FROM posts p JOIN users u ON p.user_id = u.user_id ORDER BY p.created_at DESC');
+                $stmt = $pdo->query('SELECT p.*, u.first_name, u.last_name, u.email, up.profile_pic as avatar FROM posts p JOIN users u ON p.user_id = u.user_id LEFT JOIN user_profiles up ON u.user_id = up.user_id ORDER BY p.created_at DESC');
                 $postsData = $stmt->fetchAll();
                 
                 // Load all tags for posts
@@ -1104,6 +1105,8 @@ include 'includes/header.php';
                         'type' => 'user',
                         'id' => $row['post_id'],
                         'username' => $username,
+                        'first_name' => $row['first_name'],
+                        'last_name' => $row['last_name'],
                         'email' => $row['email'],
                         'avatar' => $row['avatar'],
                         'time' => date('M j, Y g:i A', strtotime($row['created_at'])),
@@ -1115,7 +1118,7 @@ include 'includes/header.php';
                     ];
                 }
                 // Load comments from DB
-                $commentStmt = $pdo->query('SELECT c.*, u.first_name, u.last_name, u.profile_pic as avatar FROM comments c JOIN users u ON c.user_id = u.user_id ORDER BY c.created_at ASC');
+                $commentStmt = $pdo->query('SELECT c.*, u.first_name, u.last_name, up.profile_pic as avatar FROM comments c JOIN users u ON c.user_id = u.user_id LEFT JOIN user_profiles up ON u.user_id = up.user_id ORDER BY c.created_at ASC');
                 while ($cmRow = $commentStmt->fetch()) {
                     $postId = $cmRow['post_id'];
                     if (!isset($dbComments[$postId])) {

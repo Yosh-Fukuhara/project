@@ -1065,15 +1065,17 @@ include 'includes/header.php';
             try {
                 $pdo = get_db_connection();
                 $stmt = $pdo->prepare(
-                    'SELECT p.id, p.content, p.attachment_path, p.created_at,
-                            u.username, u.profile_pic
+                    'SELECT p.post_id as id, p.content,
+                            u.first_name, u.last_name, up.profile_pic,
+                            p.created_at
                      FROM posts p
-                     JOIN users u ON u.id = p.user_id
+                     JOIN users u ON u.user_id = p.user_id
+                     LEFT JOIN user_profiles up ON u.user_id = up.user_id
                      WHERE p.user_id = ?
                      ORDER BY p.created_at DESC
                      LIMIT 20'
                 );
-                $stmt->execute([$_SESSION['user']['id']]);
+                $stmt->execute([$_SESSION['user']['user_id']]);
                 $myDbPosts = $stmt->fetchAll(PDO::FETCH_ASSOC);
             } catch (Exception $e) {
                 $myDbPosts = [];
@@ -1102,14 +1104,15 @@ include 'includes/header.php';
 
             // DB posts
             foreach ($myDbPosts as $dp) {
+                $username = trim($dp['first_name'] . ' ' . $dp['last_name']);
                 $allMyPosts[] = [
                     'source'      => 'db',
                     'label'       => '',
                     'id'          => $dp['id'],
                     'content'     => $dp['content'],
-                    'attachment'  => $dp['attachment_path'],
+                    'attachment'  => null,
                     'time_label'  => date('M j, Y g:i A', strtotime($dp['created_at'])),
-                    'username'    => $dp['username'],
+                    'username'    => $username,
                     'profile_pic' => $dp['profile_pic'],
                 ];
             }
