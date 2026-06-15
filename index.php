@@ -10,6 +10,10 @@ if (isset($_SESSION['user']) && cs_is_applicant()) {
         $_SESSION['user']['role']              = 'employer';
         $_SESSION['user']['employer_verified'] = true;
         $_SESSION['user']['company_name']      = $app['company_name'] ?? $_SESSION['user']['username'];
+        // Set a flash success message to show on first load
+        if (!isset($_SESSION['employer_approved_flash'])) {
+            $_SESSION['employer_approved_flash'] = true;
+        }
     }
 }
 
@@ -817,6 +821,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'toggl
 
 include 'includes/header.php';
 ?>
+
+<!-- Employer Approval Flash Message -->
+<?php if (isset($_SESSION['employer_approved_flash']) && $_SESSION['employer_approved_flash']): ?>
+<?php unset($_SESSION['employer_approved_flash']); ?>
+<div class="bg-gradient-to-r from-green-400 to-blue-500 text-white py-6 px-4 text-center shadow-lg">
+    <div class="container mx-auto">
+        <div class="text-4xl mb-2">🎉</div>
+        <h2 class="text-2xl font-bold mb-2">Congratulations! You're now an Employer!</h2>
+        <p class="text-lg">Your employer application has been approved! You can now post hiring jobs and create skill assessments!</p>
+        <a href="employer_dashboard.php" class="inline-block mt-4 bg-white text-blue-700 font-semibold px-6 py-2 rounded-xl hover:bg-gray-100 transition">
+            Go to Employer Dashboard
+        </a>
+    </div>
+</div>
+<?php endif; ?>
 
 <div class="container mx-auto px-4 py-8">
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">

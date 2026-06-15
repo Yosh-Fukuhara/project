@@ -17,6 +17,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'], $_POST['app
         $status = $action === 'approve' ? 'approved' : 'rejected';
         cs_update_employer_application_status((string)$appId, $status);
     }
+    
+    // Redirect to avoid resubmission
+    header('Location: dashboard.php');
+    exit;
 }
 
 $totalUsersStmt = $pdo->query('SELECT COUNT(*) FROM users');
