@@ -5,6 +5,10 @@ cs_init_assessments();
 
 // ── Handle assessment submission ────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'submit_assessment') {
+    // Log the POST data for debugging
+    $logFile = __DIR__ . '/debug-assessment-submit.log';
+    file_put_contents($logFile, date('Y-m-d H:i:s') . " - POST data received:\n" . print_r($_POST, true) . "\n", FILE_APPEND);
+    
     // Make sure user is logged in
     if (!isset($_SESSION['user']['user_id'])) {
         echo json_encode(['ok' => false, 'error' => 'You must be logged in to submit an assessment.']);
@@ -32,62 +36,73 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         exit;
     }
 
-    // First, find or create an assessment session (we created this when the employer sent the assessment)
-    // But for now, let's use the first active one, or create a new one
-    $stmtFindSession = $pdo->prepare('SELECT session_id FROM assessment_sessions WHERE assessment_id = ? AND status = "active" LIMIT 1');
-    $stmtFindSession->execute([$dbAssessmentId]);
-    $dbSession = $stmtFindSession->fetch(PDO::FETCH_ASSOC);
-    $dbSessionId = $dbSession ? $dbSession['session_id'] : null;
+    try {
+        $pdo->beginTransaction();
 
-    if (!$dbSessionId) {
-        // Create a new session if none exists
-        $stmtCreateSession = $pdo->prepare('INSERT INTO assessment_sessions (assessment_id, status) VALUES (?, "active")');
-        $stmtCreateSession->execute([$dbAssessmentId]);
-        $dbSessionId = $pdo->lastInsertId();
-    }
+        // First, find or create an assessment session (we created this when the employer sent the assessment)
+        // But for now, let's use the first active one, or create a new one
+        $stmtFindSession = $pdo->prepare('SELECT session_id FROM assessment_sessions WHERE assessment_id = ? AND status = "active" LIMIT 1');
+        $stmtFindSession->execute([$dbAssessmentId]);
+        $dbSession = $stmtFindSession->fetch(PDO::FETCH_ASSOC);
+        $dbSessionId = $dbSession ? $dbSession['session_id'] : null;
 
-    // Now create user assessment attempt
-    $stmtCreateAttempt = $pdo->prepare('
-        INSERT INTO user_assessment_attempts (session_id, user_id, started_at, completed_at, total_time_secs, total_score, challenges_solved, status)
-        VALUES (?, ?, NOW(), NOW(), ?, ?, ?, "completed")
-    ');
-    $stmtCreateAttempt->execute([$dbSessionId, $userId, $totalSecondsUsed, $score, $challengesSolved]);
-    $attemptId = $pdo->lastInsertId();
+        if (!$dbSessionId) {
+            // Create a new session if none exists
+            $stmtCreateSession = $pdo->prepare('INSERT INTO assessment_sessions (assessment_id, status) VALUES (?, "active")');
+            $stmtCreateSession->execute([$dbAssessmentId]);
+            $dbSessionId = $pdo->lastInsertId();
+        }
 
-    // Now save each challenge answer
-    foreach ($assessment['challenges'] as $ch) {
-        $challengeId = $ch['db_id'] ?? null;
-        $submittedAnswer = $answers[$ch['id']] ?? '';
-        $status = 'skipped';
-        $pointsAwarded = 0;
-        $timeUsed = null; // For now, we don't track per-challenge time
+        // Now create user assessment attempt
+        $stmtCreateAttempt = $pdo->prepare('
+            INSERT INTO user_assessment_attempts (session_id, user_id, started_at, completed_at, total_time_secs, total_score, challenges_solved, status)
+            VALUES (?, ?, NOW(), NOW(), ?, ?, ?, "completed")
+        ');
+        $stmtCreateAttempt->execute([$dbSessionId, $userId, $totalSecondsUsed, $score, $challengesSolved]);
+        $attemptId = $pdo->lastInsertId();
 
-        if (isset($answers[$ch['id']]) && !empty($submittedAnswer)) {
-            if ($ch['type'] === 'flag') {
-                $correctAnswer = $ch['correct_flag'] ?? '';
-                if (strtoupper($submittedAnswer) === strtoupper($correctAnswer)) {
-                    $status = 'correct';
-                    $pointsAwarded = $ch['points'];
+        // Now save each challenge answer
+        foreach ($assessment['challenges'] as $ch) {
+            $challengeId = $ch['db_id'] ?? null;
+            $submittedAnswer = $answers[$ch['id']] ?? '';
+            $status = 'skipped';
+            $pointsAwarded = 0;
+            $timeUsed = null; // For now, we don't track per-challenge time
+
+            if (isset($answers[$ch['id']]) && !empty(trim($submittedAnswer))) {
+                if ($ch['type'] === 'flag') {
+                    $correctAnswer = $ch['correct_flag'] ?? '';
+                    if (strtoupper(trim($submittedAnswer)) === strtoupper(trim($correctAnswer))) {
+                        $status = 'correct';
+                        $pointsAwarded = (int) $ch['points'];
+                    } else {
+                        $status = 'wrong';
+                    }
                 } else {
-                    $status = 'wrong';
+                    $status = 'submitted';
+                    $pointsAwarded = (int) $ch['points'];
                 }
-            } else {
-                $status = 'submitted';
-                $pointsAwarded = $ch['points'];
+            }
+
+            if ($challengeId) {
+                $stmtSaveAnswer = $pdo->prepare('
+                    INSERT INTO user_challenge_answers (attempt_id, challenge_id, submitted_answer, status, points_awarded)
+                    VALUES (?, ?, ?, ?, ?)
+                ');
+                $stmtSaveAnswer->execute([$attemptId, $challengeId, $submittedAnswer, $status, $pointsAwarded]);
             }
         }
 
-        if ($challengeId) {
-            $stmtSaveAnswer = $pdo->prepare('
-                INSERT INTO user_challenge_answers (attempt_id, challenge_id, submitted_answer, status, points_awarded)
-                VALUES (?, ?, ?, ?, ?)
-            ');
-            $stmtSaveAnswer->execute([$attemptId, $challengeId, $submittedAnswer, $status, $pointsAwarded]);
-        }
-    }
+        $pdo->commit();
 
-    echo json_encode(['ok' => true, 'attempt_id' => $attemptId]);
-    exit;
+        echo json_encode(['ok' => true, 'attempt_id' => $attemptId]);
+        exit;
+    } catch (Exception $e) {
+        $pdo->rollBack();
+        error_log("Assessment submission error: " . $e->getMessage());
+        echo json_encode(['ok' => false, 'error' => 'Failed to save assessment: ' . $e->getMessage()]);
+        exit;
+    }
 }
 
 // ── Load session: dynamic (employer-created) or static fallback ───────────

@@ -515,6 +515,7 @@ function cs_get_assessment_by_id(string $id): ?array {
                         
                         $formattedChallenges[] = [
                             'id' => 'c_' . $ch['challenge_id'],
+                            'db_id' => $ch['challenge_id'],
                             'type' => $ch['type'],
                             'title' => $ch['title'],
                             'body' => $ch['body'],
