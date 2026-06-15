@@ -5,10 +5,6 @@ cs_init_assessments();
 
 // ── Handle assessment submission ────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'submit_assessment') {
-    // Log the POST data for debugging
-    $logFile = __DIR__ . '/debug-assessment-submit.log';
-    file_put_contents($logFile, date('Y-m-d H:i:s') . " - POST data received:\n" . print_r($_POST, true) . "\n", FILE_APPEND);
-    
     // Make sure user is logged in
     if (!isset($_SESSION['user']['user_id'])) {
         echo json_encode(['ok' => false, 'error' => 'You must be logged in to submit an assessment.']);
