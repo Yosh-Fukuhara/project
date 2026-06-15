@@ -613,16 +613,40 @@ $my_email = $_SESSION['user']['email'];
 // Get all conversations for the user
 $conversations = get_conversations($my_id);
 
+// Debug: print $conversations
+echo "<div style='background:lightblue;padding:20px;margin:20px;'>";
+echo "<h2>Debug: get_conversations() Returned:</h2><pre>" . print_r($conversations, true) . "</pre>";
+echo "</div>";
+
 // Handle active conversation
 $activeConversationId = $_GET['conv'] ?? null;
 $currentConv = null;
 
 if ($activeConversationId) {
-    // Find the active conversation
+    // Find the active conversation in the list first
     foreach ($conversations as $c) {
         if ($c['conversation_id'] == $activeConversationId) {
             $currentConv = $c;
             break;
+        }
+    }
+    
+    // Fallback: if not found in list, load directly from DB
+    if (!$currentConv) {
+        try {
+            $pdo = get_db_connection();
+            $stmt = $pdo->prepare("SELECT conversation_id, user_a, user_b, created_at FROM conversations WHERE conversation_id = ? AND (user_a = ? OR user_b = ?)");
+            $stmt->execute([$activeConversationId, $my_id, $my_id]);
+            $currentConv = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            // Also add default values for missing fields (body, sent_at, unread_count)
+            if ($currentConv) {
+                $currentConv['body'] = null;
+                $currentConv['sent_at'] = $currentConv['created_at'];
+                $currentConv['unread_count'] = 0;
+            }
+        } catch (Exception $e) {
+            $currentConv = null;
         }
     }
 }
