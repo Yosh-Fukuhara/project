@@ -11,6 +11,58 @@ if (!isset($_SESSION['user'])) {
 $pageTitle = 'Messages - CyberSphere';
 $currentPage = 'messages';
 
+// Quick check to ensure tables exist
+function ensure_tables_exist() {
+    try {
+        $pdo = get_db_connection();
+        
+        // Check if conversations table exists
+        $stmt = $pdo->query("SHOW TABLES LIKE 'conversations'");
+        if (!$stmt->fetch()) {
+            // Create conversations table
+            $pdo->exec("CREATE TABLE conversations (
+                conversation_id INT PRIMARY KEY AUTO_INCREMENT,
+                user_a INT NOT NULL,
+                user_b INT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_a) REFERENCES users(user_id) ON DELETE CASCADE,
+                FOREIGN KEY (user_b) REFERENCES users(user_id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+        }
+        
+        // Check if messages table exists
+        $stmt = $pdo->query("SHOW TABLES LIKE 'messages'");
+        if (!$stmt->fetch()) {
+            $pdo->exec("CREATE TABLE messages (
+                message_id INT PRIMARY KEY AUTO_INCREMENT,
+                conversation_id INT NOT NULL,
+                sender_id INT NOT NULL,
+                body TEXT NOT NULL,
+                is_read TINYINT(1) DEFAULT 0,
+                sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (conversation_id) REFERENCES conversations(conversation_id) ON DELETE CASCADE,
+                FOREIGN KEY (sender_id) REFERENCES users(user_id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+        }
+        
+        // Check if message_attachments table exists
+        $stmt = $pdo->query("SHOW TABLES LIKE 'message_attachments'");
+        if (!$stmt->fetch()) {
+            $pdo->exec("CREATE TABLE message_attachments (
+                attachment_id INT PRIMARY KEY AUTO_INCREMENT,
+                message_id INT NOT NULL,
+                file_name VARCHAR(255) NOT NULL,
+                file_url VARCHAR(255) NOT NULL,
+                uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (message_id) REFERENCES messages(message_id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+        }
+    } catch (Exception $e) {
+        die("Error ensuring tables exist: " . $e->getMessage());
+    }
+}
+ensure_tables_exist();
+
 // Check if we're opening a conversation with a specific user
 if (isset($_GET['user'])) {
     $other_user_id = (int)$_GET['user'];
@@ -21,6 +73,8 @@ if (isset($_GET['user'])) {
             if ($conv) {
                 header('Location: messages.php?conv=' . urlencode($conv['conversation_id']));
                 exit;
+            } else {
+                die("Failed to get or create conversation (no error thrown, but returned null)");
             }
         } catch (Exception $e) {
             echo "Error creating conversation: " . $e->getMessage();
