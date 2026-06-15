@@ -287,11 +287,15 @@ function cs_update_employer_application_status(string $id, string $status): void
             $stmt3 = $pdo->prepare('UPDATE users SET role = ? WHERE user_id = ?');
             $stmt3->execute(['employer', $userId]);
             
-            // Send notification to the user
-            cs_save_notification($userId, '🎉 Your employer application has been approved! You can now post hiring jobs!', 'index.php');
+            // Send notification to the user if the function exists
+            if (function_exists('cs_save_notification')) {
+                cs_save_notification($userId, '🎉 Your employer application has been approved! You can now post hiring jobs!', 'index.php');
+            }
         } elseif ($status === 'rejected' && $userId) {
-            // Send notification for rejection too
-            cs_save_notification($userId, 'Your employer application has been rejected. Please contact support for more information.', 'index.php');
+            // Send notification for rejection too if function exists
+            if (function_exists('cs_save_notification')) {
+                cs_save_notification($userId, 'Your employer application has been rejected. Please contact support for more information.', 'index.php');
+            }
         }
     } catch (Exception $e) {
         error_log("cs_update_employer_application_status error: " . $e->getMessage());
