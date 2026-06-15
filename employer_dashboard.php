@@ -47,8 +47,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creat
         $cflag  = trim($c['correct_flag'] ?? '');
         if (!$ctitle || !$cbody) continue;
         
-        // Check for uploaded files for this challenge
+        // Check for uploaded files and notes for this challenge
         $attachments = [];
+        $attachmentNotes = $c['attachment_notes'] ?? [];
+        
+        // Function to get file icon based on extension
+        $getFileIcon = function($fileName) {
+            $ext = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+            $iconMap = [
+                'pdf' => '📕',
+                'doc' => '📄', 'docx' => '📄', 'odt' => '📄', 'rtf' => '📄', 'txt' => '📄',
+                'png' => '🖼️', 'jpg' => '🖼️', 'jpeg' => '🖼️', 'gif' => '🖼️', 'svg' => '🖼️', 'ico' => '🖼️',
+                'ppt' => '📊', 'pptx' => '📊', 'xls' => '📊', 'xlsx' => '📊', 'csv' => '📊',
+                'zip' => '📦', 'rar' => '📦', '7z' => '📦', 'tar' => '📦', 'gz' => '📦', 'xz' => '📦', 'bz2' => '📦',
+                'mp3' => '🎵', 'wav' => '🎵', 'ogg' => '🎵', 'm4a' => '🎵',
+                'mp4' => '🎬', 'webm' => '🎬', 'avi' => '🎬', 'mov' => '🎬',
+                'pcap' => '🔍', 'pcapng' => '🔍',
+                'pka' => '🔬', 'pkt' => '🔬', // Packet Tracer
+                'md' => '📝',
+                'html' => '🌐',
+                'css' => '🎨', 'scss' => '🎨', 'less' => '🎨',
+                'js' => '💻', 'ts' => '💻',
+                'json' => '📋', 'xml' => '📋', 'yaml' => '📋', 'yml' => '📋',
+                'php' => '🐘',
+                'py' => '🐍', 'rb' => '💎',
+                'java' => '☕', 'class' => '☕', 'jar' => '☕',
+                'cpp' => '⚙️', 'c' => '⚙️', 'h' => '⚙️',
+                'cs' => '🔷',
+                'go' => '🐹', 'rs' => '🦀', 'kt' => '📱'
+            ];
+            return $iconMap[$ext] ?? '📄';
+        };
+        
         if (isset($_FILES['challenges']) && isset($_FILES['challenges']['name'][$index]) && isset($_FILES['challenges']['name'][$index]['attachments'])) {
             $fileNames = $_FILES['challenges']['name'][$index]['attachments'];
             $fileTmpPaths = $_FILES['challenges']['tmp_name'][$index]['attachments'];
@@ -59,7 +89,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creat
                     $attachments[] = [
                         'name' => $fileName,
                         'tmp_name' => $fileTmpPaths[$fileIdx],
-                        'type' => $_FILES['challenges']['type'][$index]['attachments'][$fileIdx]
+                        'type' => $_FILES['challenges']['type'][$index]['attachments'][$fileIdx],
+                        'icon' => $getFileIcon($fileName),
+                        'note' => $attachmentNotes[$fileIdx] ?? ''
                     ];
                 }
             }
@@ -120,12 +152,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creat
                         // Move the uploaded file
                         if (move_uploaded_file($attachment['tmp_name'], $destinationPath)) {
                             // Insert into challenge_attachments table
-                            $stmtAttach = $pdo->prepare('INSERT INTO challenge_attachments (challenge_id, file_name, file_path, icon) VALUES (?, ?, ?, ?)');
+                            $stmtAttach = $pdo->prepare('INSERT INTO challenge_attachments (challenge_id, file_name, file_path, icon, note) VALUES (?, ?, ?, ?, ?)');
                             $stmtAttach->execute([
                                 $challengeId,
                                 $attachment['name'],
                                 'uploads/challenges/' . $uniqueFileName,
-                                null // We can add icon later if needed
+                                $attachment['icon'] ?? 'file',
+                                $attachment['note'] ?? null
                             ]);
                         }
                     }
@@ -676,10 +709,11 @@ function addChallenge() {
                        class="w-full px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
             </div>
         </div>
-        <div>
+        <div class="mb-4">
             <label class="block text-xs font-semibold text-gray-600 mb-1">Attachments (optional)</label>
-            <input type="file" name="challenges[${i}][attachments][]" multiple
-                   class="w-full px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+            <input type="file" name="challenges[${i}][attachments][]" multiple data-challenge-index="${i}"
+                   class="w-full px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 attachment-input">
+            <div id="attachments-container-${i}" class="mt-3 space-y-3"></div>
             <p class="text-xs text-gray-400 mt-1">Add files related to this challenge (e.g., PCAPs, data files).</p>
         </div>
     `;
@@ -693,6 +727,72 @@ function addChallenge() {
         flagWrap.style.opacity = (sel.value === 'flag') ? '1' : '0.4';
     });
 }
+
+// Define file icon map once
+const iconMap = {
+    pdf: '📕',
+    doc: '📄', docx: '📄', odt: '📄', rtf: '📄', txt: '📄',
+    png: '🖼️', jpg: '🖼️', jpeg: '🖼️', gif: '🖼️', svg: '🖼️', ico: '🖼️',
+    ppt: '📊', pptx: '📊', xls: '📊', xlsx: '📊', csv: '📊',
+    zip: '📦', rar: '📦', '7z': '📦', tar: '📦', gz: '📦', xz: '📦', bz2: '📦',
+    mp3: '🎵', wav: '🎵', ogg: '🎵', m4a: '🎵',
+    mp4: '🎬', webm: '🎬', avi: '🎬', mov: '🎬',
+    pcap: '🔍', pcapng: '🔍',
+    pka: '🔬', pkt: '🔬', // Packet Tracer
+    md: '📝',
+    html: '🌐',
+    css: '🎨', scss: '🎨', less: '🎨',
+    js: '💻', ts: '💻',
+    json: '📋', xml: '📋', yaml: '📋', yml: '📋',
+    php: '🐘',
+    py: '🐍', rb: '💎',
+    java: '☕', class: '☕', jar: '☕',
+    cpp: '⚙️', c: '⚙️', h: '⚙️',
+    cs: '🔷',
+    go: '🐹', rs: '🦀', kt: '📱'
+};
+
+function getFileIcon(fileName) {
+    const ext = fileName.split('.').pop().toLowerCase();
+    return iconMap[ext] || '📄';
+}
+
+// Handle attachment file selection to add note inputs
+document.addEventListener('change', function(e) {
+    if (e.target.classList.contains('attachment-input')) {
+        const challengeIndex = e.target.dataset.challengeIndex;
+        const container = document.getElementById(`attachments-container-${challengeIndex}`);
+        if (!container) return;
+        
+        // Clear previous content
+        container.innerHTML = '';
+        
+        const files = e.target.files;
+        for (let fileIdx = 0; fileIdx < files.length; fileIdx++) {
+            const file = files[fileIdx];
+            const wrapper = document.createElement('div');
+            wrapper.className = 'bg-white p-4 rounded-xl border border-gray-200';
+            
+            wrapper.innerHTML = `
+                <div class="flex items-center gap-2 mb-3">
+                    <span class="text-2xl">${getFileIcon(file.name)}</span>
+                    <div>
+                        <span class="text-sm font-medium text-gray-700">${file.name}</span>
+                        <span class="text-xs text-gray-400">(${(file.size / 1024).toFixed(1)} KB)</span>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Note (optional)</label>
+                    <input type="text" name="challenges[${challengeIndex}][attachment_notes][]" 
+                           placeholder="e.g., Capture file for analysis"
+                           class="w-full px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+            `;
+            
+            container.appendChild(wrapper);
+        }
+    }
+});
 
 function checkEmpty() {
     if (challengesList.children.length === 0) {
