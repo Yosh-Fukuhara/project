@@ -174,6 +174,133 @@ function cs_is_joined(string $email, string $cid): bool {
     return in_array($cid, $_SESSION['joined_communities'][$email] ?? [], true);
 }
 
+function savePostAttachment(?array $file, string $uploadDirAbs, array &$postErrors): ?array {
+    if (!$file || !isset($file['error'])) {
+        return null;
+    }
+    if (is_array($file['error'])) {
+        $postErrors[] = 'Invalid upload.';
+        return null;
+    }
+    if ($file['error'] === UPLOAD_ERR_NO_FILE) {
+        return null;
+    }
+    if ($file['error'] !== UPLOAD_ERR_OK) {
+        $postErrors[] = 'Upload failed. Please try again.';
+        return null;
+    }
+
+    // 25MB max for attachments
+    if (($file['size'] ?? 0) > 25 * 1024 * 1024) {
+        $postErrors[] = 'File is too large (max 25MB).';
+        return null;
+    }
+
+    $tmp = $file['tmp_name'] ?? '';
+    if (!is_uploaded_file($tmp)) {
+        $postErrors[] = 'Invalid upload.';
+        return null;
+    }
+
+    // Allow common types
+    $allowedByMime = [
+        // Images
+        'image/jpeg' => 'jpg',
+        'image/png'  => 'png',
+        'image/gif'  => 'gif',
+        'image/webp' => 'webp',
+        // Videos
+        'video/mp4'  => 'mp4',
+        'video/webm' => 'webm',
+        'video/quicktime' => 'mov',
+        // Documents
+        'application/pdf' => 'pdf',
+        'text/plain' => 'txt',
+        'application/msword' => 'doc',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',
+        'application/vnd.ms-powerpoint' => 'ppt',
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation' => 'pptx',
+        'application/vnd.ms-excel' => 'xls',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' => 'xlsx',
+    ];
+
+    $extFromName = strtolower(pathinfo((string)($file['name'] ?? ''), PATHINFO_EXTENSION));
+    $mimeByExt = [
+        'jpg' => 'image/jpeg',
+        'jpeg' => 'image/jpeg',
+        'png' => 'image/png',
+        'gif' => 'image/gif',
+        'webp' => 'image/webp',
+        'mp4' => 'video/mp4',
+        'webm' => 'video/webm',
+        'mov' => 'video/quicktime',
+        'pdf' => 'application/pdf',
+        'txt' => 'text/plain',
+        'doc' => 'application/msword',
+        'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'ppt' => 'application/vnd.ms-powerpoint',
+        'pptx' => 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        'xls' => 'application/vnd.ms-excel',
+        'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    ];
+
+    $mime = 'application/octet-stream';
+    $ext = null;
+
+    if (class_exists('finfo')) {
+        try {
+            $finfo = new finfo(FILEINFO_MIME_TYPE);
+            $detected = $finfo->file($tmp) ?: 'application/octet-stream';
+            if (isset($allowedByMime[$detected])) {
+                $mime = $detected;
+                $ext = $allowedByMime[$detected];
+            }
+        } catch (Throwable $e) {
+            // ignore and fallback to extension checks
+        }
+    }
+
+    if ($ext === null) {
+        if (!isset($mimeByExt[$extFromName])) {
+            $postErrors[] = 'Unsupported file type.';
+            return null;
+        }
+        $mime = $mimeByExt[$extFromName];
+        $ext = $extFromName === 'jpeg' ? 'jpg' : $extFromName;
+    }
+
+    if (!is_dir($uploadDirAbs)) {
+        mkdir($uploadDirAbs, 0777, true);
+    }
+
+    $filename = uniqid('', true) . '.' . $ext;
+    $destination = $uploadDirAbs . DIRECTORY_SEPARATOR . $filename;
+
+    if (!move_uploaded_file($tmp, $destination)) {
+        $postErrors[] = 'Upload failed. Please try again.';
+        return null;
+    }
+
+    $kind = 'document';
+    if (str_starts_with($mime, 'image/')) $kind = 'image';
+    if (str_starts_with($mime, 'video/')) $kind = 'video';
+
+    return [
+        'path' => 'uploads/' . $filename,
+        'mime' => $mime,
+        'name' => $file['name'] ?? 'attachment',
+        'kind' => $kind
+    ];
+}
+
+function safeUnlinkUpload(?string $path): void {
+    if (!$path) return;
+    $fullPath = __DIR__ . DIRECTORY_SEPARATOR . ltrim($path, '/\\');
+    if (file_exists($fullPath) && is_file($fullPath)) {
+        unlink($fullPath);
+    }
+}
+
 $errors = [];
 
 // ── Actions ──
@@ -415,6 +542,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $cid = $_POST['community_id'] ?? '';
         $idx = $cid ? cs_find_community_index($cid) : null;
         $content = trim($_POST['content'] ?? '');
+        $attachment = savePostAttachment($_FILES['attachment'] ?? null, __DIR__ . DIRECTORY_SEPARATOR . 'uploads', $errors);
 
         if ($idx === null) $errors[] = 'Community not found.';
         if (!cs_is_joined($meEmail, $cid)) $errors[] = 'Join the community to post.';
@@ -428,6 +556,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmtInsert = $pdo->prepare("INSERT INTO community_posts (community_id, post_author_id, content) VALUES (?, ?, ?)");
                 $stmtInsert->execute([$cidInt, $meId, $content]);
                 $postId = (string)$pdo->lastInsertId();
+                
+                // Save attachment if any
+                if ($attachment) {
+                    $stmtAttach = $pdo->prepare('INSERT INTO community_post_attachments (post_id, file_path, mime_type) VALUES (?, ?, ?)');
+                    $stmtAttach->execute([$postId, $attachment['path'], $attachment['mime']]);
+                }
                 
                 // Refresh community posts in session
                 cs_load_community_posts($pdo, $cid, $meEmail);
@@ -449,6 +583,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'avatar' => $_SESSION['user']['profile_pic'] ?? null,
                     'time' => cs_now_label(),
                     'content' => $content,
+                    'attachment' => $attachment,
                 ]);
                 
                 header('Location: communities.php?c=' . urlencode($cid) . '&post=' . urlencode($postId));
@@ -481,6 +616,30 @@ function cs_load_community_posts($pdo, $cid, $meEmail) {
         $stmt->execute([$cidInt]);
         $posts = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
+        // Get attachments for all posts
+        $postIds = array_column($posts, 'post_id');
+        $attachments = [];
+        if (!empty($postIds)) {
+            $inClause = implode(',', array_fill(0, count($postIds), '?'));
+            $stmtAttach = $pdo->prepare("
+                SELECT post_id, file_path, mime_type 
+                FROM community_post_attachments 
+                WHERE post_id IN ($inClause)
+            ");
+            $stmtAttach->execute($postIds);
+            while ($attach = $stmtAttach->fetch(PDO::FETCH_ASSOC)) {
+                $kind = 'document';
+                if (str_starts_with($attach['mime_type'], 'image/')) $kind = 'image';
+                if (str_starts_with($attach['mime_type'], 'video/')) $kind = 'video';
+                $attachments[$attach['post_id']] = [
+                    'path' => $attach['file_path'],
+                    'mime' => $attach['mime_type'],
+                    'name' => basename($attach['file_path']),
+                    'kind' => $kind
+                ];
+            }
+        }
+        
         $_SESSION['community_posts'][$cid] = [];
         foreach ($posts as $p) {
             $_SESSION['community_posts'][$cid][] = [
@@ -490,7 +649,8 @@ function cs_load_community_posts($pdo, $cid, $meEmail) {
                 'email' => '',
                 'avatar' => $p['profile_pic'],
                 'time' => date('M j, Y g:i A', strtotime($p['created_at'])),
-                'content' => $p['content']
+                'content' => $p['content'],
+                'attachment' => isset($attachments[$p['post_id']]) ? $attachments[$p['post_id']] : null
             ];
         }
     } catch (Exception $e) {
@@ -743,10 +903,19 @@ include 'includes/header.php';
                             <?php if (!$isJoined): ?>
                                 <p class="text-sm text-gray-600">Join this community to create posts.</p>
                             <?php else: ?>
-                                <form method="POST" class="space-y-3">
+                                <form method="POST" enctype="multipart/form-data" class="space-y-3">
                                     <input type="hidden" name="action" value="create_community_post">
                                     <input type="hidden" name="community_id" value="<?php echo htmlspecialchars($cid); ?>">
                                     <textarea name="content" rows="3" class="w-full px-4 py-3 rounded-2xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" placeholder="Create a post..."></textarea>
+                                    <div>
+                                        <label for="community_attachment" class="text-sm font-medium text-gray-700 cursor-pointer flex items-center gap-2">
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path>
+                                            </svg>
+                                            Attach a file
+                                        </label>
+                                        <input type="file" name="attachment" id="community_attachment" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-900 hover:file:bg-blue-100">
+                                    </div>
                                     <div class="flex justify-end">
                                         <button class="bg-blue-900 hover:bg-blue-800 text-white font-bold px-5 py-2 rounded-xl transition text-sm">Post</button>
                                     </div>
@@ -779,6 +948,28 @@ include 'includes/header.php';
                                             </div>
                                         </div>
                                         <p class="mt-3 text-gray-800 whitespace-pre-wrap break-words text-sm"><?php echo nl2br(htmlspecialchars($p['content'] ?? '')); ?></p>
+                                        <?php if (!empty($p['attachment'])): ?>
+                                            <?php $att = $p['attachment']; ?>
+                                            <?php if (($att['kind'] ?? '') === 'image'): ?>
+                                                <div class="mt-4 rounded-lg overflow-hidden border border-gray-200">
+                                                    <img src="<?php echo htmlspecialchars($att['path']); ?>" alt="Post image" class="w-full">
+                                                </div>
+                                            <?php elseif (($att['kind'] ?? '') === 'video'): ?>
+                                                <div class="mt-4 rounded-lg overflow-hidden border border-gray-200 bg-black">
+                                                    <video controls class="w-full">
+                                                        <source src="<?php echo htmlspecialchars($att['path']); ?>" type="<?php echo htmlspecialchars($att['mime'] ?? 'video/mp4'); ?>">
+                                                        Your browser does not support the video tag.
+                                                    </video>
+                                                </div>
+                                            <?php else: ?>
+                                                <div class="mt-4 p-4 rounded-lg border border-gray-200 bg-gray-50">
+                                                    <a class="text-blue-900 font-semibold hover:underline break-all" href="<?php echo htmlspecialchars($att['path']); ?>" target="_blank" rel="noopener noreferrer">
+                                                        <?php echo htmlspecialchars($att['name'] ?? 'View document'); ?>
+                                                    </a>
+                                                    <p class="text-xs text-gray-400 mt-1">Click to open</p>
+                                                </div>
+                                            <?php endif; ?>
+                                        <?php endif; ?>
                                     </div>
                                 <?php endforeach; ?>
                             <?php endif; ?>
