@@ -61,22 +61,50 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creat
     if (empty($challenges)) $assessErrors[] = 'Add at least one challenge.';
 
     if (empty($assessErrors)) {
-        $assessId = 'assess_' . uniqid('', true);
-        $_SESSION['cs_assessments'][] = [
-            'id'            => $assessId,
-            'employer_email'=> $myEmail,
-            'employer_name' => $companyName,
-            'title'         => $title,
-            'role'          => $role,
-            'time_limit'    => $timeLimit,
-            'instructions'  => $instructions,
-            'challenges'    => $challenges,
-            'created_at'    => date('M j, Y g:i A'),
-            'total_pts'     => array_sum(array_column($challenges, 'points')),
-        ];
-        $flash = 'Assessment "' . htmlspecialchars($title) . '" created successfully!';
-        header('Location: employer_dashboard.php?tab=assessments&flash=' . urlencode($flash));
-        exit;
+        $pdo = get_db_connection();
+        try {
+            $pdo->beginTransaction();
+            // Get user id
+            $stmtUserId = $pdo->prepare('SELECT user_id FROM users WHERE email = ?');
+            $stmtUserId->execute([$myEmail]);
+            $userId = $stmtUserId->fetchColumn();
+            if (!$userId) throw new Exception('User not found in database');
+            
+            // Insert assessment
+            $stmt = $pdo->prepare('INSERT INTO assessments (title, instructions, time_limit_mins, created_by) VALUES (?, ?, ?, ?)');
+            $stmt->execute([$title, $instructions, $timeLimit, $userId]);
+            $dbAssessId = $pdo->lastInsertId();
+            
+            // Insert challenges
+            foreach ($challenges as $index => $challenge) {
+                $stmt = $pdo->prepare('INSERT INTO assessment_challenges (assessment_id, type, title, body, points_available, correct_answer, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)');
+                $stmt->execute([$dbAssessId, $challenge['type'], $challenge['title'], $challenge['body'], $challenge['points'], $challenge['correct_flag'], $index]);
+            }
+            $pdo->commit();
+            
+            // Also save to session for backwards compatibility
+            $assessId = 'assess_' . $dbAssessId; // Use DB ID as part of session ID
+            $_SESSION['cs_assessments'][] = [
+                'id'            => $assessId,
+                'db_id'         => $dbAssessId,
+                'employer_email'=> $myEmail,
+                'employer_name' => $companyName,
+                'title'         => $title,
+                'role'          => $role,
+                'time_limit'    => $timeLimit,
+                'instructions'  => $instructions,
+                'challenges'    => $challenges,
+                'created_at'    => date('M j, Y g:i A'),
+                'total_pts'     => array_sum(array_column($challenges, 'points')),
+            ];
+            
+            $flash = 'Assessment "' . htmlspecialchars($title) . '" created successfully!';
+            header('Location: employer_dashboard.php?tab=assessments&flash=' . urlencode($flash));
+            exit;
+        } catch (Exception $e) {
+            $pdo->rollBack();
+            $assessErrors[] = 'Database error: ' . $e->getMessage();
+        }
     }
 }
 

@@ -408,14 +408,143 @@ function cs_init_assessments(): void {
 }
 function cs_get_assessments_by_employer(string $email): array {
     cs_init_assessments();
-    return array_values(array_filter($_SESSION['cs_assessments'], fn($a) => ($a['employer_email'] ?? '') === $email));
+    try {
+        $pdo = get_db_connection();
+        // Get employer user id from email
+        $stmtUserId = $pdo->prepare('SELECT user_id FROM users WHERE email = ?');
+        $stmtUserId->execute([$email]);
+        $userId = $stmtUserId->fetchColumn();
+        if (!$userId) {
+            // Fall back to session
+            return array_values(array_filter($_SESSION['cs_assessments'], fn($a) => ($a['employer_email'] ?? '') === $email));
+        }
+        
+        // Get assessments from database
+        $stmt = $pdo->prepare('SELECT assessment_id, title, instructions, time_limit_mins, created_at FROM assessments WHERE created_by = ? ORDER BY created_at DESC');
+        $stmt->execute([$userId]);
+        $assessments = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        $result = [];
+        foreach ($assessments as $dbAssess) {
+            // Get challenges
+            $stmtChallenges = $pdo->prepare('SELECT challenge_id, type, title, body, points_available, correct_answer FROM assessment_challenges WHERE assessment_id = ? ORDER BY sort_order ASC');
+            $stmtChallenges->execute([$dbAssess['assessment_id']]);
+            $challenges = $stmtChallenges->fetchAll(PDO::FETCH_ASSOC);
+            
+            // Format challenges like session format
+            $formattedChallenges = [];
+            foreach ($challenges as $ch) {
+                $formattedChallenges[] = [
+                    'id' => 'c_' . $ch['challenge_id'],
+                    'type' => $ch['type'],
+                    'title' => $ch['title'],
+                    'body' => $ch['body'],
+                    'points' => $ch['points_available'],
+                    'hint' => '', // Hint not in DB yet
+                    'correct_flag' => $ch['correct_answer'],
+                    'attachment' => null,
+                ];
+            }
+            
+            // Get employer company name
+            $companyName = $_SESSION['user']['company_name'] ?? $_SESSION['user']['username'] ?? 'Your Company';
+            
+            $result[] = [
+                'id' => 'assess_' . $dbAssess['assessment_id'],
+                'db_id' => $dbAssess['assessment_id'],
+                'employer_email' => $email,
+                'employer_name' => $companyName,
+                'title' => $dbAssess['title'],
+                'role' => '', // Role not in DB yet
+                'time_limit' => $dbAssess['time_limit_mins'],
+                'instructions' => $dbAssess['instructions'],
+                'challenges' => $formattedChallenges,
+                'created_at' => date('M j, Y g:i A', strtotime($dbAssess['created_at'])),
+                'total_pts' => array_sum(array_column($formattedChallenges, 'points')),
+            ];
+        }
+        
+        // Merge with session assessments for backwards compatibility
+        $sessionAssessments = array_values(array_filter($_SESSION['cs_assessments'], fn($a) => ($a['employer_email'] ?? '') === $email));
+        $result = array_merge($result, $sessionAssessments);
+        
+        return $result;
+    } catch (Exception $e) {
+        error_log("cs_get_assessments_by_employer error: " . $e->getMessage());
+        // Fall back to session
+        return array_values(array_filter($_SESSION['cs_assessments'], fn($a) => ($a['employer_email'] ?? '') === $email));
+    }
 }
 function cs_get_assessment_by_id(string $id): ?array {
     cs_init_assessments();
-    foreach ($_SESSION['cs_assessments'] as $a) {
-        if (($a['id'] ?? '') === $id) return $a;
+    try {
+        // Check if id is in database format: "assess_{id}"
+        if (str_starts_with($id, 'assess_')) {
+            $dbAssessId = (int)substr($id, 6);
+            if ($dbAssessId > 0) {
+                $pdo = get_db_connection();
+                // Get assessment
+                $stmt = $pdo->prepare('SELECT assessment_id, title, instructions, time_limit_mins, created_at, created_by FROM assessments WHERE assessment_id = ?');
+                $stmt->execute([$dbAssessId]);
+                $dbAssess = $stmt->fetch(PDO::FETCH_ASSOC);
+                if ($dbAssess) {
+                    // Get challenges
+                    $stmtChallenges = $pdo->prepare('SELECT challenge_id, type, title, body, points_available, correct_answer FROM assessment_challenges WHERE assessment_id = ? ORDER BY sort_order ASC');
+                    $stmtChallenges->execute([$dbAssessId]);
+                    $challenges = $stmtChallenges->fetchAll(PDO::FETCH_ASSOC);
+                    
+                    // Format challenges like session format
+                    $formattedChallenges = [];
+                    foreach ($challenges as $ch) {
+                        $formattedChallenges[] = [
+                            'id' => 'c_' . $ch['challenge_id'],
+                            'type' => $ch['type'],
+                            'title' => $ch['title'],
+                            'body' => $ch['body'],
+                            'points' => $ch['points_available'],
+                            'hint' => '', // Hint not in DB yet
+                            'correct_flag' => $ch['correct_answer'],
+                            'attachment' => null,
+                        ];
+                    }
+                    
+                    // Get employer email from created_by user id
+                    $stmtUser = $pdo->prepare('SELECT email FROM users WHERE user_id = ?');
+                    $stmtUser->execute([$dbAssess['created_by']]);
+                    $employerEmail = $stmtUser->fetchColumn();
+                    
+                    $companyName = $_SESSION['user']['company_name'] ?? $_SESSION['user']['username'] ?? 'Your Company';
+                    
+                    return [
+                        'id' => 'assess_' . $dbAssess['assessment_id'],
+                        'db_id' => $dbAssess['assessment_id'],
+                        'employer_email' => $employerEmail,
+                        'employer_name' => $companyName,
+                        'title' => $dbAssess['title'],
+                        'role' => '', // Role not in DB yet
+                        'time_limit' => $dbAssess['time_limit_mins'],
+                        'instructions' => $dbAssess['instructions'],
+                        'challenges' => $formattedChallenges,
+                        'created_at' => date('M j, Y g:i A', strtotime($dbAssess['created_at'])),
+                        'total_pts' => array_sum(array_column($formattedChallenges, 'points')),
+                    ];
+                }
+            }
+        }
+        
+        // Fall back to session
+        foreach ($_SESSION['cs_assessments'] as $a) {
+            if (($a['id'] ?? '') === $id) return $a;
+        }
+        return null;
+    } catch (Exception $e) {
+        error_log("cs_get_assessment_by_id error: " . $e->getMessage());
+        // Fall back to session
+        foreach ($_SESSION['cs_assessments'] as $a) {
+            if (($a['id'] ?? '') === $id) return $a;
+        }
+        return null;
     }
-    return null;
 }
 
 // ── Job applications helpers ───────────────────────────────────────────────
