@@ -126,5 +126,19 @@ if (isset($_SESSION['user'])) {
     } catch (Exception $e) {
         // Fall back to session if DB fails
     }
+
+    // Load saved jobs from database into session
+    try {
+        $pdo = get_db_connection();
+        $stmt = $pdo->prepare('SELECT post_id FROM saved_jobs WHERE user_id = ?');
+        $stmt->execute([$_SESSION['user']['user_id']]);
+        $savedJobs = [];
+        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $savedJobs[] = (string)$row['post_id'];
+        }
+        $_SESSION['saved_jobs'] = $savedJobs;
+    } catch (Exception $e) {
+        // Fall back to existing session data if DB fails
+    }
 }
 

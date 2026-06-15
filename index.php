@@ -644,6 +644,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'apply
     $appEmail     = trim($_POST['app_email'] ?? '');
     $appPhone     = trim($_POST['app_phone'] ?? '');
     $appMsg       = trim($_POST['app_message'] ?? '');
+    $appName      = trim($appFirstName . ' ' . $appLastName); // Define $appName!
     
     // Resume is required now (resume_path is NOT NULL in schema)
     if (!$pid || !$appFirstName || !$appLastName || !$appEmail || empty($_FILES['app_resume']['tmp_name'])) {
@@ -809,13 +810,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'toggl
         echo json_encode(['ok' => false]);
         exit;
     }
-    $index = array_search($pid, $_SESSION['saved_jobs']);
-    if ($index !== false) {
-        array_splice($_SESSION['saved_jobs'], $index, 1);
-        echo json_encode(['ok' => true, 'saved' => false]);
-    } else {
-        $_SESSION['saved_jobs'][] = $pid;
-        echo json_encode(['ok' => true, 'saved' => true]);
+
+    try {
+        $pdo = get_db_connection();
+        $userId = $_SESSION['user']['user_id'];
+        $pidInt = (int)$pid;
+
+        // Check if already saved
+        $checkStmt = $pdo->prepare('SELECT saved_id FROM saved_jobs WHERE user_id = ? AND post_id = ?');
+        $checkStmt->execute([$userId, $pidInt]);
+        $exists = $checkStmt->fetch() !== false;
+
+        if ($exists) {
+            // Remove from database
+            $deleteStmt = $pdo->prepare('DELETE FROM saved_jobs WHERE user_id = ? AND post_id = ?');
+            $deleteStmt->execute([$userId, $pidInt]);
+            // Update session
+            $index = array_search($pid, $_SESSION['saved_jobs']);
+            if ($index !== false) {
+                array_splice($_SESSION['saved_jobs'], $index, 1);
+            }
+            echo json_encode(['ok' => true, 'saved' => false]);
+        } else {
+            // Add to database
+            $insertStmt = $pdo->prepare('INSERT INTO saved_jobs (user_id, post_id) VALUES (?, ?)');
+            $insertStmt->execute([$userId, $pidInt]);
+            // Update session
+            if (!in_array($pid, $_SESSION['saved_jobs'])) {
+                $_SESSION['saved_jobs'][] = $pid;
+            }
+            echo json_encode(['ok' => true, 'saved' => true]);
+        }
+    } catch (Exception $e) {
+        // Fall back to session only if DB fails
+        $index = array_search($pid, $_SESSION['saved_jobs']);
+        if ($index !== false) {
+            array_splice($_SESSION['saved_jobs'], $index, 1);
+            echo json_encode(['ok' => true, 'saved' => false]);
+        } else {
+            $_SESSION['saved_jobs'][] = $pid;
+            echo json_encode(['ok' => true, 'saved' => true]);
+        }
     }
     exit;
 }
@@ -2374,6 +2409,14 @@ include 'includes/header.php';
                                 const badge = document.getElementById('notifBadge');
                                 if (badge) window.updateBadge((parseInt(badge.textContent) || 0) + 1);
                             }
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error submitting application:', error);
+                        if (applyFormMsg) {
+                            applyFormMsg.classList.remove('hidden', 'bg-green-100', 'text-green-700');
+                            applyFormMsg.classList.add('bg-red-100', 'text-red-700');
+                            applyFormMsg.textContent = 'An error occurred. Please try again.';
                         }
                     });
             });
