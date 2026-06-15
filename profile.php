@@ -844,14 +844,24 @@ include 'includes/header.php';
                             Go to Employer Dashboard
                         </a>
                     <?php elseif ($employerApp): ?>
-                        <div class="space-y-2">
-                            <div class="flex items-center gap-2 text-yellow-700">
+                        <div class="space-y-3">
+                            <div class="flex items-center gap-2 <?php echo $employerApp['status'] === 'rejected' ? 'text-red-700' : 'text-yellow-700'; ?>">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    <?php if ($employerApp['status'] === 'rejected'): ?>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    <?php else: ?>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    <?php endif; ?>
                                 </svg>
                                 <span class="font-semibold"><?php echo ucfirst($employerApp['status']); ?></span>
                             </div>
                             <p class="text-gray-500 text-sm">Submitted at: <?php echo htmlspecialchars($employerApp['submitted_at'] ?? ''); ?></p>
+                            <?php if ($employerApp['status'] === 'rejected'): ?>
+                                <p class="text-gray-500 text-sm">You can re-apply with updated information.</p>
+                                <a href="employer_apply.php?from=profile.php" class="inline-block bg-blue-900 text-white px-4 py-2 rounded-xl hover:bg-blue-800 transition text-sm font-semibold">
+                                    Re-apply for Employer Account
+                                </a>
+                            <?php endif; ?>
                         </div>
                     <?php else: ?>
                         <p class="text-gray-500 text-sm mb-3">Want to post hiring jobs?</p>

@@ -31,7 +31,8 @@ if (isset($_SESSION['user'])) {
     }
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$existingApp) {
+// Allow submitting if no existing app OR existing app is rejected
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && (!$existingApp || $existingApp['status'] === 'rejected')) {
     if (!isset($_SESSION['user'])) {
         $errors[] = 'You must be signed in to apply.';
     } else {
@@ -83,6 +84,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$existingApp) {
                 'submitted_at'  => date('M j, Y g:i A'),
                 'reviewed_at'   => null,
             ];
+            
+            // If there's an existing rejected application, update it instead of creating new
+            if ($existingApp && $existingApp['status'] === 'rejected') {
+                $app['id'] = $existingApp['id'];
+            }
+            
             $savedApp = cs_save_employer_application($app);
 
             // Notify admin (stored in session — admin will see on login)
@@ -122,13 +129,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$existingApp) {
             <p class="text-gray-500 mt-2 text-sm">Submit your company info for admin verification. Once approved, you can post hiring positions and run skill assessments.</p>
         </div>
 
-        <?php if ($existingApp): ?>
+        <?php if ($existingApp && $existingApp['status'] !== 'rejected'): ?>
         <div class="text-center py-8">
             <?php
             $statusMap = [
                 'pending'  => ['bg-amber-100 text-amber-700',  '⏳', 'Application Pending',   'Your application is under review. An admin will approve or reject it soon.'],
                 'approved' => ['bg-green-100 text-green-700',  '✅', 'Application Approved!',  'Your employer account is verified.'],
-                'rejected' => ['bg-red-100 text-red-700',      '❌', 'Application Rejected',   'Your application was not approved. Please contact support.'],
             ];
             [$cls, $icon, $title, $msg] = $statusMap[$existingApp['status']] ?? $statusMap['pending'];
             ?>
