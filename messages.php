@@ -1,4 +1,6 @@
 <?php
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
 require_once 'includes/bootstrap.php';
 
 if (!isset($_SESSION['user'])) {
@@ -14,9 +16,14 @@ if (isset($_GET['user'])) {
     $other_user_id = (int)$_GET['user'];
     $my_id = $_SESSION['user']['user_id'];
     if ($other_user_id && $other_user_id != $my_id) {
-        $conv = get_or_create_conversation($my_id, $other_user_id);
-        if ($conv) {
-            header('Location: messages.php?conv=' . urlencode($conv['conversation_id']));
+        try {
+            $conv = get_or_create_conversation($my_id, $other_user_id);
+            if ($conv) {
+                header('Location: messages.php?conv=' . urlencode($conv['conversation_id']));
+                exit;
+            }
+        } catch (Exception $e) {
+            echo "Error creating conversation: " . $e->getMessage();
             exit;
         }
     }
@@ -47,24 +54,20 @@ function get_or_create_conversation($my_id, $other_id) {
     if ($my_id == $other_id) return null;
     $low = min($my_id, $other_id);
     $high = max($my_id, $other_id);
-    try {
-        $pdo = get_db_connection();
-        $stmt = $pdo->prepare("SELECT conversation_id, user_a, user_b, created_at FROM conversations WHERE (user_a = ? AND user_b = ?) OR (user_a = ? AND user_b = ?)");
-        $stmt->execute([$low, $high, $low, $high]);
-        $conv = $stmt->fetch(PDO::FETCH_ASSOC);
-        if ($conv) return $conv;
-        
-        $stmt = $pdo->prepare("INSERT INTO conversations (user_a, user_b) VALUES (?, ?)");
-        $stmt->execute([$low, $high]);
-        return [
-            'conversation_id' => $pdo->lastInsertId(),
-            'user_a' => $low,
-            'user_b' => $high,
-            'created_at' => date('Y-m-d H:i:s')
-        ];
-    } catch (Exception $e) {
-        return null;
-    }
+    $pdo = get_db_connection();
+    $stmt = $pdo->prepare("SELECT conversation_id, user_a, user_b, created_at FROM conversations WHERE (user_a = ? AND user_b = ?) OR (user_a = ? AND user_b = ?)");
+    $stmt->execute([$low, $high, $low, $high]);
+    $conv = $stmt->fetch(PDO::FETCH_ASSOC);
+    if ($conv) return $conv;
+    
+    $stmt = $pdo->prepare("INSERT INTO conversations (user_a, user_b) VALUES (?, ?)");
+    $stmt->execute([$low, $high]);
+    return [
+        'conversation_id' => $pdo->lastInsertId(),
+        'user_a' => $low,
+        'user_b' => $high,
+        'created_at' => date('Y-m-d H:i:s')
+    ];
 }
 
 // Helper function to get all conversations for current user
