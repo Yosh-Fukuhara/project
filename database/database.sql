@@ -142,18 +142,41 @@ CREATE TABLE IF NOT EXISTS notifications (
 CREATE TABLE IF NOT EXISTS employer_applications (
     eapp_id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
-    company_name VARCHAR(100) NOT NULL,
-    industry VARCHAR(50) NOT NULL,
-    company_size VARCHAR(20),
+    company_name VARCHAR(255) NOT NULL,
+    industry VARCHAR(100),
+    company_size VARCHAR(50),
     website VARCHAR(255),
-    description TEXT NOT NULL,
-    contact_name VARCHAR(80) NOT NULL,
-    contact_phone VARCHAR(30),
-    documents JSON,
-    status VARCHAR(20) DEFAULT 'pending',
+    description TEXT,
+    contact_name VARCHAR(255),
+    contact_phone VARCHAR(50),
+    status VARCHAR(50) DEFAULT 'pending',
     submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    reviewed_at TIMESTAMP NULL,
+    reviewed_at TIMESTAMP NULL DEFAULT NULL,
     FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS EMPLOYER_APPLICATION_DOCUMENTS (
+    doc_id INT AUTO_INCREMENT PRIMARY KEY,
+    eapp_id INT NOT NULL,
+    file_name VARCHAR(255) NOT NULL,
+    file_url VARCHAR(255) NOT NULL,
+    FOREIGN KEY (eapp_id) REFERENCES employer_applications(eapp_id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS EMPLOYERS (
+    employer_id INT AUTO_INCREMENT PRIMARY KEY,
+    owner_user_id INT NOT NULL,
+    company_name VARCHAR(255) NOT NULL,
+    industry VARCHAR(100),
+    company_size VARCHAR(50),
+    website VARCHAR(255),
+    description TEXT,
+    contact_name VARCHAR(255),
+    contact_phone VARCHAR(50),
+    logo_url VARCHAR(255),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (owner_user_id) REFERENCES users(user_id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 

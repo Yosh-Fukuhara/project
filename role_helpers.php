@@ -51,7 +51,6 @@ function cs_read_employer_apps(): array {
             description,
             contact_name,
             contact_phone,
-            documents,
             status,
             DATE_FORMAT(submitted_at, "%M %e, %Y %l:%i %p") AS submitted_at,
             DATE_FORMAT(reviewed_at, "%M %e, %Y %l:%i %p") AS reviewed_at
@@ -59,6 +58,20 @@ function cs_read_employer_apps(): array {
         $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
         $apps = [];
         foreach ($rows as $row) {
+            // Get documents from the new table
+            $stmtDocs = $pdo->prepare('SELECT doc_id, file_name, file_url FROM EMPLOYER_APPLICATION_DOCUMENTS WHERE eapp_id = ?');
+            $stmtDocs->execute([$row['eapp_id']]);
+            $docs = $stmtDocs->fetchAll(PDO::FETCH_ASSOC);
+            $documents = [];
+            foreach ($docs as $doc) {
+                $documents[] = [
+                    'id' => $doc['doc_id'],
+                    'name' => $doc['file_name'],
+                    'path' => $doc['file_url'],
+                    'file_url' => $doc['file_url']
+                ];
+            }
+            
             $apps[] = [
                 'id' => (string)$row['eapp_id'],
                 'user_id' => $row['user_id'],
@@ -69,7 +82,7 @@ function cs_read_employer_apps(): array {
                 'description' => $row['description'],
                 'contact_name' => $row['contact_name'],
                 'contact_phone' => $row['contact_phone'],
-                'documents' => json_decode($row['documents'], true) ?? [],
+                'documents' => $documents,
                 'status' => $row['status'],
                 'submitted_at' => $row['submitted_at'],
                 'reviewed_at' => $row['reviewed_at']
@@ -107,7 +120,6 @@ function cs_get_employer_application_by_id(string $id): ?array {
             description,
             contact_name,
             contact_phone,
-            documents,
             status,
             DATE_FORMAT(submitted_at, "%M %e, %Y %l:%i %p") AS submitted_at,
             DATE_FORMAT(reviewed_at, "%M %e, %Y %l:%i %p") AS reviewed_at
@@ -115,6 +127,21 @@ function cs_get_employer_application_by_id(string $id): ?array {
         $stmt->execute([$idInt]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
         if (!$row) return null;
+        
+        // Get documents from new table
+        $stmtDocs = $pdo->prepare('SELECT doc_id, file_name, file_url FROM EMPLOYER_APPLICATION_DOCUMENTS WHERE eapp_id = ?');
+        $stmtDocs->execute([$row['eapp_id']]);
+        $docs = $stmtDocs->fetchAll(PDO::FETCH_ASSOC);
+        $documents = [];
+        foreach ($docs as $doc) {
+            $documents[] = [
+                'id' => $doc['doc_id'],
+                'name' => $doc['file_name'],
+                'path' => $doc['file_url'],
+                'file_url' => $doc['file_url']
+            ];
+        }
+        
         $app = [
             'id' => (string)$row['eapp_id'],
             'user_id' => $row['user_id'],
@@ -125,7 +152,7 @@ function cs_get_employer_application_by_id(string $id): ?array {
             'description' => $row['description'],
             'contact_name' => $row['contact_name'],
             'contact_phone' => $row['contact_phone'],
-            'documents' => json_decode($row['documents'], true) ?? [],
+            'documents' => $documents,
             'status' => $row['status'],
             'submitted_at' => $row['submitted_at'],
             'reviewed_at' => $row['reviewed_at']
@@ -162,7 +189,6 @@ function cs_get_employer_application_by_email(string $email): ?array {
             description,
             contact_name,
             contact_phone,
-            documents,
             status,
             DATE_FORMAT(submitted_at, "%M %e, %Y %l:%i %p") AS submitted_at,
             DATE_FORMAT(reviewed_at, "%M %e, %Y %l:%i %p") AS reviewed_at
@@ -170,6 +196,20 @@ function cs_get_employer_application_by_email(string $email): ?array {
         $stmt2->execute([$userId]);
         $row = $stmt2->fetch(PDO::FETCH_ASSOC);
         if (!$row) return null;
+        
+        // Get documents from new table
+        $stmtDocs = $pdo->prepare('SELECT doc_id, file_name, file_url FROM EMPLOYER_APPLICATION_DOCUMENTS WHERE eapp_id = ?');
+        $stmtDocs->execute([$row['eapp_id']]);
+        $docs = $stmtDocs->fetchAll(PDO::FETCH_ASSOC);
+        $documents = [];
+        foreach ($docs as $doc) {
+            $documents[] = [
+                'id' => $doc['doc_id'],
+                'name' => $doc['file_name'],
+                'path' => $doc['file_url'],
+                'file_url' => $doc['file_url']
+            ];
+        }
         
         // Get user first and last name to build username
         $stmtUser = $pdo->prepare('SELECT first_name, last_name FROM users WHERE user_id = ?');
@@ -187,7 +227,7 @@ function cs_get_employer_application_by_email(string $email): ?array {
             'description' => $row['description'],
             'contact_name' => $row['contact_name'],
             'contact_phone' => $row['contact_phone'],
-            'documents' => json_decode($row['documents'], true) ?? [],
+            'documents' => $documents,
             'status' => $row['status'],
             'submitted_at' => $row['submitted_at'],
             'reviewed_at' => $row['reviewed_at'],
@@ -213,7 +253,6 @@ function cs_save_employer_application(array $app): ?array {
                 description = ?,
                 contact_name = ?,
                 contact_phone = ?,
-                documents = ?,
                 status = ?
             WHERE eapp_id = ?');
             $stmt->execute([
@@ -224,16 +263,33 @@ function cs_save_employer_application(array $app): ?array {
                 $app['description'],
                 $app['contact_name'],
                 $app['contact_phone'] ?? null,
-                json_encode($app['documents'] ?? []),
                 $app['status'],
                 $idInt
             ]);
+            
+            // Update documents in the new table
+            if (isset($app['documents']) && is_array($app['documents'])) {
+                // First delete existing documents for this application
+                $stmtDelete = $pdo->prepare('DELETE FROM EMPLOYER_APPLICATION_DOCUMENTS WHERE eapp_id = ?');
+                $stmtDelete->execute([$idInt]);
+                
+                // Then insert new documents
+                foreach ($app['documents'] as $doc) {
+                    $stmtDoc = $pdo->prepare('INSERT INTO EMPLOYER_APPLICATION_DOCUMENTS (eapp_id, file_name, file_url) VALUES (?, ?, ?)');
+                    $stmtDoc->execute([
+                        $idInt,
+                        $doc['name'] ?? 'Document',
+                        $doc['path'] ?? $doc['file_url'] ?? ''
+                    ]);
+                }
+            }
+            
             return cs_get_employer_application_by_id((string)$idInt);
         } else {
             $stmt = $pdo->prepare('INSERT INTO employer_applications (
                 user_id, company_name, industry, company_size, website, 
-                description, contact_name, contact_phone, documents, status
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+                description, contact_name, contact_phone, status
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
             
             // Get user_id from email
             $userId = null;
@@ -255,10 +311,22 @@ function cs_save_employer_application(array $app): ?array {
                     $app['description'],
                     $app['contact_name'],
                     $app['contact_phone'] ?? null,
-                    json_encode($app['documents'] ?? []),
                     'pending'
                 ]);
                 $newId = $pdo->lastInsertId();
+                
+                // Insert documents into new table
+                if (isset($app['documents']) && is_array($app['documents'])) {
+                    foreach ($app['documents'] as $doc) {
+                        $stmtDoc = $pdo->prepare('INSERT INTO EMPLOYER_APPLICATION_DOCUMENTS (eapp_id, file_name, file_url) VALUES (?, ?, ?)');
+                        $stmtDoc->execute([
+                            $newId,
+                            $doc['name'] ?? 'Document',
+                            $doc['path'] ?? $doc['file_url'] ?? ''
+                        ]);
+                    }
+                }
+                
                 return cs_get_employer_application_by_id((string)$newId);
             }
         }
@@ -273,32 +341,64 @@ function cs_update_employer_application_status(string $id, string $status): void
     try {
         $pdo = get_db_connection();
         
-        // First get the user_id for this application
-        $stmtGetUser = $pdo->prepare('SELECT user_id FROM employer_applications WHERE eapp_id = ?');
-        $stmtGetUser->execute([$idInt]);
-        $userId = $stmtGetUser->fetchColumn();
+        // First get the application details (including user_id)
+        $stmtGetApp = $pdo->prepare('SELECT * FROM employer_applications WHERE eapp_id = ?');
+        $stmtGetApp->execute([$idInt]);
+        $app = $stmtGetApp->fetch(PDO::FETCH_ASSOC);
+        if (!$app) return;
         
         // Update the application status
         $stmt = $pdo->prepare('UPDATE employer_applications SET status = ?, reviewed_at = CURRENT_TIMESTAMP WHERE eapp_id = ?');
         $stmt->execute([$status, $idInt]);
         
-        // If approved, update user's role in users table
-        if ($status === 'approved' && $userId) {
+        // If approved, update user's role in users table and create employer record
+        if ($status === 'approved' && $app['user_id']) {
             $stmt3 = $pdo->prepare('UPDATE users SET role = ? WHERE user_id = ?');
-            $stmt3->execute(['employer', $userId]);
+            $stmt3->execute(['employer', $app['user_id']]);
+            
+            // Check if employer record already exists
+            $stmtCheckEmp = $pdo->prepare('SELECT COUNT(*) FROM EMPLOYERS WHERE owner_user_id = ?');
+            $stmtCheckEmp->execute([$app['user_id']]);
+            if ($stmtCheckEmp->fetchColumn() == 0) {
+                $stmtInsertEmp = $pdo->prepare('INSERT INTO EMPLOYERS (
+                    owner_user_id, company_name, industry, company_size, website, description, contact_name, contact_phone
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+                $stmtInsertEmp->execute([
+                    $app['user_id'],
+                    $app['company_name'],
+                    $app['industry'],
+                    $app['company_size'],
+                    $app['website'],
+                    $app['description'],
+                    $app['contact_name'],
+                    $app['contact_phone']
+                ]);
+            }
             
             // Send notification to the user if the function exists
             if (function_exists('cs_save_notification')) {
-                cs_save_notification($userId, '🎉 Your employer application has been approved! You can now post hiring jobs!', 'index.php');
+                cs_save_notification($app['user_id'], '🎉 Your employer application has been approved! You can now post hiring jobs!', 'index.php');
             }
-        } elseif ($status === 'rejected' && $userId) {
+        } elseif ($status === 'rejected' && $app['user_id']) {
             // Send notification for rejection too if function exists
             if (function_exists('cs_save_notification')) {
-                cs_save_notification($userId, 'Your employer application has been rejected. Please contact support for more information.', 'index.php');
+                cs_save_notification($app['user_id'], 'Your employer application has been rejected. Please contact support for more information.', 'index.php');
             }
         }
     } catch (Exception $e) {
         error_log("cs_update_employer_application_status error: " . $e->getMessage());
+    }
+}
+
+// ── Employer helpers ───────────────────────────────────────────────────
+function cs_get_employer_by_user_id(int $userId): ?array {
+    try {
+        $pdo = get_db_connection();
+        $stmt = $pdo->prepare('SELECT * FROM EMPLOYERS WHERE owner_user_id = ?');
+        $stmt->execute([$userId]);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    } catch (Exception $e) {
+        return null;
     }
 }
 

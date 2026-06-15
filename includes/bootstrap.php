@@ -77,7 +77,7 @@ if (isset($_SESSION['user']) && isset($_SESSION['user']['user_id'])) {
         $stmtUser->execute([$_SESSION['user']['user_id']]);
         $userFromDb = $stmtUser->fetch(PDO::FETCH_ASSOC);
         
-                                                                                                                                                                                                                                                                                if ($userFromDb) {
+        if ($userFromDb) {
             // Build username from first and last name
             $username = trim($userFromDb['first_name'] . ' ' . $userFromDb['last_name']);
             $userFromDb['username'] = $username;
@@ -92,6 +92,14 @@ if (isset($_SESSION['user']) && isset($_SESSION['user']['user_id'])) {
             if ($profileFromDb) {
                 $_SESSION['user'] = array_merge($_SESSION['user'], $profileFromDb);
             }
+        }
+        
+        // Also check employer_verified as fallback if role is empty
+        if (empty($_SESSION['user']['role']) && !empty($_SESSION['user']['employer_verified'])) {
+            $_SESSION['user']['role'] = 'employer';
+            // Also update database to fix it permanently
+            $stmtFixRole = $pdo->prepare('UPDATE users SET role = ? WHERE user_id = ?');
+            $stmtFixRole->execute(['employer', $_SESSION['user']['user_id']]);
         }
     } catch (Exception $e) {
         // Fall back to existing session data if DB fails
