@@ -645,56 +645,66 @@ if ($currentConv) {
             </div>
 
             <!-- Chat Area -->
-            <div id="chatArea" class="w-full md:w-2/3 flex flex-col min-h-0 <?php echo isset($_GET['conv']) ? 'flex' : 'hidden md:flex'; ?>">
-                <!-- Chat Header -->
-                <div class="p-3 md:p-4 border-b border-gray-200 flex items-center gap-3">
-                    <a href="messages.php" class="md:hidden p-2 -ml-2 text-gray-500 hover:text-blue-900" aria-label="Back to messages">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
-                        </svg>
-                    </a>
-                    <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-xl">
-                        <?php echo htmlspecialchars($currentConv['otherUser']['avatar']); ?>
-                    </div>
-                    <div class="flex-1">
-                        <h3 class="font-semibold text-gray-800"><?php echo htmlspecialchars($currentConv['otherUser']['username']); ?></h3>
-                        <p class="text-[10px] md:text-xs text-green-600">Online</p>
-                    </div>
-                </div>
-
-                <!-- Pinned Bar -->
-                <div id="pinnedBar" class="flex-shrink-0">
-                    <?php echo cs_render_pinned_bar_html($currentConv); ?>
-                </div>
-
-                <!-- Messages -->
-                <div id="messagesArea" class="flex-1 overflow-y-auto min-h-0 p-4 space-y-4">
-                    <?php echo cs_render_messages_area_html($currentConv, $_SESSION['user']['email']); ?>
-                </div>
-
-                <!-- Input Area -->
-                <div class="p-4 border-t border-gray-200">
-                    <form id="messageForm" class="space-y-2" enctype="multipart/form-data">
-                        <input type="hidden" name="conv" id="convInput" value="<?php echo htmlspecialchars($currentConv['id']); ?>">
-                        <input type="file" id="attachmentInput" name="attachments[]" multiple class="hidden"
-                               accept="image/*,video/*,.pdf,.txt,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.rar">
-                        <div id="attachmentPreview" class="flex flex-wrap gap-2"></div>
-                        <div class="flex items-center gap-3">
-                            <button id="attachBtn" type="button" class="text-gray-400 hover:text-gray-600" aria-label="Attach files">
-                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path>
-                                </svg>
-                            </button>
-                            <input type="text" name="text" id="messageInput" placeholder="Type a message..." class="flex-1 px-4 py-2 rounded-full border border-gray-200 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <button id="sendBtn" type="submit" class="bg-blue-900 hover:bg-blue-800 text-white p-2 rounded-full transition" aria-label="Send message">
-                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
-                                </svg>
-                            </button>
+            <div id="chatArea" class="w-full md:w-2/3 flex flex-col min-h-0 <?php echo $currentConv ? 'flex' : 'hidden md:flex'; ?>">
+                <?php if ($currentConv): ?>
+                    <!-- Chat Header -->
+                    <div class="p-3 md:p-4 border-b border-gray-200 flex items-center gap-3">
+                        <a href="messages.php" class="md:hidden p-2 -ml-2 text-gray-500 hover:text-blue-900" aria-label="Back to messages">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                            </svg>
+                        </a>
+                        <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-xl">
+                            <?php echo htmlspecialchars($currentConv['otherUser']['avatar'] ?? 'U'); ?>
                         </div>
-                        <p id="msgError" class="text-xs text-red-600 hidden"></p>
-                    </form>
-                </div>
+                        <div class="flex-1">
+                            <h3 class="font-semibold text-gray-800"><?php echo htmlspecialchars($currentConv['otherUser']['username'] ?? 'User'); ?></h3>
+                            <p class="text-[10px] md:text-xs text-green-600">Online</p>
+                        </div>
+                    </div>
+
+                    <!-- Pinned Bar -->
+                    <div id="pinnedBar" class="flex-shrink-0">
+                        <?php echo cs_render_pinned_bar_html($currentConv); ?>
+                    </div>
+
+                    <!-- Messages -->
+                    <div id="messagesArea" class="flex-1 overflow-y-auto min-h-0 p-4 space-y-4">
+                        <?php echo cs_render_messages_area_html($currentConv, $_SESSION['user']['email']); ?>
+                    </div>
+
+                    <!-- Input Area -->
+                    <div class="p-4 border-t border-gray-200">
+                        <form id="messageForm" class="space-y-2" enctype="multipart/form-data">
+                            <input type="hidden" name="conv" id="convInput" value="<?php echo htmlspecialchars($currentConv['id'] ?? ''); ?>">
+                            <input type="file" id="attachmentInput" name="attachments[]" multiple class="hidden"
+                                   accept="image/*,video/*,.pdf,.txt,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.rar">
+                            <div id="attachmentPreview" class="flex flex-wrap gap-2"></div>
+                            <div class="flex items-center gap-3">
+                                <button id="attachBtn" type="button" class="text-gray-400 hover:text-gray-600" aria-label="Attach files">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path>
+                                    </svg>
+                                </button>
+                                <input type="text" name="text" id="messageInput" placeholder="Type a message..." class="flex-1 px-4 py-2 rounded-full border border-gray-200 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <button id="sendBtn" type="submit" class="bg-blue-900 hover:bg-blue-800 text-white p-2 rounded-full transition" aria-label="Send message">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                            <p id="msgError" class="text-xs text-red-600 hidden"></p>
+                        </form>
+                    </div>
+                <?php else: ?>
+                    <div class="flex-1 flex items-center justify-center text-center p-8">
+                        <div>
+                            <div class="text-5xl mb-4">💬</div>
+                            <h3 class="text-xl font-semibold text-gray-800 mb-2">No conversations yet</h3>
+                            <p class="text-gray-500">Click on a user's profile and hit "Message" to start chatting!</p>
+                        </div>
+                    </div>
+                <?php endif; ?>
             </div>
         </div>
     </div>
@@ -702,7 +712,7 @@ if ($currentConv) {
 
 <script>
 (function() {
-    const activeConvId = <?php echo json_encode($currentConv['id']); ?>;
+    const activeConvId = <?php echo json_encode($currentConv['id'] ?? null); ?>;
     const messageInput = document.getElementById('messageInput');
     const messagesArea = document.getElementById('messagesArea');
     const pinnedBar = document.getElementById('pinnedBar');
@@ -711,6 +721,9 @@ if ($currentConv) {
     const attachmentInput = document.getElementById('attachmentInput');
     const attachmentPreview = document.getElementById('attachmentPreview');
     const msgError = document.getElementById('msgError');
+    
+    // If no active conversation, don't run the rest of the script
+    if (!activeConvId || !messagesArea) return;
 
     let dt = new DataTransfer();
 
