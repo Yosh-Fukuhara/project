@@ -77,8 +77,12 @@ if (isset($_SESSION['user']) && isset($_SESSION['user']['user_id'])) {
         $stmtUser->execute([$_SESSION['user']['user_id']]);
         $userFromDb = $stmtUser->fetch(PDO::FETCH_ASSOC);
         
-        if ($userFromDb) {
-            $_SESSION['user'] = $userFromDb;
+                                                                                                                                                                                                                                                                                if ($userFromDb) {
+            // Build username from first and last name
+            $username = trim($userFromDb['first_name'] . ' ' . $userFromDb['last_name']);
+            $userFromDb['username'] = $username;
+            
+            $_SESSION['user'] = array_merge($_SESSION['user'], $userFromDb);
             
             // Load profile data
             $stmtProfile = $pdo->prepare('SELECT profile_pic, cover_pic, bio, location, website, phone, updated_at FROM user_profiles WHERE user_id = ?');
