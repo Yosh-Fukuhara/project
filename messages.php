@@ -159,6 +159,35 @@ function get_conversations($my_id) {
     }
 }
 
+// Helper function to get attachments for a single message
+function get_message_attachments($message_id) {
+    try {
+        $pdo = get_db_connection();
+        $stmt = $pdo->prepare("SELECT attachment_id, message_id, file_name, file_url FROM message_attachments WHERE message_id = ?");
+        $stmt->execute([$message_id]);
+        $attachments = [];
+        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $ext = strtolower(pathinfo($row['file_url'], PATHINFO_EXTENSION));
+            $kind = 'file';
+            $imageExts = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+            $videoExts = ['mp4', 'webm', 'mov'];
+            if (in_array($ext, $imageExts)) {
+                $kind = 'image';
+            } else if (in_array($ext, $videoExts)) {
+                $kind = 'video';
+            }
+            $attachments[] = [
+                'name' => $row['file_name'],
+                'url' => $row['file_url'],
+                'kind' => $kind
+            ];
+        }
+        return $attachments;
+    } catch (Exception $e) {
+        return [];
+    }
+}
+
 // Helper function to get messages for a conversation
 function get_conversation_messages($conversation_id) {
     try {
@@ -170,7 +199,13 @@ function get_conversation_messages($conversation_id) {
             ORDER BY sent_at ASC
         ");
         $stmt->execute([$conversation_id]);
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $messages = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        // Load attachments for each message
+        foreach ($messages as &$msg) {
+            $msg['attachments'] = get_message_attachments($msg['message_id']);
+        }
+        unset($msg);
+        return $messages;
     } catch (Exception $e) {
         return [];
     }
@@ -196,6 +231,115 @@ function cs_safe_filename($name) {
     $name = preg_replace('/[^\w\-. ]+/u', '_', $name);
     $name = trim($name);
     return $name === '' ? 'file' : $name;
+}
+
+function saveMessageAttachment(?array $file, string $uploadDirAbs, array &$postErrors): ?array {
+    if (!$file || !isset($file['error'])) {
+        return null;
+    }
+    if (is_array($file['error'])) {
+        $postErrors[] = 'Invalid upload.';
+        return null;
+    }
+    if ($file['error'] === UPLOAD_ERR_NO_FILE) {
+        return null;
+    }
+    if ($file['error'] !== UPLOAD_ERR_OK) {
+        $postErrors[] = 'Upload failed. Please try again.';
+        return null;
+    }
+
+    // 25MB max for attachments
+    if (($file['size'] ?? 0) > 25 * 1024 * 1024) {
+        $postErrors[] = 'File is too large (max 25MB).';
+        return null;
+    }
+
+    $tmp = $file['tmp_name'] ?? '';
+    if (!is_uploaded_file($tmp)) {
+        $postErrors[] = 'Invalid upload.';
+        return null;
+    }
+
+    // Allow common types
+    $allowedByMime = [
+        // Images
+        'image/jpeg' => 'jpg',
+        'image/png'  => 'png',
+        'image/gif'  => 'gif',
+        'image/webp' => 'webp',
+        // Videos
+        'video/mp4'  => 'mp4',
+        'video/webm' => 'webm',
+        'video/quicktime' => 'mov',
+        // Documents
+        'application/pdf' => 'pdf',
+        'text/plain' => 'txt',
+        'application/msword' => 'doc',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',
+        'application/vnd.ms-powerpoint' => 'ppt',
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation' => 'pptx',
+        'application/vnd.ms-excel' => 'xls',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' => 'xlsx',
+    ];
+
+    $extFromName = strtolower(pathinfo((string)($file['name'] ?? ''), PATHINFO_EXTENSION));
+    $mimeByExt = [
+        'jpg' => 'image/jpeg',
+        'jpeg' => 'image/jpeg',
+        'png' => 'image/png',
+        'gif' => 'image/gif',
+        'webp' => 'image/webp',
+        'mp4' => 'video/mp4',
+        'webm' => 'video/webm',
+        'mov' => 'video/quicktime',
+        'pdf' => 'application/pdf',
+        'txt' => 'text/plain',
+        'doc' => 'application/msword',
+        'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'ppt' => 'application/vnd.ms-powerpoint',
+        'pptx' => 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        'xls' => 'application/vnd.ms-excel',
+        'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    ];
+
+    $finfo = finfo_open(FILEINFO_MIME_TYPE);
+    $mime = $finfo ? finfo_file($finfo, $tmp) : 'application/octet-stream';
+    if ($finfo) finfo_close($finfo);
+
+    $ext = $allowedByMime[$mime] ?? $mimeByExt[$extFromName] ?? 'bin';
+
+    // Make sure upload directory exists
+    if (!is_dir($uploadDirAbs)) {
+        mkdir($uploadDirAbs, 0755, true);
+    }
+
+    $filename = uniqid('msg_', true) . '.' . $ext;
+    $target = $uploadDirAbs . DIRECTORY_SEPARATOR . $filename;
+
+    if (move_uploaded_file($tmp, $target)) {
+        $kind = 'file';
+        if (str_starts_with($mime, 'image/')) $kind = 'image';
+        if (str_starts_with($mime, 'video/')) $kind = 'video';
+        return [
+            'name' => cs_safe_filename($file['name'] ?? 'attachment'),
+            'url' => 'uploads/' . $filename,
+            'path' => 'uploads/' . $filename,
+            'kind' => $kind,
+            'size' => $file['size']
+        ];
+    }
+
+    $postErrors[] = 'Failed to save attachment.';
+    return null;
+}
+
+function safeUnlinkUpload(?string $path): void {
+    if (!$path || !str_starts_with($path, 'uploads/')) return;
+    $absPath = __DIR__ . DIRECTORY_SEPARATOR . $path;
+    if (file_exists($absPath)) {
+        @unlink($absPath);
+    }
 }
 
 function cs_render_attachment($att, $isMine) {
@@ -464,7 +608,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 'text' => $m['body'],
                 'ts' => strtotime($m['sent_at']),
                 'time' => cs_format_time(strtotime($m['sent_at'])),
-                'attachments' => [],
+                'attachments' => $m['attachments'],
                 'pinned' => false,
                 'edited' => false
             ];
@@ -601,7 +745,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 'text' => $m['body'],
                 'ts' => strtotime($m['sent_at']),
                 'time' => cs_format_time(strtotime($m['sent_at'])),
-                'attachments' => [],
+                'attachments' => $m['attachments'],
                 'pinned' => false,
                 'edited' => false
             ];
@@ -694,7 +838,7 @@ if ($currentConv) {
             'text' => $m['body'],
             'ts' => strtotime($m['sent_at']),
             'time' => cs_format_time(strtotime($m['sent_at'])),
-            'attachments' => [],
+            'attachments' => $m['attachments'],
             'pinned' => false,
             'edited' => false
         ];
