@@ -439,6 +439,11 @@ function cs_get_assessments_by_employer(string $email): array {
                 $stmtAttach->execute([$ch['challenge_id']]);
                 $attachments = $stmtAttach->fetchAll(PDO::FETCH_ASSOC);
                 
+                // Get options for this challenge
+                $stmtOptions = $pdo->prepare('SELECT option_id, option_text, is_correct FROM challenge_options WHERE challenge_id = ?');
+                $stmtOptions->execute([$ch['challenge_id']]);
+                $options = $stmtOptions->fetchAll(PDO::FETCH_ASSOC);
+                
                 $formattedChallenges[] = [
                     'id' => 'c_' . $ch['challenge_id'],
                     'type' => $ch['type'],
@@ -449,6 +454,7 @@ function cs_get_assessments_by_employer(string $email): array {
                     'correct_flag' => $ch['correct_answer'],
                     'attachment' => null,
                     'attachments' => $attachments,
+                    'options' => $options
                 ];
             }
             
@@ -486,7 +492,7 @@ function cs_get_assessment_by_id(string $id): ?array {
     try {
         // Check if id is in database format: "assess_{id}"
         if (str_starts_with($id, 'assess_')) {
-            $dbAssessId = (int)substr($id, 6);
+            $dbAssessId = (int)substr($id, 7);
             if ($dbAssessId > 0) {
                 $pdo = get_db_connection();
                 // Get assessment

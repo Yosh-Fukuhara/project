@@ -4,6 +4,81 @@ require_once 'role_helpers.php';
 cs_require_auth();
 cs_init_assessments();
 
+// Quick check to ensure tables exist
+function ensure_tables_exist() {
+    try {
+        $pdo = get_db_connection();
+        
+        // Check if conversations table exists
+        $stmt = $pdo->query("SHOW TABLES LIKE 'conversations'");
+        if (!$stmt->fetch()) {
+            // Create conversations table
+            $pdo->exec("CREATE TABLE conversations (
+                conversation_id INT AUTO_INCREMENT PRIMARY KEY,
+                user_a INT NOT NULL,
+                user_b INT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_a) REFERENCES users(user_id) ON DELETE CASCADE,
+                FOREIGN KEY (user_b) REFERENCES users(user_id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+        }
+        
+        // Check if messages table exists
+        $stmt = $pdo->query("SHOW TABLES LIKE 'messages'");
+        if (!$stmt->fetch()) {
+            $pdo->exec("CREATE TABLE messages (
+                message_id INT AUTO_INCREMENT PRIMARY KEY,
+                conversation_id INT NOT NULL,
+                sender_id INT NOT NULL,
+                body TEXT NOT NULL,
+                is_read BOOLEAN DEFAULT FALSE,
+                sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (conversation_id) REFERENCES conversations(conversation_id) ON DELETE CASCADE,
+                FOREIGN KEY (sender_id) REFERENCES users(user_id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+        } else {
+            // Check if is_read column exists, add if not
+            $checkCol = $pdo->query("SHOW COLUMNS FROM messages LIKE 'is_read'");
+            if (!$checkCol->fetch()) {
+                $pdo->exec("ALTER TABLE messages ADD COLUMN is_read BOOLEAN DEFAULT FALSE");
+            }
+            // Check if sent_at column exists, add if not
+            $checkCol = $pdo->query("SHOW COLUMNS FROM messages LIKE 'sent_at'");
+            if (!$checkCol->fetch()) {
+                $pdo->exec("ALTER TABLE messages ADD COLUMN sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
+            }
+        }
+        
+        // Check if message_attachments table exists
+        $stmt = $pdo->query("SHOW TABLES LIKE 'message_attachments'");
+        if (!$stmt->fetch()) {
+            $pdo->exec("CREATE TABLE message_attachments (
+                attachment_id INT AUTO_INCREMENT PRIMARY KEY,
+                message_id INT NOT NULL,
+                file_name VARCHAR(255) NOT NULL,
+                file_url VARCHAR(255) NOT NULL,
+                uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (message_id) REFERENCES messages(message_id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+        }
+
+        // Check assessment_sessions table - fix post_id to allow NULL
+        $stmt = $pdo->query("SHOW TABLES LIKE 'assessment_sessions'");
+        if ($stmt->fetch()) {
+            // Check if post_id is nullable
+            $checkCol = $pdo->query("SHOW COLUMNS FROM assessment_sessions LIKE 'post_id'");
+            $colInfo = $checkCol->fetch(PDO::FETCH_ASSOC);
+            if ($colInfo && strpos(strtolower($colInfo['Null']), 'no') !== false) {
+                // Make post_id nullable
+                $pdo->exec("ALTER TABLE assessment_sessions MODIFY COLUMN post_id INT NULL, DROP FOREIGN KEY IF EXISTS assessment_sessions_ibfk_2, ADD CONSTRAINT assessment_sessions_ibfk_2 FOREIGN KEY (post_id) REFERENCES posts(post_id) ON DELETE SET NULL");
+            }
+        }
+    } catch (Exception $e) {
+        // Silently ignore table errors in production
+    }
+}
+ensure_tables_exist();
+
 // Auto-upgrade session role if file store shows approval
 if (isset($_SESSION['user']) && !cs_is_employer() && !cs_is_admin()) {
     $myApp = cs_get_employer_application_by_email($_SESSION['user']['email']);
@@ -192,64 +267,148 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creat
     }
 }
 
+// Helper function to get user info from DB
+function get_user_info($user_id) {
+    static $cache = [];
+    if (isset($cache[$user_id])) return $cache[$user_id];
+    try {
+        $pdo = get_db_connection();
+        $stmt = $pdo->prepare("SELECT user_id, first_name, last_name, email FROM users WHERE user_id = ?");
+        $stmt->execute([$user_id]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($user) {
+            $cache[$user_id] = $user;
+            return $user;
+        }
+    } catch (Exception $e) {
+        // Fallback
+    }
+    $cache[$user_id] = null;
+    return null;
+}
+
+// Helper function to get or create conversation
+function get_or_create_conversation($my_id, $other_id) {
+    if ($my_id == $other_id) return null;
+    $low = min($my_id, $other_id);
+    $high = max($my_id, $other_id);
+    $pdo = get_db_connection();
+    $stmt = $pdo->prepare("SELECT conversation_id, user_a, user_b, created_at FROM conversations WHERE (user_a = ? AND user_b = ?) OR (user_a = ? AND user_b = ?)");
+    $stmt->execute([$low, $high, $low, $high]);
+    $conv = $stmt->fetch(PDO::FETCH_ASSOC);
+    if ($conv) return $conv;
+    
+    $stmt = $pdo->prepare("INSERT INTO conversations (user_a, user_b) VALUES (?, ?)");
+    $stmt->execute([$low, $high]);
+    return [
+        'conversation_id' => $pdo->lastInsertId(),
+        'user_a' => $low,
+        'user_b' => $high,
+        'created_at' => date('Y-m-d H:i:s')
+    ];
+}
+
 // ── Handle Send Assessment via message ────────────────────────────────────
+$immediateLog = __DIR__ . '/debug-immediate.log';
+file_put_contents($immediateLog, date('Y-m-d H:i:s') . " - Checking send_assessment_msg handler\n", FILE_APPEND);
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    file_put_contents($immediateLog, date('Y-m-d H:i:s') . " - POST action: " . ($_POST['action'] ?? 'NOT SET') . "\n", FILE_APPEND);
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'send_assessment_msg') {
+    file_put_contents($immediateLog, date('Y-m-d H:i:s') . " - send_assessment_msg handler ACTIVATED!\n", FILE_APPEND);
     $assessId    = $_POST['assess_id'] ?? '';
     $recipEmail  = trim($_POST['recipient_email'] ?? '');
     $customMsg   = trim($_POST['custom_message'] ?? '');
     $assessment  = cs_get_assessment_by_id($assessId);
+    $dbAssessId  = $assessment['db_id'] ?? null;
+    
+    file_put_contents($immediateLog, date('Y-m-d H:i:s') . " - assessId: $assessId, recipEmail: $recipEmail, assessment exists? " . ($assessment ? 'YES' : 'NO') . "\n", FILE_APPEND);
 
     if ($assessment && $recipEmail) {
-        $link    = 'assessment_session.php?session=' . urlencode($assessId);
-        $msgText = ($customMsg ? $customMsg . "\n\n" : '')
+        // Use session values directly to avoid variable order issues
+        $myEmail = $_SESSION['user']['email'] ?? '';
+        $companyName = $_SESSION['user']['company_name'] ?? $_SESSION['user']['username'] ?? 'Your Company';
+        $senderUserId = $_SESSION['user']['user_id'] ?? null;
+
+        $pdo = get_db_connection();
+        try {
+            $pdo->beginTransaction();
+            
+            // Get recipient user ID
+            $stmtUserId = $pdo->prepare('SELECT user_id FROM users WHERE email = ?');
+            $stmtUserId->execute([$recipEmail]);
+            $recipUserId = $stmtUserId->fetchColumn();
+
+            $link = 'assessment_session.php?session=' . urlencode($assessId);
+            // Use http instead of https for localhost, and get correct base path
+            $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? 'https://' : 'http://';
+            $scriptName = $_SERVER['SCRIPT_NAME'];
+            $basePath = dirname($scriptName);
+            $fullLink = $protocol . $_SERVER['HTTP_HOST'] . $basePath . '/' . $link;
+            $msgText = ($customMsg ? $customMsg . "\n\n" : '')
                  . '📋 Skill Assessment: ' . $assessment['title'] . "\n"
                  . 'Role: ' . ($assessment['role'] ?: 'General') . "\n"
                  . 'Time Limit: ' . $assessment['time_limit'] . " minutes\n"
-                 . 'Start here: ' . (isset($_SERVER['HTTP_HOST']) ? 'https://' . $_SERVER['HTTP_HOST'] . '/' . $link : $link);
+                 . 'Start here: ' . $fullLink;
 
-        // Push into conversations
-        if (!isset($_SESSION['messages'])) $_SESSION['messages'] = [];
-        // Find or create a conversation with the recipient
-        $convId = null;
-        foreach ($_SESSION['messages'] as $conv) {
-            $parts = $conv['participants'] ?? [];
-            if (in_array($myEmail, $parts) && in_array($recipEmail, $parts)) {
-                $convId = $conv['id'];
-                break;
+            // 1. Find or create conversation in database
+            $convId = null;
+            if ($senderUserId && $recipUserId) {
+                $conv = get_or_create_conversation($senderUserId, $recipUserId);
+                $convId = $conv['conversation_id'];
+
+                // 2. Add message to conversation
+                $stmtMsg = $pdo->prepare('INSERT INTO messages (conversation_id, sender_id, body, is_read) VALUES (?, ?, ?, ?)');
+                $stmtMsg->execute([$convId, $senderUserId, $msgText, false]);
             }
-        }
-        if (!$convId) {
-            $convId = 'conv_' . uniqid('', true);
-            $_SESSION['messages'][] = [
-                'id'           => $convId,
-                'participants' => [$myEmail, $recipEmail],
-                'messages'     => [],
-            ];
-        }
-        foreach ($_SESSION['messages'] as &$conv) {
-            if ($conv['id'] === $convId) {
-                $conv['messages'][] = [
-                    'id'   => 'msg_' . uniqid('', true),
-                    'from' => $myEmail,
-                    'text' => $msgText,
-                    'time' => date('g:i A'),
-                    'ts'   => time(),
+
+            // 3. Create assessment session if we have db assess id
+            $sessionId = null;
+            if ($dbAssessId && $recipUserId) {
+                $stmtSession = $pdo->prepare('INSERT INTO assessment_sessions (assessment_id, post_id, deadline, status) VALUES (?, ?, ?, ?)');
+                $stmtSession->execute([$dbAssessId, null, null, 'active']);
+                $sessionId = $pdo->lastInsertId();
+            }
+
+            $pdo->commit();
+
+            // Also update session for backwards compatibility
+            if (!isset($_SESSION['messages'])) $_SESSION['messages'] = [];
+            $sessionConvId = null;
+            foreach ($_SESSION['messages'] as $conv) {
+                $parts = $conv['participants'] ?? [];
+                if (in_array($myEmail, $parts) && in_array($recipEmail, $parts)) {
+                    $sessionConvId = $conv['id'];
+                    break;
+                }
+            }
+            if (!$sessionConvId) {
+                $sessionConvId = 'conv_' . uniqid('', true);
+                $_SESSION['messages'][] = [
+                    'id'           => $sessionConvId,
+                    'participants' => [$myEmail, $recipEmail],
+                    'messages'     => [],
                 ];
-                break;
             }
-        }
-        unset($conv);
+            foreach ($_SESSION['messages'] as &$conv) {
+                if ($conv['id'] === $sessionConvId) {
+                    $conv['messages'][] = [
+                        'id'   => 'msg_' . uniqid('', true),
+                        'from' => $myEmail,
+                        'text' => $msgText,
+                        'time' => date('g:i A'),
+                        'ts'   => time(),
+                    ];
+                    break;
+                }
+            }
+            unset($conv);
 
-        // Notify recipient
-        try {
-            $pdo = get_db_connection();
-            $stmt = $pdo->prepare('SELECT user_id FROM users WHERE email = ?');
-            $stmt->execute([$recipEmail]);
-            $recip_user_id = $stmt->fetchColumn();
-            if ($recip_user_id) {
-                cs_save_notification($recip_user_id, $companyName . ' sent you a skill assessment: ' . $assessment['title'], 'messages.php');
+            // Notify recipient
+            if ($recipUserId) {
+                cs_save_notification($recipUserId, $companyName . ' sent you a skill assessment: ' . $assessment['title'], 'messages.php?conv=' . urlencode($convId));
             } else {
-                // Fall back to old session method if user not found in DB
                 array_unshift($_SESSION['notifications'], [
                     'msg'  => $companyName . ' sent you a skill assessment: ' . $assessment['title'],
                     'time' => date('M j, Y g:i A'),
@@ -258,7 +417,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'send_
                 ]);
             }
         } catch (Exception $e) {
-            // Fall back to old method
+            $pdo->rollBack();
+            // Fall back to old session method
+            if (!isset($_SESSION['messages'])) $_SESSION['messages'] = [];
+            $sessionConvId = null;
+            foreach ($_SESSION['messages'] as $conv) {
+                $parts = $conv['participants'] ?? [];
+                if (in_array($myEmail, $parts) && in_array($recipEmail, $parts)) {
+                    $sessionConvId = $conv['id'];
+                    break;
+                }
+            }
+            if (!$sessionConvId) {
+                $sessionConvId = 'conv_' . uniqid('', true);
+                $_SESSION['messages'][] = [
+                    'id'           => $sessionConvId,
+                    'participants' => [$myEmail, $recipEmail],
+                    'messages'     => [],
+                ];
+            }
+            foreach ($_SESSION['messages'] as &$conv) {
+                if ($conv['id'] === $sessionConvId) {
+                    $conv['messages'][] = [
+                        'id'   => 'msg_' . uniqid('', true),
+                        'from' => $myEmail,
+                        'text' => $msgText,
+                        'time' => date('g:i A'),
+                        'ts'   => time(),
+                    ];
+                    break;
+                }
+            }
+            unset($conv);
+
             array_unshift($_SESSION['notifications'], [
                 'msg'  => $companyName . ' sent you a skill assessment: ' . $assessment['title'],
                 'time' => date('M j, Y g:i A'),
@@ -635,6 +826,15 @@ document.addEventListener('click', e => {
     sendAssessId.value    = firstId;
     sendAssessTitle.textContent = title || (firstId ? (assessTitles[firstId] || 'Assessment') : 'No assessments yet — create one first.');
     sendAssessEmail.value = email;
+
+    // If email is provided (from applicant row), make it readonly
+    if (email) {
+        sendAssessEmail.readOnly = true;
+        sendAssessEmail.classList.add('bg-gray-100', 'cursor-not-allowed');
+    } else {
+        sendAssessEmail.readOnly = false;
+        sendAssessEmail.classList.remove('bg-gray-100', 'cursor-not-allowed');
+    }
 
     <?php if (empty($myAssessments)): ?>
     alert('Create an assessment first in the "Assessments" tab.');

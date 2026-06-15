@@ -290,13 +290,32 @@ $currentPage = 'assessment';
                     <?php echo $ch['body']; ?>
                 </div>
 
-                <!-- Attachment -->
-                <?php if ($ch['attachment']): ?>
+                <!-- Attachments -->
+                <?php if (!empty($ch['attachments'])): ?>
+                <div class="space-y-3 mb-4">
+                    <?php foreach ($ch['attachments'] as $attach): ?>
+                    <div class="flex items-center gap-3 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm">
+                        <span class="text-2xl"><?php echo htmlspecialchars($attach['icon'] ?? '📄'); ?></span>
+                        <div class="min-w-0">
+                            <p class="font-semibold text-gray-800 truncate"><?php echo htmlspecialchars($attach['file_name']); ?></p>
+                            <?php if (!empty($attach['note'])): ?>
+                            <p class="text-gray-500 text-xs"><?php echo htmlspecialchars($attach['note']); ?></p>
+                            <?php endif; ?>
+                        </div>
+                        <?php if (!empty($attach['file_path'])): ?>
+                        <a href="<?php echo htmlspecialchars($attach['file_path']); ?>" target="_blank" class="ml-auto text-blue-700 hover:text-blue-900 font-semibold text-xs border border-blue-200 px-3 py-1.5 rounded-lg hover:bg-blue-50 transition">
+                            Download
+                        </a>
+                        <?php endif; ?>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+                <?php elseif (!empty($ch['attachment'])): // Fallback to single attachment for backwards compatibility ?>
                 <div class="flex items-center gap-3 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 mb-4 text-sm">
-                    <span class="text-2xl"><?php echo $ch['attachment']['icon']; ?></span>
+                    <span class="text-2xl"><?php echo htmlspecialchars($ch['attachment']['icon'] ?? '📄'); ?></span>
                     <div>
                         <p class="font-semibold text-gray-800"><?php echo htmlspecialchars($ch['attachment']['name']); ?></p>
-                        <p class="text-gray-500 text-xs"><?php echo htmlspecialchars($ch['attachment']['note']); ?></p>
+                        <p class="text-gray-500 text-xs"><?php echo htmlspecialchars($ch['attachment']['note'] ?? ''); ?></p>
                     </div>
                     <button class="ml-auto text-blue-700 hover:text-blue-900 font-semibold text-xs border border-blue-200 px-3 py-1.5 rounded-lg hover:bg-blue-50 transition">
                         Download

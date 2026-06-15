@@ -1,0 +1,52 @@
+2026-06-15 18:46:09 - Script started
+2026-06-15 18:46:10 - Checking send_assessment_msg handler
+2026-06-15 18:46:13 - Script started
+2026-06-15 18:46:13 - POST RECEIVED: Array
+(
+    [action] => send_assessment_msg
+    [assess_id] => assess_3
+    [recipient_email] => limutosgerald@gmail.com
+    [custom_message] => 
+)
+
+2026-06-15 18:46:13 - Checking send_assessment_msg handler
+2026-06-15 18:46:13 - POST action: send_assessment_msg
+2026-06-15 18:46:13 - send_assessment_msg handler ACTIVATED!
+2026-06-15 18:46:13 - assessId: assess_3, recipEmail: limutosgerald@gmail.com, assessment exists? NO
+2026-06-15 18:50:29 - Script started
+2026-06-15 18:50:29 - Checking send_assessment_msg handler
+2026-06-15 18:50:32 - Script started
+2026-06-15 18:50:32 - POST RECEIVED: Array
+(
+    [action] => send_assessment_msg
+    [assess_id] => assess_3
+    [recipient_email] => limutosgerald@gmail.com
+    [custom_message] => 
+)
+
+2026-06-15 18:50:32 - Checking send_assessment_msg handler
+2026-06-15 18:50:32 - POST action: send_assessment_msg
+2026-06-15 18:50:32 - send_assessment_msg handler ACTIVATED!
+2026-06-15 18:50:32 - assessId: assess_3, recipEmail: limutosgerald@gmail.com, assessment exists? NO
+2026-06-15 18:52:28 - Script started
+2026-06-15 18:52:28 - POST RECEIVED: Array
+(
+    [action] => send_assessment_msg
+    [assess_id] => assess_3
+    [recipient_email] => limutosgerald@gmail.com
+    [custom_message] => 
+)
+
+2026-06-15 18:52:28 - Checking send_assessment_msg handler
+2026-06-15 18:52:28 - POST action: send_assessment_msg
+2026-06-15 18:52:28 - send_assessment_msg handler ACTIVATED!
+2026-06-15 18:52:28 - assessId: assess_3, recipEmail: limutosgerald@gmail.com, assessment exists? YES
+2026-06-15 18:52:28 - Script started
+2026-06-15 18:52:29 - Checking send_assessment_msg handler
+2026-06-15 19:00:36 - Checking send_assessment_msg handler
+2026-06-15 19:00:39 - Checking send_assessment_msg handler
+2026-06-15 19:00:39 - POST action: send_assessment_msg
+2026-06-15 19:00:39 - send_assessment_msg handler ACTIVATED!
+2026-06-15 19:00:39 - assessId: assess_3, recipEmail: limutosgerald@gmail.com, assessment exists? YES
+2026-06-15 19:00:39 - Checking send_assessment_msg handler
+2026-06-15 19:01:21 - Checking send_assessment_msg handler

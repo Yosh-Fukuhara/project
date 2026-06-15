@@ -1,0 +1,14 @@
+2026-06-15 18:52:28
+Array
+(
+    [0] => Transaction started
+    [1] => Sender User ID from session: 17
+    [2] => Recipient User ID: 15
+    [3] => Conversation ID: 4
+    [4] => Message inserted? YES - Message ID: 9
+    [5] => Assessment session created? YES - Session ID: 1
+    [6] => Transaction committed successfully
+    [7] => Notification saved for recipient
+)
+
+

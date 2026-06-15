@@ -359,11 +359,11 @@ CREATE TABLE IF NOT EXISTS challenge_options (
 CREATE TABLE IF NOT EXISTS assessment_sessions (
     session_id INT AUTO_INCREMENT PRIMARY KEY,
     assessment_id INT NOT NULL,
-    post_id INT NOT NULL,
+    post_id INT NULL,
     deadline DATETIME,
     status VARCHAR(30) DEFAULT 'active',
     FOREIGN KEY (assessment_id) REFERENCES assessments(assessment_id) ON DELETE CASCADE,
-    FOREIGN KEY (post_id) REFERENCES posts(post_id) ON DELETE CASCADE
+    FOREIGN KEY (post_id) REFERENCES posts(post_id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS user_assessment_attempts (
