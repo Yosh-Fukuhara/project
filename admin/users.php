@@ -12,14 +12,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $userId = (int)($_POST['user_id'] ?? 0);
     
     if ($action === 'delete' && $userId > 0) {
-        $stmt = $pdo->prepare('DELETE FROM users WHERE id = ?');
+        $stmt = $pdo->prepare('DELETE FROM users WHERE user_id = ?');
         $stmt->execute([$userId]);
         header('Location: users.php');
         exit;
     }
 }
 
-$users = $pdo->query('SELECT id, username, email, role, status, created_at FROM users ORDER BY created_at DESC')->fetchAll();
+$users = $pdo->query('SELECT user_id, first_name, last_name, email, role, status, created_at FROM users ORDER BY created_at DESC')->fetchAll();
 ?>
 
 <?php include __DIR__ . '/partials/top.php'; ?>
@@ -91,10 +91,12 @@ $users = $pdo->query('SELECT id, username, email, role, status, created_at FROM 
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-100">
-                                <?php foreach ($users as $u): ?>
+                                <?php foreach ($users as $u): 
+                                    $fullName = trim($u['first_name'] . ' ' . $u['last_name']);
+                                ?>
                                     <tr>
-                                        <td class="py-3 pr-4"><?php echo htmlspecialchars((string)$u['id']); ?></td>
-                                        <td class="py-3 pr-4 font-semibold text-slate-900"><?php echo htmlspecialchars((string)$u['username']); ?></td>
+                                        <td class="py-3 pr-4"><?php echo htmlspecialchars((string)$u['user_id']); ?></td>
+                                        <td class="py-3 pr-4 font-semibold text-slate-900"><?php echo htmlspecialchars($fullName); ?></td>
                                         <td class="py-3 pr-4"><?php echo htmlspecialchars((string)$u['email']); ?></td>
                                         <td class="py-3 pr-4"><?php echo htmlspecialchars((string)$u['role']); ?></td>
                                         <td class="py-3 pr-4">
@@ -104,12 +106,12 @@ $users = $pdo->query('SELECT id, username, email, role, status, created_at FROM 
                                         </td>
                                         <td class="py-3 pr-4">
                                             <button type="button" class="px-3 py-2 rounded-lg bg-slate-900 text-white font-semibold hover:bg-slate-800"
-                                                onclick="showUserDetails(<?php echo htmlspecialchars(json_encode($u)); ?>);">
+                                                onclick="showUserDetails(<?php echo htmlspecialchars(json_encode(array_merge($u, ['username' => $fullName, 'id' => $u['user_id']]))); ?>);">
                                                 View
                                             </button>
                                             <form method="POST" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this user?');">
                                                 <input type="hidden" name="action" value="delete">
-                                                <input type="hidden" name="user_id" value="<?php echo $u['id']; ?>">
+                                                <input type="hidden" name="user_id" value="<?php echo $u['user_id']; ?>">
                                                 <button type="submit" class="px-3 py-2 rounded-lg bg-red-600 text-white font-semibold hover:bg-red-700 ml-2">
                                                     Remove
                                                 </button>

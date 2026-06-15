@@ -12,14 +12,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $postId = (int)($_POST['post_id'] ?? 0);
     
     if ($action === 'delete' && $postId > 0) {
-        $stmt = $pdo->prepare('DELETE FROM posts WHERE id = ?');
+        $stmt = $pdo->prepare('DELETE FROM posts WHERE post_id = ?');
         $stmt->execute([$postId]);
         header('Location: posts.php');
         exit;
     }
 }
 
-$posts = $pdo->query('SELECT p.*, u.username FROM posts p JOIN users u ON p.user_id = u.id ORDER BY p.created_at DESC')->fetchAll();
+$posts = $pdo->query('SELECT p.*, u.first_name, u.last_name FROM posts p JOIN users u ON p.user_id = u.user_id ORDER BY p.created_at DESC')->fetchAll();
 
 function excerpt(string $text, int $max = 80): string {
     $t = trim($text);
@@ -100,11 +100,11 @@ function excerpt(string $text, int $max = 80): string {
                             <tbody class="divide-y divide-slate-100">
                                 <?php foreach ($posts as $p): ?>
                                     <?php
-                                        $pid = (string)($p['id'] ?? '—');
-                                        $author = (string)($p['username'] ?? '—');
+                                        $pid = (string)($p['post_id'] ?? '—');
+                                        $author = trim(($p['first_name'] ?? '') . ' ' . ($p['last_name'] ?? '')) ?: '—';
                                         $time = (string)($p['created_at'] ?? '—');
                                         $content = (string)($p['content'] ?? '');
-                                        $att = $p['attachment_path'] ?? null;
+                                        $att = null; // attachments are in separate table, we can add later if needed
                                     ?>
                                     <tr>
                                         <td class="py-3 pr-4 font-mono text-xs"><?php echo htmlspecialchars($pid); ?></td>
@@ -121,12 +121,12 @@ function excerpt(string $text, int $max = 80): string {
                                         <td class="py-3 pr-4">
                                             <button type="button"
                                                 class="px-3 py-2 rounded-lg bg-slate-900 text-white font-semibold hover:bg-slate-800"
-                                                onclick="showPostDetails(<?php echo htmlspecialchars(json_encode($p)); ?>);">
+                                                onclick="showPostDetails(<?php echo htmlspecialchars(json_encode(array_merge($p, ['id' => $p['post_id'], 'username' => $author]))); ?>);">
                                                 View
                                             </button>
                                             <form method="POST" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this post?');">
                                                 <input type="hidden" name="action" value="delete">
-                                                <input type="hidden" name="post_id" value="<?php echo $p['id']; ?>">
+                                                <input type="hidden" name="post_id" value="<?php echo $p['post_id']; ?>">
                                                 <button type="submit"
                                                     class="px-3 py-2 rounded-lg bg-red-600 text-white font-semibold ml-2 hover:bg-red-700">
                                                     Delete

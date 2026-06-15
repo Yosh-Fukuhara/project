@@ -1,5 +1,6 @@
-<?php
+﻿<?php
 require_once 'includes/bootstrap.php';
+require_once 'admin/admin_auth.php';
 
 $errors = [];
 $success = '';
@@ -19,6 +20,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if (empty($errors)) {
+        // First try admin login
+        if (admin_login_attempt($email, $password)) {
+            header('Location: admin/dashboard.php');
+            exit;
+        }
+
+        // Then try regular user login
         $pdo = get_db_connection();
         $stmt = $pdo->prepare('SELECT user_id, first_name, last_name, email, password, role, status FROM users WHERE email = ? LIMIT 1');
         $stmt->execute([$email]);
@@ -29,10 +37,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $profileStmt = $pdo->prepare('SELECT profile_pic, cover_pic, bio, location, website, phone FROM user_profiles WHERE user_id = ? LIMIT 1');
             $profileStmt->execute([$user['user_id']]);
             $profile = $profileStmt->fetch();
-            
+
             // Build a username from first and last name (since new schema doesn't have username)
-            $username = trim($user['first_name'] . ' ' . $user['last_name']);
-            
+            $username = trim($user['first_name'] . ' ' . $user['last_name']);   
+
             $_SESSION['user'] = [
                 'user_id' => $user['user_id'],
                 'first_name' => $user['first_name'],
@@ -50,13 +58,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             session_regenerate_id(true);
             setcookie('last_login', date('Y-m-d H:i:s'), time() + (86400 * 30), "/");
-            setcookie('welcome_seen', 'true', time() + (86400 * 365), "/");
+            setcookie('welcome_seen', 'true', time() + (86400 * 365), "/");     
 
             // Redirect back to intended page (e.g. cart) if set
-            $redirect = $_SESSION['redirect_after_login'] ?? 'index.php';
+            $redirect = $_SESSION['redirect_after_login'] ?? 'index.php';       
             unset($_SESSION['redirect_after_login']);
             // Only allow relative paths to prevent open redirect
-            if (!preg_match('/^[a-zA-Z0-9_\-\.]+\.php(\?.*)?$/', $redirect)) {
+            if (!preg_match('/^[a-zA-Z0-9_\-\.]+\.php(\?.*)?$/', $redirect)) {  
                 $redirect = 'index.php';
             }
             header('Location: ' . $redirect);
@@ -74,12 +82,12 @@ $currentPage = 'login';
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">      
     <title><?php echo $pageTitle; ?></title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="min-h-screen bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl shadow-lg w-full max-w-lg p-8 md:p-12">
+    <div class="bg-white rounded-2xl shadow-lg w-full max-w-lg p-8 md:p-12">    
         <div class="text-center mb-10">
             <h1 class="text-2xl font-bold mb-2">Welcome Back</h1>
         </div>
@@ -88,7 +96,7 @@ $currentPage = 'login';
             <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
                 <ul class="list-disc list-inside">
                     <?php foreach ($errors as $error): ?>
-                        <li><?php echo htmlspecialchars($error); ?></li>
+                        <li><?php echo htmlspecialchars($error); ?></li>        
                     <?php endforeach; ?>
                 </ul>
             </div>
@@ -96,10 +104,10 @@ $currentPage = 'login';
 
         <form method="POST" class="space-y-8">
             <div>
-                <label class="block text-xl font-semibold mb-1">Email</label>
-                <input 
-                    type="email" 
-                    name="email" 
+                <label class="block text-xl font-semibold mb-1">Email</label>   
+                <input
+                    type="email"
+                    name="email"
                     value="<?php echo isset($_POST['email']) ? htmlspecialchars($_POST['email']) : ''; ?>"
                     class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 shadow-md"
                     placeholder="Example@gmail.com"
@@ -109,8 +117,8 @@ $currentPage = 'login';
             <div>
                 <label class="block text-xl font-semibold mb-1">Password</label>
                 <div class="relative">
-                    <input 
-                        type="password" 
+                    <input
+                        type="password"
                         name="password"
                         id="password"
                         class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 shadow-md pr-12"
@@ -130,10 +138,10 @@ $currentPage = 'login';
 
             <script>
                 document.getElementById('togglePassword').addEventListener('click', function() {
-                    const passwordInput = document.getElementById('password');
+                    const passwordInput = document.getElementById('password');  
                     const eyeOpen = document.getElementById('eyeOpen');
-                    const eyeClosed = document.getElementById('eyeClosed');
-                    
+                    const eyeClosed = document.getElementById('eyeClosed');     
+
                     if (passwordInput.type === 'password') {
                         passwordInput.type = 'text';
                         eyeOpen.classList.add('hidden');
@@ -149,13 +157,13 @@ $currentPage = 'login';
             <div class="flex items-start gap-3 bg-blue-50 p-4 rounded-xl border border-blue-100">
                 <input type="checkbox" name="terms" required class="mt-1 w-5 h-5 text-blue-900 focus:ring-blue-500 rounded border-gray-300">
                 <p class="text-sm text-gray-700 leading-relaxed">
-                    By logging in, you agree to our <span class="font-bold text-blue-900">Terms & Conditions</span>. 
-                    You acknowledge that we adhere to international legal standards for digital assets. 
+                    By logging in, you agree to our <span class="font-bold text-blue-900">Terms & Conditions</span>.
+                    You acknowledge that we adhere to international legal standards for digital assets.
                     <span class="font-bold">Privacy Notice:</span> Please be aware that uploaded files are not currently hashed; exercise caution when sharing sensitive information.
                 </p>
             </div>
 
-            <button 
+            <button
                 type="submit"
                 class="w-full bg-blue-900 text-white font-bold py-4 rounded-xl hover:bg-blue-800 transition shadow-md"
             >

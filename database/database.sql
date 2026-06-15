@@ -139,6 +139,23 @@ CREATE TABLE IF NOT EXISTS notifications (
     FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS employer_applications (
+    eapp_id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    company_name VARCHAR(100) NOT NULL,
+    industry VARCHAR(50) NOT NULL,
+    company_size VARCHAR(20),
+    website VARCHAR(255),
+    description TEXT NOT NULL,
+    contact_name VARCHAR(80) NOT NULL,
+    contact_phone VARCHAR(30),
+    documents JSON,
+    status VARCHAR(20) DEFAULT 'pending',
+    submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    reviewed_at TIMESTAMP NULL,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 
 CREATE TABLE IF NOT EXISTS communities (
     community_id INT AUTO_INCREMENT PRIMARY KEY,

@@ -138,6 +138,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'mark_
                                 </button>
                                 <div id="userMenu" class="absolute right-0 top-full mt-2 w-48 bg-white rounded-lg shadow-lg py-2 hidden">
                                     <a href="profile.php" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">Profile</a>
+                                    <?php if (cs_is_admin()): ?>
+                                        <a href="admin/dashboard.php" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">Admin Dashboard</a>
+                                    <?php endif; ?>
                                     <?php if (cs_is_employer() || cs_is_admin()): ?>
                                         <a href="employer_dashboard.php" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">Employer Dashboard</a>
                                     <?php endif; ?>

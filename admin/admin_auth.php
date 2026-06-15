@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 require_once __DIR__ . '/admin_config.php';
 
 if (session_status() === PHP_SESSION_NONE) {
@@ -25,15 +25,16 @@ function admin_login_attempt(string $email, string $password): bool {
     }
 
     $pdo = get_db_connection();
-    $stmt = $pdo->prepare('SELECT id, username, email, password, role, status FROM users WHERE email = ? AND role = ? LIMIT 1');
+    $stmt = $pdo->prepare('SELECT user_id, first_name, last_name, email, password, role, status FROM users WHERE email = ? AND role = ? LIMIT 1');
     $stmt->execute([$email, 'admin']);
     $user = $stmt->fetch();
 
     if ($user && password_verify($password, $user['password']) && $user['status'] === 'active') {
+        $username = trim($user['first_name'] . ' ' . $user['last_name']);
         $_SESSION['admin'] = [
-            'id' => $user['id'],
+            'id' => $user['user_id'],
             'email' => $user['email'],
-            'name' => $user['username'],
+            'name' => $username,
             'role' => $user['role'],
             'logged_in_at' => date('Y-m-d H:i:s'),
         ];
@@ -48,4 +49,3 @@ function admin_logout(): void {
     unset($_SESSION['admin']);
     session_destroy();
 }
-

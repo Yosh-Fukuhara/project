@@ -73,13 +73,13 @@ function cs_read_employer_apps(): array {
                 'submitted_at' => $row['submitted_at'],
                 'reviewed_at' => $row['reviewed_at']
             ];
-            // Also get email from users table
-            $stmtUser = $pdo->prepare('SELECT email, username FROM users WHERE user_id = ?');
+            // Also get user info from users table
+            $stmtUser = $pdo->prepare('SELECT email, first_name, last_name FROM users WHERE user_id = ?');
             $stmtUser->execute([$row['user_id']]);
             $user = $stmtUser->fetch(PDO::FETCH_ASSOC);
             if ($user) {
                 $apps[count($apps)-1]['email'] = $user['email'];
-                $apps[count($apps)-1]['username'] = $user['username'];
+                $apps[count($apps)-1]['username'] = trim($user['first_name'] . ' ' . $user['last_name']);
             }
         }
         return $apps;
@@ -129,13 +129,13 @@ function cs_get_employer_application_by_id(string $id): ?array {
             'submitted_at' => $row['submitted_at'],
             'reviewed_at' => $row['reviewed_at']
         ];
-        // Also get email from users table
-        $stmtUser = $pdo->prepare('SELECT email, username FROM users WHERE user_id = ?');
+        // Also get user info from users table
+        $stmtUser = $pdo->prepare('SELECT email, first_name, last_name FROM users WHERE user_id = ?');
         $stmtUser->execute([$row['user_id']]);
         $user = $stmtUser->fetch(PDO::FETCH_ASSOC);
         if ($user) {
             $app['email'] = $user['email'];
-            $app['username'] = $user['username'];
+            $app['username'] = trim($user['first_name'] . ' ' . $user['last_name']);
         }
         return $app;
     } catch (Exception $e) {
@@ -170,6 +170,12 @@ function cs_get_employer_application_by_email(string $email): ?array {
         $row = $stmt2->fetch(PDO::FETCH_ASSOC);
         if (!$row) return null;
         
+        // Get user first and last name to build username
+        $stmtUser = $pdo->prepare('SELECT first_name, last_name FROM users WHERE user_id = ?');
+        $stmtUser->execute([$row['user_id']]);
+        $userInfo = $stmtUser->fetch(PDO::FETCH_ASSOC);
+        $username = $userInfo ? trim($userInfo['first_name'] . ' ' . $userInfo['last_name']) : ($_SESSION['user']['username'] ?? '');
+        
         return [
             'id' => (string)$row['eapp_id'],
             'user_id' => $row['user_id'],
@@ -185,7 +191,7 @@ function cs_get_employer_application_by_email(string $email): ?array {
             'submitted_at' => $row['submitted_at'],
             'reviewed_at' => $row['reviewed_at'],
             'email' => $email,
-            'username' => $_SESSION['user']['username'] ?? ''
+            'username' => $username
         ];
     } catch (Exception $e) {
         return null;

@@ -1,11 +1,23 @@
 <?php
 require_once __DIR__ . '/admin_auth.php';
+require_once __DIR__ . '/../role_helpers.php';
 admin_require_login();
 
 $active = 'dashboard';
 $pageTitle = 'Admin Dashboard - CyberSphere';
 
 $pdo = get_db_connection();
+
+// Handle approval/rejection
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'], $_POST['app_id'])) {
+    $appId = (int)$_POST['app_id'];
+    $action = $_POST['action'];
+    
+    if ($action === 'approve' || $action === 'reject') {
+        $status = $action === 'approve' ? 'approved' : 'rejected';
+        cs_update_employer_application_status((string)$appId, $status);
+    }
+}
 
 $totalUsersStmt = $pdo->query('SELECT COUNT(*) FROM users');
 $totalUsers = $totalUsersStmt->fetchColumn();
@@ -17,10 +29,12 @@ $activeUsersStmt = $pdo->prepare('SELECT COUNT(*) FROM users WHERE status = ?');
 $activeUsersStmt->execute(['active']);
 $activeUsers = $activeUsersStmt->fetchColumn();
 
-$recentPostsStmt = $pdo->query('SELECT p.*, u.username FROM posts p JOIN users u ON p.user_id = u.id ORDER BY p.created_at DESC LIMIT 5');
+$recentPostsStmt = $pdo->query('SELECT p.*, u.first_name, u.last_name FROM posts p JOIN users u ON p.user_id = u.user_id ORDER BY p.created_at DESC LIMIT 5');
 $recentPosts = $recentPostsStmt->fetchAll();
 
-$currentUserEmail = $_SESSION['user']['email'] ?? null;
+// Get employer applications
+$employerApps = cs_get_employer_applications();
+$pendingCount = count(array_filter($employerApps, fn($app) => $app['status'] === 'pending'));
 ?>
 
 <?php include __DIR__ . '/partials/top.php'; ?>
@@ -59,7 +73,7 @@ $currentUserEmail = $_SESSION['user']['email'] ?? null;
     </header>
 
     <div class="p-4 sm:p-6 space-y-6">
-        <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div class="bg-white rounded-2xl border border-slate-200 p-5">
                 <p class="text-sm text-slate-500">Total Users</p>
                 <p class="text-3xl font-extrabold text-slate-900 mt-2"><?php echo (int)$totalUsers; ?></p>
@@ -75,6 +89,85 @@ $currentUserEmail = $_SESSION['user']['email'] ?? null;
                 <p class="text-3xl font-extrabold text-slate-900 mt-2"><?php echo (int)$activeUsers; ?></p>
                 <p class="text-xs text-slate-500 mt-1">Active status</p>
             </div>
+            <div class="bg-white rounded-2xl border border-slate-200 p-5">
+                <p class="text-sm text-slate-500">Pending Employers</p>
+                <p class="text-3xl font-extrabold text-amber-600 mt-2"><?php echo $pendingCount; ?></p>
+                <p class="text-xs text-slate-500 mt-1">Awaiting approval</p>
+            </div>
+        </section>
+
+        <!-- Employer Applications -->
+        <section class="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+            <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
+                <h2 class="font-extrabold text-slate-900">Employer Applications</h2>
+            </div>
+            <?php if (empty($employerApps)): ?>
+                <div class="p-12 text-center text-slate-400">
+                    <div class="text-5xl mb-3">📋</div>
+                    <p class="font-medium">No employer applications yet</p>
+                </div>
+            <?php else: ?>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead class="bg-slate-50 text-xs uppercase text-slate-500 tracking-wide">
+                            <tr>
+                                <th class="text-left px-5 py-3">Applicant</th>
+                                <th class="text-left px-4 py-3">Company</th>
+                                <th class="text-left px-4 py-3">Industry</th>
+                                <th class="text-left px-4 py-3">Applied</th>
+                                <th class="text-left px-4 py-3">Status</th>
+                                <th class="text-center px-4 py-3">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            <?php foreach ($employerApps as $app): ?>
+                                <tr class="hover:bg-slate-50">
+                                    <td class="px-5 py-4">
+                                        <div>
+                                            <p class="font-semibold text-slate-800"><?php echo htmlspecialchars($app['username'] ?? 'N/A'); ?></p>
+                                            <p class="text-slate-500 text-xs"><?php echo htmlspecialchars($app['email'] ?? 'N/A'); ?></p>
+                                        </div>
+                                    </td>
+                                    <td class="px-4 py-4">
+                                        <p class="text-slate-700"><?php echo htmlspecialchars($app['company_name']); ?></p>
+                                    </td>
+                                    <td class="px-4 py-4">
+                                        <p class="text-slate-600 text-xs"><?php echo htmlspecialchars($app['industry']); ?></p>
+                                    </td>
+                                    <td class="px-4 py-4">
+                                        <p class="text-slate-500 text-xs"><?php echo htmlspecialchars($app['submitted_at'] ?? 'N/A'); ?></p>
+                                    </td>
+                                    <td class="px-4 py-4">
+                                        <?php 
+                                        $statusBadge = [
+                                            'pending' => 'bg-amber-100 text-amber-700',
+                                            'approved' => 'bg-green-100 text-green-700',
+                                            'rejected' => 'bg-red-100 text-red-700'
+                                        ];
+                                        ?>
+                                        <span class="inline-block px-2 py-1 rounded-full text-xs font-semibold <?php echo $statusBadge[$app['status']] ?? 'bg-slate-100 text-slate-700'; ?>">
+                                            <?php echo htmlspecialchars(ucfirst($app['status'])); ?>
+                                        </span>
+                                    </td>
+                                    <td class="px-4 py-4 text-center">
+                                        <?php if ($app['status'] === 'pending'): ?>
+                                            <form method="POST" class="inline-block">
+                                                <input type="hidden" name="app_id" value="<?php echo $app['id']; ?>">
+                                                <button type="submit" name="action" value="approve" class="bg-green-600 hover:bg-green-700 text-white text-xs font-bold px-3 py-1.5 rounded-xl transition mr-1">
+                                                    Approve
+                                                </button>
+                                                <button type="submit" name="action" value="reject" class="bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-3 py-1.5 rounded-xl transition">
+                                                    Reject
+                                                </button>
+                                            </form>
+                                        <?php endif; ?>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            <?php endif; ?>
         </section>
 
         <section class="bg-white rounded-2xl border border-slate-200 overflow-hidden">
@@ -89,12 +182,26 @@ $currentUserEmail = $_SESSION['user']['email'] ?? null;
         </section>
 
         <section class="bg-white rounded-2xl border border-slate-200 p-5">
-            <h2 class="font-extrabold text-slate-900">Notes</h2>
-            <ul class="list-disc list-inside text-sm text-slate-600 mt-2 space-y-1">
-                <li>Admin pages are protected by session (hardcoded admin for now).</li>
-                <li>“Users” and “Posts” pages are UI-first; DB wiring can be added later.</li>
-                <li>Right now, posts count is taken from <code class="bg-slate-100 px-1 rounded">$_SESSION['posts']</code>.</li>
-            </ul>
+            <h2 class="font-extrabold text-slate-900">Recent Posts</h2>
+            <?php if (empty($recentPosts)): ?>
+                <p class="text-sm text-slate-500 mt-2">No posts yet</p>
+            <?php else: ?>
+                <div class="mt-4 space-y-3">
+                    <?php foreach ($recentPosts as $post): ?>
+                        <div class="border border-slate-200 rounded-xl p-3">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="font-semibold text-slate-800">
+                                        <?php echo htmlspecialchars($post['first_name'] . ' ' . $post['last_name']); ?>
+                                    </p>
+                                    <p class="text-slate-600 text-sm mt-1"><?php echo htmlspecialchars(mb_strimwidth($post['content'], 0, 100, '...')); ?></p>
+                                </div>
+                                <span class="text-xs text-slate-500"><?php echo htmlspecialchars(date('M j, Y', strtotime($post['created_at']))); ?></span>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
         </section>
     </div>
 
