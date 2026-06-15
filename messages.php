@@ -63,30 +63,39 @@ function ensure_tables_exist() {
 }
 ensure_tables_exist();
 
-// Debug: print all GET and SESSION variables
-echo "<div style='background:yellow;padding:20px;margin:20px;'>";
-echo "<h2>Debug Info</h2>";
-echo "<h3>GET Parameters:</h3><pre>" . print_r($_GET, true) . "</pre>";
-echo "<h3>SESSION User:</h3><pre>" . print_r($_SESSION['user'], true) . "</pre>";
-echo "</div>";
+// Check if it's an AJAX POST request
+$isAjax = $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']);
+
+// Debug: print all GET and SESSION variables - only if NOT AJAX
+if (!$isAjax) {
+    echo "<div style='background:yellow;padding:20px;margin:20px;'>";
+    echo "<h2>Debug Info</h2>";
+    echo "<h3>GET Parameters:</h3><pre>" . print_r($_GET, true) . "</pre>";
+    echo "<h3>SESSION User:</h3><pre>" . print_r($_SESSION['user'], true) . "</pre>";
+    echo "</div>";
+}
 
 // Check if we're opening a conversation with a specific user
 if (isset($_GET['user'])) {
-    echo "<div style='background:pink;padding:20px;margin:20px;'>";
-    echo "<h3>Processing ?user Parameter</h3>";
-    $other_user_id = (int)$_GET['user'];
-    echo "<p>other_user_id (int): $other_user_id</p>";
-    $my_id = $_SESSION['user']['user_id'];
-    echo "<p>my_id: $my_id</p>";
-    if ($other_user_id && $other_user_id != $my_id) {
-        echo "<p>Valid user IDs, calling get_or_create_conversation</p>";
+    if (!$isAjax) {
+        echo "<div style='background:pink;padding:20px;margin:20px;'>";
+        echo "<h3>Processing ?user Parameter</h3>";
+        $other_user_id = (int)$_GET['user'];
+        echo "<p>other_user_id (int): $other_user_id</p>";
+        $my_id = $_SESSION['user']['user_id'];
+        echo "<p>my_id: $my_id</p>";
+    }
+    if (isset($other_user_id) && $other_user_id && $other_user_id != $my_id) {
+        if (!$isAjax) {
+            echo "<p>Valid user IDs, calling get_or_create_conversation</p>";
+        }
         try {
             $conv = get_or_create_conversation($my_id, $other_user_id);
-            echo "<p>get_or_create_conversation returned:</p><pre>" . print_r($conv, true) . "</pre>";
+            if (!$isAjax) {
+                echo "<p>get_or_create_conversation returned:</p><pre>" . print_r($conv, true) . "</pre>";
+            }
             if ($conv) {
                 $redirectUrl = "messages.php?conv=" . urlencode($conv['conversation_id']);
-                echo "<p>Redirecting to: <a href='$redirectUrl'>$redirectUrl</a></p>";
-                echo "<p>Redirect should happen now...</p>";
                 header('Location: ' . $redirectUrl);
                 exit;
             } else {
@@ -97,9 +106,13 @@ if (isset($_GET['user'])) {
             exit;
         }
     } else {
-        echo "<p style='color:red'>Invalid: other_user_id was $other_user_id, my_id was $my_id</p>";
+        if (!$isAjax) {
+            echo "<p style='color:red'>Invalid: other_user_id was $other_user_id, my_id was $my_id</p>";
+        }
     }
-    echo "</div>";
+    if (!$isAjax) {
+        echo "</div>";
+    }
 }
 
 // Helper function to get user info from DB
@@ -488,45 +501,53 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     }
 
     if ($action === 'send_message') {
-        $text = trim($_POST['text'] ?? '');
-        $attachments = cs_handle_attachments_upload($_FILES['attachments'] ?? null);
+        try {
+            $text = trim($_POST['text'] ?? '');
+            $attachments = cs_handle_attachments_upload($_FILES['attachments'] ?? null);
 
-        if ($text === '' && empty($attachments)) {
-            echo json_encode(['ok' => false, 'error' => 'Message is empty.']);
+            if ($text === '' && empty($attachments)) {
+                echo json_encode(['ok' => false, 'error' => 'Message is empty.']);
+                exit;
+            }
+
+            // Debug output for send_message
+            error_log("send_message: convId=$convId, my_id=$my_id, text=$text");
+
+            // Save to DB
+            $stmt = $pdo->prepare("INSERT INTO messages (conversation_id, sender_id, body, is_read) VALUES (?, ?, ?, 0)");
+            $stmt->execute([$convId, $my_id, $text]);
+            $message_id = $pdo->lastInsertId();
+            
+            // Save attachments (if any)
+            foreach ($attachments as $att) {
+                $stmt_att = $pdo->prepare("INSERT INTO message_attachments (message_id, file_name, file_url) VALUES (?, ?, ?)");
+                $stmt_att->execute([$message_id, $att['name'], $att['url']]);
+            }
+            
+            $ts = time();
+            $msg = [
+                'id' => $message_id,
+                'from' => $my_email,
+                'text' => $text,
+                'ts' => $ts,
+                'time' => cs_format_time($ts),
+                'attachments' => $attachments,
+                'pinned' => false,
+                'edited' => false,
+            ];
+
+            $previewText = $text !== '' ? $text : '[Attachment]';
+            echo json_encode([
+                'ok' => true,
+                'message_html' => cs_render_message_html($msg, $my_email),
+                'preview_text' => $previewText,
+                'preview_time' => cs_format_time($ts),
+            ]);
+            exit;
+        } catch (Exception $e) {
+            echo json_encode(['ok' => false, 'error' => 'Exception: ' . $e->getMessage()]);
             exit;
         }
-
-        // Save to DB
-        $stmt = $pdo->prepare("INSERT INTO messages (conversation_id, sender_id, body, is_read) VALUES (?, ?, ?, 0)");
-        $stmt->execute([$convId, $my_id, $text]);
-        $message_id = $pdo->lastInsertId();
-        
-        // Save attachments (if any)
-        foreach ($attachments as $att) {
-            $stmt_att = $pdo->prepare("INSERT INTO message_attachments (message_id, file_name, file_url) VALUES (?, ?, ?)");
-            $stmt_att->execute([$message_id, $att['name'], $att['url']]);
-        }
-        
-        $ts = time();
-        $msg = [
-            'id' => $message_id,
-            'from' => $my_email,
-            'text' => $text,
-            'ts' => $ts,
-            'time' => cs_format_time($ts),
-            'attachments' => $attachments,
-            'pinned' => false,
-            'edited' => false,
-        ];
-
-        $previewText = $text !== '' ? $text : '[Attachment]';
-        echo json_encode([
-            'ok' => true,
-            'message_html' => cs_render_message_html($msg, $my_email),
-            'preview_text' => $previewText,
-            'preview_time' => cs_format_time($ts),
-        ]);
-        exit;
     }
 
     $messageId = $_POST['message_id'] ?? '';
@@ -613,10 +634,12 @@ $my_email = $_SESSION['user']['email'];
 // Get all conversations for the user
 $conversations = get_conversations($my_id);
 
-// Debug: print $conversations
-echo "<div style='background:lightblue;padding:20px;margin:20px;'>";
-echo "<h2>Debug: get_conversations() Returned:</h2><pre>" . print_r($conversations, true) . "</pre>";
-echo "</div>";
+// Debug: print $conversations - only if NOT AJAX
+if (!$isAjax) {
+    echo "<div style='background:lightblue;padding:20px;margin:20px;'>";
+    echo "<h2>Debug: get_conversations() Returned:</h2><pre>" . print_r($conversations, true) . "</pre>";
+    echo "</div>";
+}
 
 // Handle active conversation
 $activeConversationId = $_GET['conv'] ?? null;
