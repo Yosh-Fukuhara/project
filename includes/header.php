@@ -55,6 +55,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'mark_
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo isset($pageTitle) ? $pageTitle : 'CyberSphere'; ?></title>
+    
+    <!-- Favicon - just replace the filename below! -->
+    <?php 
+    $faviconFilename = 'favicon.png'; // Change this to your favicon filename!
+    $faviconPath = 'assets/' . $faviconFilename;
+    ?>
+    <link rel="icon" type="image/png" href="<?php echo htmlspecialchars($faviconPath); ?>">
+    <link rel="shortcut icon" type="image/png" href="<?php echo htmlspecialchars($faviconPath); ?>">
+    
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100 min-h-screen">
