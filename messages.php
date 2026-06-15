@@ -497,6 +497,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 $stmt_att->execute([$message_id, $att['name'], $att['url']]);
             }
             
+            // Send notification to the other user
+            $recipient_id = null;
+            if ($conv['user_a'] == $my_id) {
+                $recipient_id = $conv['user_b'];
+            } else {
+                $recipient_id = $conv['user_a'];
+            }
+            if ($recipient_id) {
+                // Get sender's name for notification message
+                $sender_name = $_SESSION['user']['first_name'] . ' ' . $_SESSION['user']['last_name'];
+                $notif_message = $sender_name . ' sent you a message: ' . (mb_strlen($text) > 50 ? mb_substr($text, 0, 50) . '...' : $text);
+                cs_save_notification($recipient_id, $notif_message, 'messages.php?conv=' . urlencode($convId));
+            }
+            
             $ts = time();
             $msg = [
                 'id' => $message_id,

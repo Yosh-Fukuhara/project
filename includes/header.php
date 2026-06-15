@@ -100,9 +100,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'mark_
                             </svg>
                             <?php
                             $totalUnreadMessages = 0;
-                            if (isset($_SESSION['messages']) && is_array($_SESSION['messages'])) {
-                                foreach ($_SESSION['messages'] as $conv) {
-                                    $totalUnreadMessages += $conv['unread'] ?? 0;
+                            if (isset($_SESSION['user'])) {
+                                try {
+                                    $pdo = get_db_connection();
+                                    $stmt = $pdo->prepare('SELECT COUNT(*) AS unread_count
+                                        FROM messages m
+                                        JOIN conversations c ON m.conversation_id = c.conversation_id
+                                        WHERE m.is_read = 0
+                                        AND m.sender_id != ?
+                                        AND (c.user_a = ? OR c.user_b = ?)');
+                                    $stmt->execute([
+                                        $_SESSION['user']['user_id'],
+                                        $_SESSION['user']['user_id'],
+                                        $_SESSION['user']['user_id']
+                                    ]);
+                                    $result = $stmt->fetch(PDO::FETCH_ASSOC);
+                                    $totalUnreadMessages = $result['unread_count'] ?? 0;
+                                } catch (Exception $e) {
+                                    $totalUnreadMessages = 0;
                                 }
                             }
                             ?>
