@@ -1,6 +1,4 @@
 <?php
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
 require_once 'includes/bootstrap.php';
 
 if (!isset($_SESSION['user'])) {
@@ -69,60 +67,25 @@ function ensure_tables_exist() {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
         }
     } catch (Exception $e) {
-        die("Error ensuring tables exist: " . $e->getMessage());
+        // Silently ignore table errors in production
     }
 }
 ensure_tables_exist();
 
-// Check if it's an AJAX POST request
-$isAjax = $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']);
-
-// Debug: print all GET and SESSION variables - only if NOT AJAX
-if (!$isAjax) {
-    echo "<div style='background:yellow;padding:20px;margin:20px;'>";
-    echo "<h2>Debug Info</h2>";
-    echo "<h3>GET Parameters:</h3><pre>" . print_r($_GET, true) . "</pre>";
-    echo "<h3>SESSION User:</h3><pre>" . print_r($_SESSION['user'], true) . "</pre>";
-    echo "</div>";
-}
-
 // Check if we're opening a conversation with a specific user
 if (isset($_GET['user'])) {
-    if (!$isAjax) {
-        echo "<div style='background:pink;padding:20px;margin:20px;'>";
-        echo "<h3>Processing ?user Parameter</h3>";
-        $other_user_id = (int)$_GET['user'];
-        echo "<p>other_user_id (int): $other_user_id</p>";
-        $my_id = $_SESSION['user']['user_id'];
-        echo "<p>my_id: $my_id</p>";
-    }
-    if (isset($other_user_id) && $other_user_id && $other_user_id != $my_id) {
-        if (!$isAjax) {
-            echo "<p>Valid user IDs, calling get_or_create_conversation</p>";
-        }
+    $other_user_id = (int)$_GET['user'];
+    $my_id = $_SESSION['user']['user_id'];
+    if ($other_user_id && $other_user_id != $my_id) {
         try {
             $conv = get_or_create_conversation($my_id, $other_user_id);
-            if (!$isAjax) {
-                echo "<p>get_or_create_conversation returned:</p><pre>" . print_r($conv, true) . "</pre>";
-            }
             if ($conv) {
-                $redirectUrl = "messages.php?conv=" . urlencode($conv['conversation_id']);
-                header('Location: ' . $redirectUrl);
+                header('Location: messages.php?conv=' . urlencode($conv['conversation_id']));
                 exit;
-            } else {
-                die("<p style='color:red'>Failed to get or create conversation (no error thrown, but returned null)</p>");
             }
         } catch (Exception $e) {
-            echo "<p style='color:red'>Error creating conversation: " . $e->getMessage() . "</p>";
-            exit;
+            // Silently ignore
         }
-    } else {
-        if (!$isAjax) {
-            echo "<p style='color:red'>Invalid: other_user_id was $other_user_id, my_id was $my_id</p>";
-        }
-    }
-    if (!$isAjax) {
-        echo "</div>";
     }
 }
 
@@ -521,8 +484,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 exit;
             }
 
-            // Debug output for send_message
-            error_log("send_message: convId=$convId, my_id=$my_id, text=$text");
+
 
             // Save to DB
             $stmt = $pdo->prepare("INSERT INTO messages (conversation_id, sender_id, body, is_read) VALUES (?, ?, ?, 0)");
@@ -644,13 +606,6 @@ $my_email = $_SESSION['user']['email'];
 
 // Get all conversations for the user
 $conversations = get_conversations($my_id);
-
-// Debug: print $conversations - only if NOT AJAX
-if (!$isAjax) {
-    echo "<div style='background:lightblue;padding:20px;margin:20px;'>";
-    echo "<h2>Debug: get_conversations() Returned:</h2><pre>" . print_r($conversations, true) . "</pre>";
-    echo "</div>";
-}
 
 // Handle active conversation
 $activeConversationId = $_GET['conv'] ?? null;
