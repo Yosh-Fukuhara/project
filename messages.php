@@ -63,24 +63,43 @@ function ensure_tables_exist() {
 }
 ensure_tables_exist();
 
+// Debug: print all GET and SESSION variables
+echo "<div style='background:yellow;padding:20px;margin:20px;'>";
+echo "<h2>Debug Info</h2>";
+echo "<h3>GET Parameters:</h3><pre>" . print_r($_GET, true) . "</pre>";
+echo "<h3>SESSION User:</h3><pre>" . print_r($_SESSION['user'], true) . "</pre>";
+echo "</div>";
+
 // Check if we're opening a conversation with a specific user
 if (isset($_GET['user'])) {
+    echo "<div style='background:pink;padding:20px;margin:20px;'>";
+    echo "<h3>Processing ?user Parameter</h3>";
     $other_user_id = (int)$_GET['user'];
+    echo "<p>other_user_id (int): $other_user_id</p>";
     $my_id = $_SESSION['user']['user_id'];
+    echo "<p>my_id: $my_id</p>";
     if ($other_user_id && $other_user_id != $my_id) {
+        echo "<p>Valid user IDs, calling get_or_create_conversation</p>";
         try {
             $conv = get_or_create_conversation($my_id, $other_user_id);
+            echo "<p>get_or_create_conversation returned:</p><pre>" . print_r($conv, true) . "</pre>";
             if ($conv) {
-                header('Location: messages.php?conv=' . urlencode($conv['conversation_id']));
+                $redirectUrl = "messages.php?conv=" . urlencode($conv['conversation_id']);
+                echo "<p>Redirecting to: <a href='$redirectUrl'>$redirectUrl</a></p>";
+                echo "<p>Redirect should happen now...</p>";
+                header('Location: ' . $redirectUrl);
                 exit;
             } else {
-                die("Failed to get or create conversation (no error thrown, but returned null)");
+                die("<p style='color:red'>Failed to get or create conversation (no error thrown, but returned null)</p>");
             }
         } catch (Exception $e) {
-            echo "Error creating conversation: " . $e->getMessage();
+            echo "<p style='color:red'>Error creating conversation: " . $e->getMessage() . "</p>";
             exit;
         }
+    } else {
+        echo "<p style='color:red'>Invalid: other_user_id was $other_user_id, my_id was $my_id</p>";
     }
+    echo "</div>";
 }
 
 // Helper function to get user info from DB
