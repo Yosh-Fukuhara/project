@@ -1,5 +1,6 @@
 <?php
 require_once 'includes/bootstrap.php';
+require_once 'config/database.php';
 
 require_once 'autoload.php';
 require_once 'data/products.php';
@@ -84,31 +85,79 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['checkout'])) {
 
     if (empty($checkoutErrors)) {
         $orderId = 'ORD-' . strtoupper(substr(uniqid('', true), -8));
-        $orderRecord = [
-            'id'             => $orderId,
-            'user_id'        => $_SESSION['user']['user_id'],
-            'username'       => $_SESSION['user']['username'],
-            'items'          => $_SESSION['cart'],
-            'subtotal'       => $total,
-            'tax'            => $total * 0.12,
-            'grand_total'    => $total * 1.12,
-            'payment_method' => $paymentMethod,
-            'ordered_at'     => date('M j, Y g:i A'),
-        ];
-
-        // Save to last_order for receipt display
-        $_SESSION['last_order'] = $orderRecord;
-
-        // ── Persist to user purchase history ─────────────────────────────
-        if (!isset($_SESSION['purchases']) || !is_array($_SESSION['purchases'])) {
-            $_SESSION['purchases'] = [];
+        $subtotal = $total;
+        $tax = $total * 0.12;
+        $grandTotal = $total * 1.12;
+        
+        // ── Save to Database ──────────────────────────────────────────────
+        $pdo = get_db_connection();
+        try {
+            $pdo->beginTransaction();
+            
+            // Insert into orders
+            $stmt = $pdo->prepare("
+                INSERT INTO orders (user_id, subtotal, tax, grand_total, payment_method, payment_details)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ");
+            $stmt->execute([
+                $_SESSION['user']['user_id'],
+                $subtotal,
+                $tax,
+                $grandTotal,
+                $paymentMethod,
+                $paymentDetails
+            ]);
+            $dbOrderId = $pdo->lastInsertId();
+            
+            // Insert each cart item into order_items
+            foreach ($_SESSION['cart'] as $item) {
+                $stmt = $pdo->prepare("
+                    INSERT INTO order_items (order_id, product_id, product_name, unit_price, quantity)
+                    VALUES (?, ?, ?, ?, ?)
+                ");
+                $stmt->execute([
+                    $dbOrderId,
+                    $item['id'],
+                    $item['name'],
+                    $item['price'],
+                    $item['quantity']
+                ]);
+            }
+            
+            $pdo->commit();
+            
+        } catch (Exception $e) {
+            $pdo->rollBack();
+            $checkoutErrors[] = 'Failed to save order to database. Please try again.';
         }
-        array_unshift($_SESSION['purchases'], $orderRecord);
+        
+        if (empty($checkoutErrors)) {
+            $orderRecord = [
+                'id'             => $orderId,
+                'user_id'        => $_SESSION['user']['user_id'],
+                'username'       => $_SESSION['user']['username'],
+                'items'          => $_SESSION['cart'],
+                'subtotal'       => $subtotal,
+                'tax'            => $tax,
+                'grand_total'    => $grandTotal,
+                'payment_method' => $paymentMethod,
+                'ordered_at'     => date('M j, Y g:i A'),
+            ];
 
-        $checkoutSuccess = true;
-        $checkoutMessage = 'Order <strong>' . htmlspecialchars($orderId) . '</strong> placed successfully!';
-        $_SESSION['cart'] = [];
-        $total = 0;
+            // Save to last_order for receipt display
+            $_SESSION['last_order'] = $orderRecord;
+
+            // ── Persist to user purchase history ─────────────────────────────
+            if (!isset($_SESSION['purchases']) || !is_array($_SESSION['purchases'])) {
+                $_SESSION['purchases'] = [];
+            }
+            array_unshift($_SESSION['purchases'], $orderRecord);
+
+            $checkoutSuccess = true;
+            $checkoutMessage = 'Order <strong>' . htmlspecialchars($orderId) . '</strong> placed successfully!';
+            $_SESSION['cart'] = [];
+            $total = 0;
+        }
     }
 }
 

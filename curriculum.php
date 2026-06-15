@@ -70,6 +70,40 @@ $curriculumData = [
         'assessments' => ['Lab practicals', 'Analysis report submissions']
     ],
     4 => [
+$curriculumData = [
+    1 => [
+        'modules' => [
+            ['name' => 'Introduction to Penetration Testing', 'lessons' => 8, 'duration' => '2 weeks'],
+            ['name' => 'Reconnaissance & Footprinting', 'lessons' => 12, 'duration' => '3 weeks'],
+            ['name' => 'Scanning & Enumeration', 'lessons' => 10, 'duration' => '2 weeks'],
+            ['name' => 'Exploitation Fundamentals', 'lessons' => 15, 'duration' => '4 weeks'],
+            ['name' => 'Post-Exploitation Techniques', 'lessons' => 11, 'duration' => '3 weeks'],
+            ['name' => 'Web Application Penetration Testing', 'lessons' => 18, 'duration' => '5 weeks'],
+        ],
+        'objectives' => ['Master ethical hacking methodologies', 'Perform real-world penetration tests', 'Create professional security reports'],
+        'assessments' => ['Mid-term practical exam', 'Final capstone project', 'Written certification exam']
+    ],
+    2 => [
+        'modules' => [
+            ['name' => 'Networking Basics', 'lessons' => 6, 'duration' => '1 week'],
+            ['name' => 'TCP/IP Protocol Suite', 'lessons' => 10, 'duration' => '2 weeks'],
+            ['name' => 'Firewalls & IDS/IPS', 'lessons' => 8, 'duration' => '2 weeks'],
+            ['name' => 'VPN & Encryption', 'lessons' => 7, 'duration' => '1.5 weeks'],
+        ],
+        'objectives' => ['Understand core network security concepts', 'Implement network security controls', 'Troubleshoot security issues'],
+        'assessments' => ['Chapter quizzes', 'Practical lab assignments', 'Final comprehensive exam']
+    ],
+    3 => [
+        'modules' => [
+            ['name' => 'Sandbox Environment Setup', 'lessons' => 3, 'duration' => '1 day'],
+            ['name' => 'Malware Classification', 'lessons' => 5, 'duration' => '3 days'],
+            ['name' => 'Static Analysis', 'lessons' => 8, 'duration' => '1 week'],
+            ['name' => 'Dynamic Analysis', 'lessons' => 10, 'duration' => '1.5 weeks'],
+        ],
+        'objectives' => ['Set up a safe analysis environment', 'Analyze malware samples', 'Generate detailed analysis reports'],
+        'assessments' => ['Lab practicals', 'Analysis report submissions']
+    ],
+    4 => [
         'modules' => [
             ['name' => 'Security Operations Center Overview', 'lessons' => 5, 'duration' => '1 week'],
             ['name' => 'SIEM Implementation', 'lessons' => 12, 'duration' => '3 weeks'],
@@ -98,18 +132,6 @@ $curriculumData = [
         'assessments' => ['Hands-on labs', 'Capture-the-Flag challenges', 'Final practical exam']
     ]
 ];
-
-include 'includes/header.php';
-?>
-
-<div class="bg-gray-100 min-h-screen">
-    <div class="container mx-auto px-4 py-8">
-        <nav class="flex items-center gap-2 text-sm text-gray-500 mb-8">
-            <a href="market.php" class="text-blue-800 hover:underline">Marketplace</a>
-            <span>/</span>
-            <span class="text-gray-700 font-semibold">Curriculum</span>
-        </nav>
-        
         <h1 class="text-4xl font-bold text-gray-800 mb-2">Full Curriculum</h1>
         <p class="text-gray-600 mb-8">Explore complete learning paths for all courses, books, and resources</p>
 

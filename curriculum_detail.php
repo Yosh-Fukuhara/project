@@ -2,10 +2,10 @@
 require_once 'includes/bootstrap.php';
 require_once 'autoload.php';
 require_once 'data/products.php';
+require_once 'data/products.php';
 
 $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 $product = null;
-
 foreach ($products as $p) {
     if ($p['id'] === $id) {
         $product = $p;
@@ -13,16 +13,16 @@ foreach ($products as $p) {
     }
 }
 
-if (!$product) {
-    header('Location: curriculum.php');
-    exit;
-}
-
 $pageTitle = $product['name'] . ' - Curriculum Detail';
 $currentPage = 'market';
 
 // Re-using the curriculum data structure from curriculum.php
 $curriculumData = [
+    1 => [
+        'modules' => [
+            ['name' => 'Introduction to Penetration Testing', 'lessons' => 8, 'duration' => '2 weeks'],
+// Re-using the curriculum data structure from curriculum.php
+            ['name' => 'Scanning & Enumeration', 'lessons' => 10, 'duration' => '2 weeks'],
     1 => [
         'modules' => [
             ['name' => 'Introduction to Penetration Testing', 'lessons' => 8, 'duration' => '2 weeks'],
@@ -81,6 +81,15 @@ $curriculumData = [
             ['name' => 'Advanced Exploitation', 'lessons' => 12, 'duration' => '3 weeks'],
         ],
         'objectives' => ['Identify web vulnerabilities', 'Exploit common flaws', 'Secure web applications'],
+        'assessments' => ['Hands-on labs', 'Capture-the-Flag challenges', 'Final practical exam']
+    ]
+];
+
+        'assessments' => ['Simulated incident response drills', 'Capstone project', 'Certification prep']
+if (isset($_SESSION['purchases'])) {
+    foreach ($_SESSION['purchases'] as $order) {
+        foreach ($order['items'] as $item) {
+            $purchasedIds[] = $item['id'];
         'assessments' => ['Hands-on labs', 'Capture-the-Flag challenges', 'Final practical exam']
     ]
 ];
