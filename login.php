@@ -184,7 +184,7 @@ $currentPage = 'login';
         </a>
 
         <div class="text-center mt-6">
-            <a href="employer_apply.php" class="text-blue-600 hover:underline text-sm">
+            <a href="employer_apply.php?from=login.php" class="text-blue-600 hover:underline text-sm">
                 Are you an employer? Apply here.
             </a>
         </div>

@@ -1,5 +1,6 @@
 <?php
 require_once 'includes/bootstrap.php';
+require_once 'role_helpers.php';
 
 if (!isset($_SESSION['user'])) {
     header('Location: login.php');
@@ -818,6 +819,45 @@ include 'includes/header.php';
                         <?php if (count($purchases) > 5): ?>
                             <p class="text-xs text-gray-400 mt-2 text-right"><?php echo count($purchases) - 5; ?> more order(s) not shown</p>
                         <?php endif; ?>
+                    <?php endif; ?>
+                </div>
+
+                <!-- ── Employer Application ── -->
+                <div class="bg-white border border-gray-200 rounded-xl p-5">
+                    <h3 class="font-semibold text-lg text-gray-900 mb-2 flex items-center gap-2">
+                        <svg class="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                        </svg>
+                        Employer Account
+                    </h3>
+                    <?php
+                    $employerApp = cs_get_employer_application_by_email($_SESSION['user']['email']);
+                    if ($_SESSION['user']['role'] === 'employer' || ($employerApp && $employerApp['status'] === 'approved')):
+                    ?>
+                        <div class="flex items-center gap-2 text-green-700">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                            </svg>
+                            <span class="font-semibold">Verified Employer</span>
+                        </div>
+                        <a href="employer_dashboard.php" class="mt-2 inline-block bg-purple-700 text-white px-4 py-2 rounded-xl hover:bg-purple-800 transition text-sm font-semibold">
+                            Go to Employer Dashboard
+                        </a>
+                    <?php elseif ($employerApp): ?>
+                        <div class="space-y-2">
+                            <div class="flex items-center gap-2 text-yellow-700">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                <span class="font-semibold"><?php echo ucfirst($employerApp['status']); ?></span>
+                            </div>
+                            <p class="text-gray-500 text-sm">Submitted at: <?php echo htmlspecialchars($employerApp['submitted_at'] ?? ''); ?></p>
+                        </div>
+                    <?php else: ?>
+                        <p class="text-gray-500 text-sm mb-3">Want to post hiring jobs?</p>
+                        <a href="employer_apply.php?from=profile.php" class="inline-block bg-blue-900 text-white px-4 py-2 rounded-xl hover:bg-blue-800 transition text-sm font-semibold">
+                            Apply for Employer Account
+                        </a>
                     <?php endif; ?>
                 </div>
 

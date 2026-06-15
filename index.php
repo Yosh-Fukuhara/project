@@ -960,7 +960,7 @@ include 'includes/header.php';
                             <?php if (isset($_SESSION['user']) && !cs_is_employer() && !cs_is_admin()): ?>
                             <p class="text-xs text-gray-400 mt-2">
                                 Want to post hiring jobs?
-                                <a href="employer_apply.php" class="text-purple-700 font-semibold hover:underline">Apply for an Employer account</a>
+                                <a href="employer_apply.php?from=index.php" class="text-purple-700 font-semibold hover:underline">Apply for an Employer account</a>
                             </p>
                             <?php endif; ?>
                         </div>

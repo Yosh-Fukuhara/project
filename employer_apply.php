@@ -7,6 +7,12 @@ $currentPage = 'employer_apply';
 $errors  = [];
 $success = '';
 
+// Track where the user came from
+if (isset($_GET['from']) && in_array($_GET['from'], ['index.php', 'login.php', 'profile.php'])) {
+    $_SESSION['employer_apply_back'] = $_GET['from'];
+}
+$backUrl = $_SESSION['employer_apply_back'] ?? (isset($_SESSION['user']) ? 'index.php' : 'login.php');
+
 // Already employer or admin — go to dashboard
 if (isset($_SESSION['user']) && in_array($_SESSION['user']['role'] ?? '', ['employer', 'admin'])) {
     header('Location: employer_dashboard.php'); exit;
@@ -62,9 +68,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$existingApp) {
         }
 
         if (empty($errors)) {
-            $appId = 'eapp_' . uniqid('', true);
             $app = [
-                'id'            => $appId,
                 'company_name'  => $companyName,
                 'industry'      => $industry,
                 'company_size'  => $companySize,
@@ -79,7 +83,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$existingApp) {
                 'submitted_at'  => date('M j, Y g:i A'),
                 'reviewed_at'   => null,
             ];
-            cs_save_employer_application($app);
+            $savedApp = cs_save_employer_application($app);
 
             // Notify admin (stored in session — admin will see on login)
             if (!isset($_SESSION['admin_notifications'])) $_SESSION['admin_notifications'] = [];
@@ -90,7 +94,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$existingApp) {
             ]);
 
             $success    = 'Your application has been submitted! An admin will review it shortly.';
-            $existingApp = $app;
+            $existingApp = $savedApp;
         }
     }
 }
@@ -106,7 +110,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$existingApp) {
 <body class="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-start justify-center p-4 py-12">
 <div class="w-full max-w-2xl">
 
-    <a href="<?php echo isset($_SESSION['user']) ? 'index.php' : 'login.php'; ?>"
+    <a href="<?php echo htmlspecialchars($backUrl); ?>"
        class="flex items-center gap-2 text-blue-900 font-semibold hover:underline mb-6 text-sm">
         ← Back
     </a>

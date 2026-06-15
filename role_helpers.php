@@ -198,7 +198,7 @@ function cs_get_employer_application_by_email(string $email): ?array {
     }
 }
 
-function cs_save_employer_application(array $app): void {
+function cs_save_employer_application(array $app): ?array {
     try {
         $pdo = get_db_connection();
         
@@ -227,6 +227,7 @@ function cs_save_employer_application(array $app): void {
                 $app['status'],
                 $idInt
             ]);
+            return cs_get_employer_application_by_id((string)$idInt);
         } else {
             $stmt = $pdo->prepare('INSERT INTO employer_applications (
                 user_id, company_name, industry, company_size, website, 
@@ -256,32 +257,43 @@ function cs_save_employer_application(array $app): void {
                     json_encode($app['documents'] ?? []),
                     'pending'
                 ]);
+                $newId = $pdo->lastInsertId();
+                return cs_get_employer_application_by_id((string)$newId);
             }
         }
     } catch (Exception $e) {
-        // Ignore errors for now
+        error_log("cs_save_employer_application error: " . $e->getMessage());
     }
+    return null;
 }
 
 function cs_update_employer_application_status(string $id, string $status): void {
     $idInt = (int)$id;
     try {
         $pdo = get_db_connection();
+        
+        // First get the user_id for this application
+        $stmtGetUser = $pdo->prepare('SELECT user_id FROM employer_applications WHERE eapp_id = ?');
+        $stmtGetUser->execute([$idInt]);
+        $userId = $stmtGetUser->fetchColumn();
+        
+        // Update the application status
         $stmt = $pdo->prepare('UPDATE employer_applications SET status = ?, reviewed_at = CURRENT_TIMESTAMP WHERE eapp_id = ?');
         $stmt->execute([$status, $idInt]);
         
         // If approved, update user's role in users table
-        if ($status === 'approved') {
-            $stmt2 = $pdo->prepare('SELECT user_id FROM employer_applications WHERE eapp_id = ?');
-            $stmt2->execute([$idInt]);
-            $userId = $stmt2->fetchColumn();
-            if ($userId) {
-                $stmt3 = $pdo->prepare('UPDATE users SET role = ? WHERE user_id = ?');
-                $stmt3->execute(['employer', $userId]);
-            }
+        if ($status === 'approved' && $userId) {
+            $stmt3 = $pdo->prepare('UPDATE users SET role = ? WHERE user_id = ?');
+            $stmt3->execute(['employer', $userId]);
+            
+            // Send notification to the user
+            cs_save_notification($userId, '🎉 Your employer application has been approved! You can now post hiring jobs!', 'index.php');
+        } elseif ($status === 'rejected' && $userId) {
+            // Send notification for rejection too
+            cs_save_notification($userId, 'Your employer application has been rejected. Please contact support for more information.', 'index.php');
         }
     } catch (Exception $e) {
-        // Ignore errors
+        error_log("cs_update_employer_application_status error: " . $e->getMessage());
     }
 }
 
