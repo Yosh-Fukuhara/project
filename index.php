@@ -1176,7 +1176,7 @@ include 'includes/header.php';
                 if ($isOwnPost) {
                     $authorProfileUrl = 'profile.php';
                 } elseif (!empty($post['email'])) {
-                    $authorProfileUrl = 'view_profile.php?username=' . urlencode($post['username'] ?? $authorId);
+                    $authorProfileUrl = 'view_profile.php?email=' . urlencode($post['email']);
                 } else {
                     $authorProfileUrl = 'view_profile.php?username=' . urlencode($authorId);
                 }

@@ -8,23 +8,69 @@ $isOwnProfile = false;
 try {
     $pdo = get_db_connection();
 
+    // Try to find user by id first
+    $foundUser = null;
     if (isset($_GET['id']) && is_numeric($_GET['id'])) {
         $stmt = $pdo->prepare(
             'SELECT user_id, first_name, last_name, email, role, status, created_at
              FROM users WHERE user_id = ? AND status = "active" LIMIT 1'
         );
         $stmt->execute([(int)$_GET['id']]);
-        $viewedUser = $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
-        if ($viewedUser) {
-            // Get profile data
-            $profileStmt = $pdo->prepare('SELECT profile_pic, cover_pic, bio, location, website, phone FROM user_profiles WHERE user_id = ? LIMIT 1');
-            $profileStmt->execute([$viewedUser['user_id']]);
-            $profile = $profileStmt->fetch(PDO::FETCH_ASSOC);
-            if ($profile) {
-                $viewedUser = array_merge($viewedUser, $profile);
-            }
-            $viewedUser['username'] = $viewedUser['first_name'] . ' ' . $viewedUser['last_name'];
+        $foundUser = $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
+    }
+    // If not found, try by email
+    if (!$foundUser && isset($_GET['email'])) {
+        $stmt = $pdo->prepare(
+            'SELECT user_id, first_name, last_name, email, role, status, created_at
+             FROM users WHERE email = ? AND status = "active" LIMIT 1'
+        );
+        $stmt->execute([$_GET['email']]);
+        $foundUser = $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
+    }
+    // If not found, try by username (first_name + last_name)
+    if (!$foundUser && isset($_GET['username'])) {
+        $searchName = trim($_GET['username']);
+        $stmt = $pdo->prepare(
+            'SELECT user_id, first_name, last_name, email, role, status, created_at
+             FROM users 
+             WHERE CONCAT(first_name, " ", last_name) LIKE ? AND status = "active" 
+             LIMIT 1'
+        );
+        $stmt->execute(["%$searchName%"]);
+        $foundUser = $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
+    }
+    
+    if ($foundUser) {
+        $viewedUser = array_merge([
+            'work' => null,
+            'education' => null,
+            'website' => null
+        ], $foundUser);
+        // Get profile data
+        $profileStmt = $pdo->prepare('SELECT profile_pic, cover_pic, bio, location, website, phone FROM user_profiles WHERE user_id = ? LIMIT 1');
+        $profileStmt->execute([$viewedUser['user_id']]);
+        $profile = $profileStmt->fetch(PDO::FETCH_ASSOC);
+        if ($profile) {
+            $viewedUser = array_merge($viewedUser, $profile);
         }
+        
+        // Get work experience
+        $workStmt = $pdo->prepare('SELECT company, title FROM user_work WHERE user_id = ? ORDER BY work_id DESC LIMIT 1');
+        $workStmt->execute([$viewedUser['user_id']]);
+        $work = $workStmt->fetch(PDO::FETCH_ASSOC);
+        if ($work) {
+            $viewedUser['work'] = $work['title'] . ' at ' . $work['company'];
+        }
+        
+        // Get education
+        $eduStmt = $pdo->prepare('SELECT school, degree FROM user_education WHERE user_id = ? ORDER BY edu_id DESC LIMIT 1');
+        $eduStmt->execute([$viewedUser['user_id']]);
+        $edu = $eduStmt->fetch(PDO::FETCH_ASSOC);
+        if ($edu) {
+            $viewedUser['education'] = $edu['degree'] . ' - ' . $edu['school'];
+        }
+        
+        $viewedUser['username'] = $viewedUser['first_name'] . ' ' . $viewedUser['last_name'];
     }
 } catch (Exception $e) {
     $viewedUser = null;
@@ -137,9 +183,9 @@ include 'includes/header.php';
         <!-- Details Grid -->
         <?php
         $details = [
-            ['icon' => 'M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z', 'label' => 'Work', 'value' => $viewedUser['work']],
-            ['icon' => 'M12 14l9-5-9-5-9 5 9 5zm0 7l-9-5 9 5 9-5-9 5zm0-14l-9 5 9 5 9-5-9-5z', 'label' => 'Education', 'value' => $viewedUser['education']],
-            ['icon' => 'M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9', 'label' => 'Website', 'value' => $viewedUser['website'], 'link' => true],
+            ['icon' => 'M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z', 'label' => 'Work', 'value' => $viewedUser['work'] ?? null],
+            ['icon' => 'M12 14l9-5-9-5-9 5 9 5zm0 7l-9-5 9 5 9-5-9 5zm0-14l-9 5 9 5 9-5-9 5z', 'label' => 'Education', 'value' => $viewedUser['education'] ?? null],
+            ['icon' => 'M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9', 'label' => 'Website', 'value' => $viewedUser['website'] ?? null, 'link' => true],
         ];
         $hasDetails = array_filter($details, fn($d) => !empty($d['value']));
         if ($hasDetails):
@@ -195,16 +241,36 @@ include 'includes/header.php';
             try {
                 $pdo2 = get_db_connection();
                 $pStmt = $pdo2->prepare(
-                    'SELECT p.id, p.content, p.attachment_path, p.created_at,
-                            u.username, u.profile_pic
+                    'SELECT p.post_id, p.content, p.created_at,
+                            u.first_name, u.last_name, up.profile_pic
                      FROM posts p
-                     JOIN users u ON u.id = p.user_id
+                     JOIN users u ON u.user_id = p.user_id
+                     LEFT JOIN user_profiles up ON up.user_id = u.user_id
                      WHERE p.user_id = ?
                      ORDER BY p.created_at DESC
                      LIMIT 10'
                 );
-                $pStmt->execute([$viewedUser['id']]);
-                $userPosts = $pStmt->fetchAll(PDO::FETCH_ASSOC);
+                $pStmt->execute([$viewedUser['user_id']]);
+                $rawPosts = $pStmt->fetchAll(PDO::FETCH_ASSOC);
+                // Now get any attachments for each post
+                foreach ($rawPosts as $p) {
+                    $post = [
+                        'id' => $p['post_id'],
+                        'content' => $p['content'],
+                        'created_at' => $p['created_at'],
+                        'username' => $p['first_name'] . ' ' . $p['last_name'],
+                        'profile_pic' => $p['profile_pic'] ?? null,
+                        'attachment_path' => null
+                    ];
+                    // Get attachments from post_attachments
+                    $aStmt = $pdo2->prepare('SELECT file_path FROM post_attachments WHERE post_id = ? LIMIT 1');
+                    $aStmt->execute([$p['post_id']]);
+                    $attachment = $aStmt->fetch(PDO::FETCH_ASSOC);
+                    if ($attachment) {
+                        $post['attachment_path'] = $attachment['file_path'];
+                    }
+                    $userPosts[] = $post;
+                }
             } catch (Exception $e) {
                 $userPosts = [];
             }
