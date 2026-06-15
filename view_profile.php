@@ -155,7 +155,7 @@ include 'includes/header.php';
                     <!-- Message Button (only for logged-in users) -->
                     <?php if (isset($_SESSION['user'])): ?>
                     <div class="flex gap-2 mt-2 sm:mt-8">
-                        <a href="messages.php"
+                        <a href="messages.php?user=<?php echo urlencode($viewedUser['user_id']); ?>"
                            class="flex items-center gap-2 bg-blue-900 text-white px-5 py-2 rounded-xl font-semibold hover:bg-blue-800 transition text-sm">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"

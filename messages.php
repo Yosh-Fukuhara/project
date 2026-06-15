@@ -9,6 +9,121 @@ if (!isset($_SESSION['user'])) {
 $pageTitle = 'Messages - CyberSphere';
 $currentPage = 'messages';
 
+// Check if we're opening a conversation with a specific user
+if (isset($_GET['user'])) {
+    $other_user_id = (int)$_GET['user'];
+    $my_id = $_SESSION['user']['user_id'];
+    if ($other_user_id && $other_user_id != $my_id) {
+        $conv = get_or_create_conversation($my_id, $other_user_id);
+        if ($conv) {
+            header('Location: messages.php?conv=' . urlencode($conv['conversation_id']));
+            exit;
+        }
+    }
+}
+
+// Helper function to get user info from DB
+function get_user_info($user_id) {
+    static $cache = [];
+    if (isset($cache[$user_id])) return $cache[$user_id];
+    try {
+        $pdo = get_db_connection();
+        $stmt = $pdo->prepare("SELECT user_id, first_name, last_name, email FROM users WHERE user_id = ?");
+        $stmt->execute([$user_id]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($user) {
+            $cache[$user_id] = $user;
+            return $user;
+        }
+    } catch (Exception $e) {
+        // Fallback
+    }
+    $cache[$user_id] = null;
+    return null;
+}
+
+// Helper function to get or create conversation
+function get_or_create_conversation($my_id, $other_id) {
+    if ($my_id == $other_id) return null;
+    $low = min($my_id, $other_id);
+    $high = max($my_id, $other_id);
+    try {
+        $pdo = get_db_connection();
+        $stmt = $pdo->prepare("SELECT conversation_id, user_a, user_b, created_at FROM conversations WHERE (user_a = ? AND user_b = ?) OR (user_a = ? AND user_b = ?)");
+        $stmt->execute([$low, $high, $low, $high]);
+        $conv = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($conv) return $conv;
+        
+        $stmt = $pdo->prepare("INSERT INTO conversations (user_a, user_b) VALUES (?, ?)");
+        $stmt->execute([$low, $high]);
+        return [
+            'conversation_id' => $pdo->lastInsertId(),
+            'user_a' => $low,
+            'user_b' => $high,
+            'created_at' => date('Y-m-d H:i:s')
+        ];
+    } catch (Exception $e) {
+        return null;
+    }
+}
+
+// Helper function to get all conversations for current user
+function get_conversations($my_id) {
+    try {
+        $pdo = get_db_connection();
+        $stmt = $pdo->prepare("
+            SELECT 
+                c.conversation_id, 
+                c.user_a, 
+                c.user_b, 
+                c.created_at,
+                m.body,
+                m.sent_at,
+                m.sender_id,
+                COUNT(CASE WHEN m.is_read = 0 AND m.sender_id != ? THEN 1 END) as unread_count
+            FROM conversations c
+            LEFT JOIN messages m ON m.conversation_id = c.conversation_id 
+                AND m.message_id = (SELECT MAX(message_id) FROM messages WHERE conversation_id = c.conversation_id)
+            WHERE c.user_a = ? OR c.user_b = ?
+            GROUP BY c.conversation_id
+            ORDER BY m.sent_at DESC, c.created_at DESC
+        ");
+        $stmt->execute([$my_id, $my_id, $my_id]);
+        $conversations = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        return $conversations;
+    } catch (Exception $e) {
+        return [];
+    }
+}
+
+// Helper function to get messages for a conversation
+function get_conversation_messages($conversation_id) {
+    try {
+        $pdo = get_db_connection();
+        $stmt = $pdo->prepare("
+            SELECT message_id, conversation_id, sender_id, body, is_read, sent_at
+            FROM messages
+            WHERE conversation_id = ?
+            ORDER BY sent_at ASC
+        ");
+        $stmt->execute([$conversation_id]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Exception $e) {
+        return [];
+    }
+}
+
+// Mark messages as read
+function mark_messages_as_read($conversation_id, $user_id) {
+    try {
+        $pdo = get_db_connection();
+        $stmt = $pdo->prepare("UPDATE messages SET is_read = 1 WHERE conversation_id = ? AND sender_id != ?");
+        $stmt->execute([$conversation_id, $user_id]);
+    } catch (Exception $e) {
+        // Ignore
+    }
+}
+
 function cs_format_time($ts) {
     // Keep UI consistent with the existing design (e.g., "10:35 AM")
     return date('g:i A', $ts);
@@ -254,65 +369,45 @@ function cs_handle_attachments_upload($files) {
     return $result;
 }
 
-if (!isset($_SESSION['messages']) || !is_array($_SESSION['messages'])) {
-    $_SESSION['messages'] = [
-        [
-            'id' => 'conv1',
-            'otherUser' => ['email' => 'hr@netsentinel.com', 'username' => 'HR - NetSentinel', 'avatar' => '🛡️'],
-            'messages' => [
-                ['id' => 'msg_seed_1', 'from' => 'hr@netsentinel.com', 'text' => 'Hi there! We saw your application for the Penetration Tester position.', 'ts' => time() - 300, 'time' => cs_format_time(time() - 300), 'attachments' => [], 'pinned' => false, 'edited' => false],
-                ['id' => 'msg_seed_2', 'from' => $_SESSION['user']['email'], 'text' => 'Hi! Thank you for reaching out. I\'m very interested in the role.', 'ts' => time() - 180, 'time' => cs_format_time(time() - 180), 'attachments' => [], 'pinned' => false, 'edited' => false],
-                ['id' => 'msg_seed_3', 'from' => 'hr@netsentinel.com', 'text' => 'Great! We\'d like to schedule an interview. Are you available this week?', 'ts' => time() - 60, 'time' => cs_format_time(time() - 60), 'attachments' => [], 'pinned' => false, 'edited' => false],
-            ],
-            'unread' => 1
-        ],
-        [
-            'id' => 'conv2',
-            'otherUser' => ['email' => 'securebank@example.com', 'username' => 'SecureBank Hiring', 'avatar' => '🏦'],
-            'messages' => [
-                ['id' => 'msg_seed_4', 'from' => 'securebank@example.com', 'text' => 'Hello! We have a question about your GRC Specialist application.', 'ts' => time() - 86400, 'time' => 'Yesterday', 'attachments' => [], 'pinned' => false, 'edited' => false],
-            ],
-            'unread' => 1
-        ]
-    ];
-}
-
-// Ensure message schema exists for sessions created before these features
-if (isset($_SESSION['messages']) && is_array($_SESSION['messages'])) {
-    foreach ($_SESSION['messages'] as &$conv) {
-        if (empty($conv['messages']) || !is_array($conv['messages'])) continue;
-        $base = time() - (count($conv['messages']) * 60);
-        foreach ($conv['messages'] as $idx => &$m) {
-            if (!isset($m['id'])) $m['id'] = 'msg_' . uniqid('', true);
-            if (!isset($m['ts'])) $m['ts'] = $base + ($idx * 60);
-            if (!isset($m['time'])) $m['time'] = cs_format_time((int)$m['ts']);
-            if (!isset($m['attachments']) || !is_array($m['attachments'])) $m['attachments'] = [];
-            if (!isset($m['pinned'])) $m['pinned'] = false;
-            if (!isset($m['edited'])) $m['edited'] = false;
-        }
-        unset($m);
-    }
-    unset($conv);
-}
-
 // ── AJAX actions (send/edit/delete/pin + fetch HTML) ──
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     header('Content-Type: application/json');
 
     $action = $_POST['action'] ?? '';
     $convId = $_POST['conv'] ?? '';
-    $userEmail = $_SESSION['user']['email'];
-    $convIndex = $convId ? cs_find_conversation_index($convId) : null;
-
-    if ($convId && $convIndex === null) {
+    $my_id = $_SESSION['user']['user_id'];
+    $my_email = $_SESSION['user']['email'];
+    
+    // Get conversation and verify access
+    $pdo = get_db_connection();
+    $stmt = $pdo->prepare("SELECT conversation_id, user_a, user_b FROM conversations WHERE conversation_id = ?");
+    $stmt->execute([$convId]);
+    $conv = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if (!$conv || ($conv['user_a'] != $my_id && $conv['user_b'] != $my_id)) {
         echo json_encode(['ok' => false, 'error' => 'Conversation not found.']);
         exit;
     }
 
     if ($action === 'fetch_messages_html') {
-        $html = cs_render_messages_area_html($_SESSION['messages'][$convIndex], $userEmail);
-        $pinnedBar = cs_render_pinned_bar_html($_SESSION['messages'][$convIndex]);
-        echo json_encode(['ok' => true, 'messages_html' => $html, 'pinned_bar_html' => $pinnedBar]);
+        $messages = get_conversation_messages($convId);
+        $html = '';
+        foreach ($messages as $m) {
+            $sender = get_user_info($m['sender_id']);
+            $from = $sender['email'] ?? '';
+            $msg = [
+                'id' => $m['message_id'],
+                'from' => $from,
+                'text' => $m['body'],
+                'ts' => strtotime($m['sent_at']),
+                'time' => cs_format_time(strtotime($m['sent_at'])),
+                'attachments' => [],
+                'pinned' => false,
+                'edited' => false
+            ];
+            $html .= cs_render_message_html($msg, $my_email);
+        }
+        echo json_encode(['ok' => true, 'messages_html' => $html, 'pinned_bar_html' => '']);
         exit;
     }
 
@@ -325,10 +420,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             exit;
         }
 
+        // Save to DB
+        $stmt = $pdo->prepare("INSERT INTO messages (conversation_id, sender_id, body, is_read) VALUES (?, ?, ?, 0)");
+        $stmt->execute([$convId, $my_id, $text]);
+        $message_id = $pdo->lastInsertId();
+        
+        // Save attachments (if any)
+        foreach ($attachments as $att) {
+            $stmt_att = $pdo->prepare("INSERT INTO message_attachments (message_id, file_name, file_url) VALUES (?, ?, ?)");
+            $stmt_att->execute([$message_id, $att['name'], $att['url']]);
+        }
+        
         $ts = time();
         $msg = [
-            'id' => 'msg_' . uniqid('', true),
-            'from' => $userEmail,
+            'id' => $message_id,
+            'from' => $my_email,
             'text' => $text,
             'ts' => $ts,
             'time' => cs_format_time($ts),
@@ -337,12 +443,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             'edited' => false,
         ];
 
-        $_SESSION['messages'][$convIndex]['messages'][] = $msg;
-
         $previewText = $text !== '' ? $text : '[Attachment]';
         echo json_encode([
             'ok' => true,
-            'message_html' => cs_render_message_html($msg, $userEmail),
+            'message_html' => cs_render_message_html($msg, $my_email),
             'preview_text' => $previewText,
             'preview_time' => cs_format_time($ts),
         ]);
@@ -350,54 +454,76 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     }
 
     $messageId = $_POST['message_id'] ?? '';
-    $msgIndex = ($convIndex !== null && $messageId) ? cs_find_message_index($convIndex, $messageId) : null;
-    if ($msgIndex === null) {
+    // Verify message belongs to conversation and user is sender
+    $stmt = $pdo->prepare("SELECT message_id, sender_id FROM messages WHERE message_id = ? AND conversation_id = ?");
+    $stmt->execute([$messageId, $convId]);
+    $msg = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$msg) {
         echo json_encode(['ok' => false, 'error' => 'Message not found.']);
         exit;
     }
 
     if ($action === 'edit_message') {
-        if (($_SESSION['messages'][$convIndex]['messages'][$msgIndex]['from'] ?? '') !== $userEmail) {
+        if ($msg['sender_id'] != $my_id) {
             echo json_encode(['ok' => false, 'error' => 'You can only edit your own messages.']);
             exit;
         }
 
         $newText = trim($_POST['text'] ?? '');
-        $hasAtt = !empty($_SESSION['messages'][$convIndex]['messages'][$msgIndex]['attachments']);
-        if ($newText === '' && !$hasAtt) {
+        if ($newText === '') {
             echo json_encode(['ok' => false, 'error' => 'Message cannot be empty.']);
             exit;
         }
 
-        $_SESSION['messages'][$convIndex]['messages'][$msgIndex]['text'] = $newText;
-        $_SESSION['messages'][$convIndex]['messages'][$msgIndex]['edited'] = true;
-
-        $msg = $_SESSION['messages'][$convIndex]['messages'][$msgIndex];
+        $stmt = $pdo->prepare("UPDATE messages SET body = ? WHERE message_id = ?");
+        $stmt->execute([$newText, $messageId]);
+        
+        $sender = get_user_info($msg['sender_id']);
+        $msg_obj = [
+            'id' => $messageId,
+            'from' => $sender['email'] ?? '',
+            'text' => $newText,
+            'ts' => time(),
+            'time' => cs_format_time(time()),
+            'attachments' => [],
+            'pinned' => false,
+            'edited' => true
+        ];
+        
         echo json_encode([
             'ok' => true,
-            'message_html' => cs_render_message_html($msg, $userEmail),
+            'message_html' => cs_render_message_html($msg_obj, $my_email),
         ]);
         exit;
     }
 
     if ($action === 'delete_message') {
-        if (($_SESSION['messages'][$convIndex]['messages'][$msgIndex]['from'] ?? '') !== $userEmail) {
+        if ($msg['sender_id'] != $my_id) {
             echo json_encode(['ok' => false, 'error' => 'You can only delete your own messages.']);
             exit;
         }
-        array_splice($_SESSION['messages'][$convIndex]['messages'], $msgIndex, 1);
-        $html = cs_render_messages_area_html($_SESSION['messages'][$convIndex], $userEmail);
-        $pinnedBar = cs_render_pinned_bar_html($_SESSION['messages'][$convIndex]);
-        echo json_encode(['ok' => true, 'messages_html' => $html, 'pinned_bar_html' => $pinnedBar]);
-        exit;
-    }
-
-    if ($action === 'toggle_pin') {
-        $cur = !empty($_SESSION['messages'][$convIndex]['messages'][$msgIndex]['pinned']);
-        $_SESSION['messages'][$convIndex]['messages'][$msgIndex]['pinned'] = !$cur;
-        $html = cs_render_messages_area_html($_SESSION['messages'][$convIndex], $userEmail);
-        $pinnedBar = cs_render_pinned_bar_html($_SESSION['messages'][$convIndex]);
-        echo json_encode(['ok' => true, 'messages_html' => $html, 'pinned_bar_html' => $pinnedBar]);
+        
+        $stmt = $pdo->prepare("DELETE FROM messages WHERE message_id = ?");
+        $stmt->execute([$messageId]);
+        
+        $messages = get_conversation_messages($convId);
+        $html = '';
+        foreach ($messages as $m) {
+            $sender = get_user_info($m['sender_id']);
+            $from = $sender['email'] ?? '';
+            $msg_obj = [
+                'id' => $m['message_id'],
+                'from' => $from,
+                'text' => $m['body'],
+                'ts' => strtotime($m['sent_at']),
+                'time' => cs_format_time(strtotime($m['sent_at'])),
+                'attachments' => [],
+                'pinned' => false,
+                'edited' => false
+            ];
+            $html .= cs_render_message_html($msg_obj, $my_email);
+        }
+        echo json_encode(['ok' => true, 'messages_html' => $html, 'pinned_bar_html' => '']);
         exit;
     }
 
@@ -405,23 +531,71 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     exit;
 }
 
-$activeConversation = $_GET['conv'] ?? 'conv1';
+$my_id = $_SESSION['user']['user_id'];
+$my_email = $_SESSION['user']['email'];
+
+// Get all conversations for the user
+$conversations = get_conversations($my_id);
+
+// Handle active conversation
+$activeConversationId = $_GET['conv'] ?? null;
 $currentConv = null;
-// Mark conversation as read when opened
-foreach ($_SESSION['messages'] as &$conv) {
-    if ($conv['id'] === $activeConversation) {
-        $conv['unread'] = 0;
-        $currentConv = $conv;
-        break;
+
+if ($activeConversationId) {
+    // Find the active conversation
+    foreach ($conversations as $c) {
+        if ($c['conversation_id'] == $activeConversationId) {
+            $currentConv = $c;
+            break;
+        }
     }
 }
-unset($conv);
-if (!$currentConv) $currentConv = $_SESSION['messages'][0];
 
-// Count total unread across all conversations
+// If no active conversation, pick first one
+if (!$currentConv && !empty($conversations)) {
+    $currentConv = $conversations[0];
+    $activeConversationId = $currentConv['conversation_id'];
+}
+
+// Mark messages as read
+if ($currentConv) {
+    mark_messages_as_read($currentConv['conversation_id'], $my_id);
+}
+
+// Count total unread
 $totalUnread = 0;
-foreach ($_SESSION['messages'] as $conv) {
-    $totalUnread += (int)($conv['unread'] ?? 0);
+foreach ($conversations as $c) {
+    $totalUnread += (int)($c['unread_count'] ?? 0);
+}
+
+// Prepare $currentConv for template
+if ($currentConv) {
+    $other_id = $currentConv['user_a'] == $my_id ? $currentConv['user_b'] : $currentConv['user_a'];
+    $other_user = get_user_info($other_id);
+    $currentConv['otherUser'] = [
+        'id' => $other_id,
+        'email' => $other_user['email'] ?? '',
+        'username' => ($other_user['first_name'] ?? 'User') . ' ' . ($other_user['last_name'] ?? ''),
+        'avatar' => strtoupper(substr($other_user['first_name'] ?? 'U', 0, 1))
+    ];
+    $currentConv['id'] = $currentConv['conversation_id'];
+    
+    // Get messages for current conversation
+    $messages = get_conversation_messages($currentConv['conversation_id']);
+    $currentConv['messages'] = [];
+    foreach ($messages as $m) {
+        $sender = get_user_info($m['sender_id']);
+        $currentConv['messages'][] = [
+            'id' => $m['message_id'],
+            'from' => $sender['email'] ?? '',
+            'text' => $m['body'],
+            'ts' => strtotime($m['sent_at']),
+            'time' => cs_format_time(strtotime($m['sent_at'])),
+            'attachments' => [],
+            'pinned' => false,
+            'edited' => false
+        ];
+    }
 }
 ?>
 <?php include 'includes/header.php'; ?>
@@ -440,20 +614,30 @@ foreach ($_SESSION['messages'] as $conv) {
                     <?php endif; ?>
                 </div>
                 <div class="flex-1 overflow-y-auto min-h-0">
-                    <?php foreach ($_SESSION['messages'] as $conv): ?>
-                    <a href="messages.php?conv=<?php echo urlencode($conv['id']); ?>" data-conv-id="<?php echo htmlspecialchars($conv['id']); ?>" class="flex items-center gap-3 p-4 hover:bg-gray-50 cursor-pointer transition <?php echo $conv['id'] === $activeConversation ? 'bg-blue-50' : ''; ?>">
+                    <?php foreach ($conversations as $conv): ?>
+                        <?php 
+                        $other_id = $conv['user_a'] == $my_id ? $conv['user_b'] : $conv['user_a'];
+                        $other_user = get_user_info($other_id);
+                        $other_username = ($other_user['first_name'] ?? 'User') . ' ' . ($other_user['last_name'] ?? '');
+                        $other_avatar = strtoupper(substr($other_user['first_name'] ?? 'U', 0, 1));
+                        $last_msg = $conv['body'] ?? '';
+                        $last_time = $conv['sent_at'] ? cs_format_time(strtotime($conv['sent_at'])) : '';
+                        $unread_count = (int)($conv['unread_count'] ?? 0);
+                        $is_active = $activeConversationId == $conv['conversation_id'];
+                        ?>
+                    <a href="messages.php?conv=<?php echo urlencode($conv['conversation_id']); ?>" data-conv-id="<?php echo htmlspecialchars($conv['conversation_id']); ?>" class="flex items-center gap-3 p-4 hover:bg-gray-50 cursor-pointer transition <?php echo $is_active ? 'bg-blue-50' : ''; ?>">
                         <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center text-2xl flex-shrink-0">
-                            <?php echo htmlspecialchars($conv['otherUser']['avatar']); ?>
+                            <?php echo htmlspecialchars($other_avatar); ?>
                         </div>
                         <div class="flex-1 min-w-0">
                             <div class="flex items-center justify-between">
-                                <span class="font-semibold text-gray-800 truncate"><?php echo htmlspecialchars($conv['otherUser']['username']); ?></span>
-                                <span class="text-xs text-gray-400" data-conv-time><?php echo htmlspecialchars($conv['messages'][count($conv['messages'])-1]['time']); ?></span>
+                                <span class="font-semibold text-gray-800 truncate"><?php echo htmlspecialchars($other_username); ?></span>
+                                <span class="text-xs text-gray-400" data-conv-time><?php echo htmlspecialchars($last_time); ?></span>
                             </div>
-                            <p class="text-sm text-gray-500 truncate mt-1" data-conv-preview><?php echo htmlspecialchars($conv['messages'][count($conv['messages'])-1]['text']); ?></p>
+                            <p class="text-sm text-gray-500 truncate mt-1" data-conv-preview><?php echo htmlspecialchars($last_msg); ?></p>
                         </div>
-                        <?php if (($conv['unread'] ?? 0) > 0): ?>
-                        <span class="conv-unread-badge bg-red-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0"><?php echo $conv['unread']; ?></span>
+                        <?php if ($unread_count > 0): ?>
+                        <span class="conv-unread-badge bg-red-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0"><?php echo $unread_count; ?></span>
                         <?php endif; ?>
                     </a>
                     <?php endforeach; ?>
