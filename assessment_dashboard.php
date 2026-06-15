@@ -1,115 +1,75 @@
 <?php
 require_once 'includes/bootstrap.php';
+require_once 'role_helpers.php';
 
-// ── Static simulation data ────────────────────────────────────────────────
-$session = [
-    'id'        => 'sess_netsentinel_001',
-    'title'     => 'SOC Analyst Skill Assessment',
-    'company'   => 'NetSentinel Solutions',
-    'role'      => 'SOC Analyst',
-    'posted_by' => 'hr@netsentinel.com',
-    'created'   => 'May 28, 2026',
-    'deadline'  => 'Jun 5, 2026',
-    'total_pts' => 650,
-    'challenges'=> 5,
-];
+// Get assessment ID from URL parameter
+$assessId = $_GET['assess_id'] ?? null;
+$session = null;
+$challenges = [];
+$applicants = [];
 
-// Simulated applicant results
-$applicants = [
-    [
-        'id'           => 'app_001',
-        'name'         => 'John Doe',
-        'email'        => 'john@example.com',
-        'avatar'       => null,
-        'applied'      => 'May 27, 2026',
-        'completed_at' => 'May 29, 2026 10:14 AM',
-        'time_used'    => '22:37', // mm:ss
-        'time_secs'    => 1357,
-        'score'        => 525,
-        'solved'       => 4,
-        'challenge_results' => [
-            ['id'=>'c1','title'=>'Network Recon',      'pts'=>100,'earned'=>100,'time'=>'04:12','status'=>'correct'],
-            ['id'=>'c2','title'=>'Subnet Calculation', 'pts'=>150,'earned'=>150,'time'=>'06:05','status'=>'correct'],
-            ['id'=>'c3','title'=>'Log Parser',         'pts'=>200,'earned'=>200,'time'=>'08:44','status'=>'submitted'],
-            ['id'=>'c4','title'=>'SIEM Alert Triage',  'pts'=>125,'earned'=>0,  'time'=>'—',    'status'=>'wrong'],
-            ['id'=>'c5','title'=>'Incident Response',  'pts'=>75, 'earned'=>75, 'time'=>'03:36','status'=>'submitted'],
+if ($assessId) {
+    $assessment = cs_get_assessment_by_id($assessId);
+    if ($assessment) {
+        $session = [
+            'id' => $assessment['id'],
+            'title' => $assessment['title'],
+            'company' => $assessment['employer_name'] ?? 'Your Company',
+            'role' => $assessment['role'] ?? '',
+            'posted_by' => $assessment['employer_email'] ?? '',
+            'created' => $assessment['created_at'] ?? date('M j, Y'),
+            'deadline' => 'N/A',
+            'total_pts' => $assessment['total_pts'] ?? 0,
+            'challenges' => count($assessment['challenges']),
+        ];
+        $challenges = $assessment['challenges'];
+        $dbAssessId = $assessment['db_id'] ?? null;
+        if ($dbAssessId) {
+            $applicants = cs_get_assessment_attempts($dbAssessId);
+        }
+    }
+}
+
+// If no real data, fall back to static sample data
+if (!$session) {
+    // ── Static simulation data ────────────────────────────────────────────────
+    $session = [
+        'id'        => 'sess_netsentinel_001',
+        'title'     => 'SOC Analyst Skill Assessment',
+        'company'   => 'NetSentinel Solutions',
+        'role'      => 'SOC Analyst',
+        'posted_by' => 'hr@netsentinel.com',
+        'created'   => 'May 28, 2026',
+        'deadline'  => 'Jun 5, 2026',
+        'total_pts' => 650,
+        'challenges'=> 5,
+    ];
+
+    // Simulated applicant results
+    $applicants = [
+        [
+            'id'           => 'app_001',
+            'name'         => 'John Doe',
+            'email'        => 'john@example.com',
+            'avatar'       => null,
+            'applied'      => 'May 27, 2026',
+            'completed_at' => 'May 29, 2026 10:14 AM',
+            'time_used'    => '22:37', // mm:ss
+            'time_secs'    => 1357,
+            'score'        => 525,
+            'solved'       => 4,
+            'challenge_results' => [
+                ['id'=>'c1','title'=>'Network Recon',      'pts'=>100,'earned'=>100,'time'=>'04:12','status'=>'correct'],
+                ['id'=>'c2','title'=>'Subnet Calculation', 'pts'=>150,'earned'=>150,'time'=>'06:05','status'=>'correct'],
+                ['id'=>'c3','title'=>'Log Parser',         'pts'=>200,'earned'=>200,'time'=>'08:44','status'=>'submitted'],
+                ['id'=>'c4','title'=>'SIEM Alert Triage',  'pts'=>125,'earned'=>0,  'time'=>'—',    'status'=>'wrong'],
+                ['id'=>'c5','title'=>'Incident Response',  'pts'=>75, 'earned'=>75, 'time'=>'03:36','status'=>'submitted'],
+            ],
+            'status' => 'completed',
+            'notes'  => '',
         ],
-        'status' => 'completed',
-        'notes'  => '',
-    ],
-    [
-        'id'           => 'app_002',
-        'name'         => 'Ava Reyes',
-        'email'        => 'ava.reyes@example.com',
-        'avatar'       => null,
-        'applied'      => 'May 27, 2026',
-        'completed_at' => 'May 29, 2026 11:02 AM',
-        'time_used'    => '31:18',
-        'time_secs'    => 1878,
-        'score'        => 450,
-        'solved'       => 3,
-        'challenge_results' => [
-            ['id'=>'c1','title'=>'Network Recon',      'pts'=>100,'earned'=>100,'time'=>'07:30','status'=>'correct'],
-            ['id'=>'c2','title'=>'Subnet Calculation', 'pts'=>150,'earned'=>150,'time'=>'09:14','status'=>'correct'],
-            ['id'=>'c3','title'=>'Log Parser',         'pts'=>200,'earned'=>200,'time'=>'14:34','status'=>'submitted'],
-            ['id'=>'c4','title'=>'SIEM Alert Triage',  'pts'=>125,'earned'=>0,  'time'=>'—',    'status'=>'wrong'],
-            ['id'=>'c5','title'=>'Incident Response',  'pts'=>75, 'earned'=>0,  'time'=>'—',    'status'=>'skipped'],
-        ],
-        'status' => 'completed',
-        'notes'  => '',
-    ],
-    [
-        'id'           => 'app_003',
-        'name'         => 'Luis Tan',
-        'email'        => 'luis.tan@example.com',
-        'avatar'       => null,
-        'applied'      => 'May 28, 2026',
-        'completed_at' => 'May 29, 2026 02:45 PM',
-        'time_used'    => '38:51',
-        'time_secs'    => 2331,
-        'score'        => 375,
-        'solved'       => 3,
-        'challenge_results' => [
-            ['id'=>'c1','title'=>'Network Recon',      'pts'=>100,'earned'=>0,  'time'=>'—',    'status'=>'wrong'],
-            ['id'=>'c2','title'=>'Subnet Calculation', 'pts'=>150,'earned'=>150,'time'=>'12:20','status'=>'correct'],
-            ['id'=>'c3','title'=>'Log Parser',         'pts'=>200,'earned'=>200,'time'=>'18:05','status'=>'submitted'],
-            ['id'=>'c4','title'=>'SIEM Alert Triage',  'pts'=>125,'earned'=>0,  'time'=>'—',    'status'=>'wrong'],
-            ['id'=>'c5','title'=>'Incident Response',  'pts'=>75, 'earned'=>75, 'time'=>'08:26','status'=>'submitted'],
-        ],
-        'status' => 'completed',
-        'notes'  => '',
-    ],
-    [
-        'id'           => 'app_004',
-        'name'         => 'Sofia Mendoza',
-        'email'        => 'sofia.m@example.com',
-        'avatar'       => null,
-        'applied'      => 'May 28, 2026',
-        'completed_at' => null,
-        'time_used'    => null,
-        'time_secs'    => null,
-        'score'        => null,
-        'solved'       => null,
-        'challenge_results' => [],
-        'status' => 'invited',
-        'notes'  => '',
-    ],
-    [
-        'id'           => 'app_005',
-        'name'         => 'Marco Dela Cruz',
-        'email'        => 'marco.dc@example.com',
-        'avatar'       => null,
-        'applied'      => 'May 28, 2026',
-        'completed_at' => null,
-        'time_used'    => null,
-        'time_secs'    => null,
-        'score'        => null,
-        'solved'       => null,
-        'challenge_results' => [],
-        'status' => 'pending',
-        'notes'  => '',
-    ],
-];
+    ];
+}
 
 // Sort completed applicants by score desc, then time asc
 usort($applicants, function($a, $b) {
@@ -374,14 +334,10 @@ $currentPage = 'assessment';
                     <thead>
                         <tr class="bg-gray-50 border-b border-gray-100">
                             <th class="text-left px-6 py-3 font-bold text-gray-600 text-xs uppercase tracking-wide">Applicant</th>
-                            <?php
-                            $challengeTitles = ['Network Recon','Subnet Calc','Log Parser','SIEM Triage','IR Response'];
-                            $challengePts    = [100, 150, 200, 125, 75];
-                            foreach ($challengeTitles as $ci => $ct):
-                            ?>
+                            <?php foreach ($challenges as $ch): ?>
                             <th class="text-center px-3 py-3 font-bold text-gray-600 text-xs uppercase tracking-wide">
-                                <?php echo $ct; ?><br>
-                                <span class="text-gray-400 font-normal normal-case dash-mono"><?php echo $challengePts[$ci]; ?>pts</span>
+                                <?php echo htmlspecialchars($ch['title']); ?><br>
+                                <span class="text-gray-400 font-normal normal-case dash-mono"><?php echo $ch['points']; ?>pts</span>
                             </th>
                             <?php endforeach; ?>
                             <th class="text-center px-4 py-3 font-bold text-gray-600 text-xs uppercase tracking-wide">Total</th>
@@ -393,21 +349,32 @@ $currentPage = 'assessment';
                             <td class="px-6 py-3">
                                 <div class="flex items-center gap-2">
                                     <div class="w-7 h-7 rounded-full bg-blue-100 text-blue-900 font-bold text-xs flex items-center justify-center flex-shrink-0">
-                                        <?php echo strtoupper(substr($app['name'],0,1)); ?>
+                                        <?php echo strtoupper(substr($app['name'], 0, 1)); ?>
                                     </div>
                                     <span class="font-semibold text-gray-800"><?php echo htmlspecialchars($app['name']); ?></span>
                                 </div>
                             </td>
                             <?php
                             if ($app['status'] === 'completed') {
+                                // Create a map of challenge results by challenge id
+                                $resultMap = [];
                                 foreach ($app['challenge_results'] as $cr) {
-                                    $bg = $cr['status'] === 'correct' ? 'bg-green-100 text-green-800' :
-                                          ($cr['status'] === 'submitted' ? 'bg-blue-100 text-blue-800' :
-                                          ($cr['status'] === 'wrong' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-400'));
-                                    echo '<td class="px-3 py-3 text-center"><span class="dash-mono text-xs font-bold px-2.5 py-1 rounded-full ' . $bg . '">' . $cr['earned'] . '</span></td>';
+                                    $resultMap[$cr['id']] = $cr;
+                                }
+                                
+                                foreach ($challenges as $ch) {
+                                    $cr = $resultMap[$ch['id']] ?? null;
+                                    if ($cr) {
+                                        $bg = $cr['status'] === 'correct' ? 'bg-green-100 text-green-800' :
+                                              ($cr['status'] === 'submitted' ? 'bg-blue-100 text-blue-800' :
+                                              ($cr['status'] === 'wrong' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-400'));
+                                        echo '<td class="px-3 py-3 text-center"><span class="dash-mono text-xs font-bold px-2.5 py-1 rounded-full ' . $bg . '">' . $cr['earned'] . '</span></td>';
+                                    } else {
+                                        echo '<td class="px-3 py-3 text-center"><span class="text-gray-300 text-xs">—</span></td>';
+                                    }
                                 }
                             } else {
-                                for ($ci = 0; $ci < 5; $ci++) {
+                                for ($ci = 0; $ci < count($challenges); $ci++) {
                                     echo '<td class="px-3 py-3 text-center"><span class="text-gray-300 text-xs">—</span></td>';
                                 }
                             }

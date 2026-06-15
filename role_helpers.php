@@ -565,7 +565,76 @@ function cs_get_assessment_by_id(string $id): ?array {
     }
 }
 
-// ── Job applications helpers ───────────────────────────────────────────────
+// Get all assessment attempts for a specific assessment
+function cs_get_assessment_attempts(int $assessmentId): array {
+    try {
+        $pdo = get_db_connection();
+        $stmt = $pdo->prepare('
+            SELECT 
+                a.attempt_id, a.session_id, a.user_id, a.started_at, a.completed_at, 
+                a.total_time_secs, a.total_score, a.challenges_solved, a.status,
+                u.first_name, u.last_name, u.email
+            FROM user_assessment_attempts a
+            JOIN users u ON a.user_id = u.user_id
+            JOIN assessment_sessions s ON a.session_id = s.session_id
+            WHERE s.assessment_id = ?
+            ORDER BY a.completed_at DESC
+        ');
+        $stmt->execute([$assessmentId]);
+        $attempts = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $formattedAttempts = [];
+        foreach ($attempts as $att) {
+            // Get challenge answers for this attempt
+            $stmtAnswers = $pdo->prepare('
+                SELECT 
+                    ca.answer_id, ca.challenge_id, ca.submitted_answer, ca.status, 
+                    ca.points_awarded, ch.title, ch.points_available
+                FROM user_challenge_answers ca
+                JOIN assessment_challenges ch ON ca.challenge_id = ch.challenge_id
+                WHERE ca.attempt_id = ?
+                ORDER BY ch.sort_order ASC
+            ');
+            $stmtAnswers->execute([$att['attempt_id']]);
+            $answers = $stmtAnswers->fetchAll(PDO::FETCH_ASSOC);
+
+            $formattedAnswers = [];
+            foreach ($answers as $ans) {
+                $formattedAnswers[] = [
+                    'id' => 'c_' . $ans['challenge_id'],
+                    'title' => $ans['title'],
+                    'pts' => (int) $ans['points_available'],
+                    'earned' => (int) $ans['points_awarded'],
+                    'time' => '—', // We don't track per-challenge time yet
+                    'status' => $ans['status'],
+                    'submitted_answer' => $ans['submitted_answer'],
+                ];
+            }
+
+            $formattedAttempts[] = [
+                'id' => 'app_' . $att['attempt_id'],
+                'name' => trim(($att['first_name'] ?? '') . ' ' . ($att['last_name'] ?? '')) ?: 'Applicant',
+                'email' => $att['email'],
+                'avatar' => null,
+                'applied' => date('M j, Y', strtotime($att['started_at'])),
+                'completed_at' => $att['completed_at'] ? date('M j, Y g:i A', strtotime($att['completed_at'])) : null,
+                'time_used' => $att['total_time_secs'] ? sprintf('%02d:%02d', floor($att['total_time_secs'] / 60), $att['total_time_secs'] % 60) : null,
+                'time_secs' => $att['total_time_secs'],
+                'score' => (int) $att['total_score'],
+                'solved' => (int) $att['challenges_solved'],
+                'challenge_results' => $formattedAnswers,
+                'status' => $att['status'],
+                'notes' => '',
+            ];
+        }
+        return $formattedAttempts;
+    } catch (Exception $e) {
+        error_log("cs_get_assessment_attempts error: " . $e->getMessage());
+        return [];
+    }
+}
+
+// ── Job applications helpers ────────────────────────────────────────────────
 function cs_get_applications_for_post(string $postId): array {
     try {
         $pdo = get_db_connection();

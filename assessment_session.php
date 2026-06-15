@@ -3,6 +3,93 @@ require_once 'includes/bootstrap.php';
 require_once 'role_helpers.php';
 cs_init_assessments();
 
+// ── Handle assessment submission ────────────────────────────────────────────
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'submit_assessment') {
+    // Make sure user is logged in
+    if (!isset($_SESSION['user']['user_id'])) {
+        echo json_encode(['ok' => false, 'error' => 'You must be logged in to submit an assessment.']);
+        exit;
+    }
+
+    $pdo = get_db_connection();
+    $userId = $_SESSION['user']['user_id'];
+    $sessionId = $_POST['assessment_id'] ?? '';
+    $score = (int) ($_POST['score'] ?? 0);
+    $totalSecondsUsed = (int) ($_POST['time_used_secs'] ?? 0);
+    $challengesSolved = (int) ($_POST['solved_count'] ?? 0);
+    $answers = $_POST['answers'] ?? [];
+
+    // Get assessment from ID
+    $assessment = cs_get_assessment_by_id($sessionId);
+    if (!$assessment) {
+        echo json_encode(['ok' => false, 'error' => 'Assessment not found.']);
+        exit;
+    }
+
+    $dbAssessmentId = $assessment['db_id'] ?? null;
+    if (!$dbAssessmentId) {
+        echo json_encode(['ok' => false, 'error' => 'Invalid assessment.']);
+        exit;
+    }
+
+    // First, find or create an assessment session (we created this when the employer sent the assessment)
+    // But for now, let's use the first active one, or create a new one
+    $stmtFindSession = $pdo->prepare('SELECT session_id FROM assessment_sessions WHERE assessment_id = ? AND status = "active" LIMIT 1');
+    $stmtFindSession->execute([$dbAssessmentId]);
+    $dbSession = $stmtFindSession->fetch(PDO::FETCH_ASSOC);
+    $dbSessionId = $dbSession ? $dbSession['session_id'] : null;
+
+    if (!$dbSessionId) {
+        // Create a new session if none exists
+        $stmtCreateSession = $pdo->prepare('INSERT INTO assessment_sessions (assessment_id, status) VALUES (?, "active")');
+        $stmtCreateSession->execute([$dbAssessmentId]);
+        $dbSessionId = $pdo->lastInsertId();
+    }
+
+    // Now create user assessment attempt
+    $stmtCreateAttempt = $pdo->prepare('
+        INSERT INTO user_assessment_attempts (session_id, user_id, started_at, completed_at, total_time_secs, total_score, challenges_solved, status)
+        VALUES (?, ?, NOW(), NOW(), ?, ?, ?, "completed")
+    ');
+    $stmtCreateAttempt->execute([$dbSessionId, $userId, $totalSecondsUsed, $score, $challengesSolved]);
+    $attemptId = $pdo->lastInsertId();
+
+    // Now save each challenge answer
+    foreach ($assessment['challenges'] as $ch) {
+        $challengeId = $ch['db_id'] ?? null;
+        $submittedAnswer = $answers[$ch['id']] ?? '';
+        $status = 'skipped';
+        $pointsAwarded = 0;
+        $timeUsed = null; // For now, we don't track per-challenge time
+
+        if (isset($answers[$ch['id']]) && !empty($submittedAnswer)) {
+            if ($ch['type'] === 'flag') {
+                $correctAnswer = $ch['correct_flag'] ?? '';
+                if (strtoupper($submittedAnswer) === strtoupper($correctAnswer)) {
+                    $status = 'correct';
+                    $pointsAwarded = $ch['points'];
+                } else {
+                    $status = 'wrong';
+                }
+            } else {
+                $status = 'submitted';
+                $pointsAwarded = $ch['points'];
+            }
+        }
+
+        if ($challengeId) {
+            $stmtSaveAnswer = $pdo->prepare('
+                INSERT INTO user_challenge_answers (attempt_id, challenge_id, submitted_answer, status, points_awarded)
+                VALUES (?, ?, ?, ?, ?)
+            ');
+            $stmtSaveAnswer->execute([$attemptId, $challengeId, $submittedAnswer, $status, $pointsAwarded]);
+        }
+    }
+
+    echo json_encode(['ok' => true, 'attempt_id' => $attemptId]);
+    exit;
+}
+
 // ── Load session: dynamic (employer-created) or static fallback ───────────
 $sessionId = $_GET['session'] ?? 'sess_netsentinel_001';
 $dynamicAssessment = cs_get_assessment_by_id($sessionId);
@@ -580,9 +667,43 @@ $currentPage = 'assessment';
     });
 
     confirmBtn.addEventListener('click', () => {
-        submitAllModal.classList.add('hidden');
-        submitAllModal.classList.remove('flex');
-        openCompletionModal();
+        // Collect all answers
+        const answers = {};
+        CHALLENGES.forEach(cid => {
+            const input = document.getElementById('answer-' + cid);
+            if (input) {
+                answers[cid] = input.value.trim();
+            }
+        });
+
+        // Send submission to server
+        const formData = new FormData();
+        formData.append('action', 'submit_assessment');
+        formData.append('assessment_id', '<?php echo addslashes($sessionId); ?>');
+        formData.append('score', score);
+        formData.append('time_used_secs', secondsUsed);
+        formData.append('solved_count', solved.size);
+
+        Object.keys(answers).forEach(key => {
+            formData.append('answers[' + key + ']', answers[key]);
+        });
+
+        fetch(window.location.href, {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            submitAllModal.classList.add('hidden');
+            submitAllModal.classList.remove('flex');
+            openCompletionModal();
+        })
+        .catch(err => {
+            // Even if request fails, still show completion modal
+            submitAllModal.classList.add('hidden');
+            submitAllModal.classList.remove('flex');
+            openCompletionModal();
+        });
     });
 
     function openCompletionModal() {

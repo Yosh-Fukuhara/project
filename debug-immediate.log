@@ -50,3 +50,13 @@
 2026-06-15 19:00:39 - assessId: assess_3, recipEmail: limutosgerald@gmail.com, assessment exists? YES
 2026-06-15 19:00:39 - Checking send_assessment_msg handler
 2026-06-15 19:01:21 - Checking send_assessment_msg handler
+2026-06-15 19:03:11 - Checking send_assessment_msg handler
+2026-06-15 19:03:15 - Checking send_assessment_msg handler
+2026-06-15 19:11:17 - Checking send_assessment_msg handler
+2026-06-15 19:11:22 - Checking send_assessment_msg handler
+2026-06-15 19:11:22 - POST action: send_assessment_msg
+2026-06-15 19:11:22 - send_assessment_msg handler ACTIVATED!
+2026-06-15 19:11:22 - assessId: assess_3, recipEmail: limutosgerald@gmail.com, assessment exists? YES
+2026-06-15 19:11:23 - Checking send_assessment_msg handler
+2026-06-15 19:12:20 - Checking send_assessment_msg handler
+2026-06-15 19:12:26 - Checking send_assessment_msg handler
