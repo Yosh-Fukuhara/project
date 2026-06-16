@@ -10,8 +10,234 @@ if (session_status() === PHP_SESSION_NONE) {
 require_once __DIR__ . '/../config/database.php';
 
 // ── Database migrations ──
-// For now, we assume the database is already set up with the schema in database.sql
-// No automatic migrations here, to avoid conflicts with user's manual setup
+function ensure_tables_exist() {
+    try {
+        $pdo = get_db_connection();
+        
+        // Check if conversations table exists
+        $stmt = $pdo->query("SHOW TABLES LIKE 'conversations'");
+        if (!$stmt->fetch()) {
+            // Create conversations table
+            $pdo->exec("CREATE TABLE conversations (
+                conversation_id INT AUTO_INCREMENT PRIMARY KEY,
+                user_a INT NOT NULL,
+                user_b INT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_a) REFERENCES users(user_id) ON DELETE CASCADE,
+                FOREIGN KEY (user_b) REFERENCES users(user_id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+        }
+        
+        // Check if messages table exists
+        $stmt = $pdo->query("SHOW TABLES LIKE 'messages'");
+        if (!$stmt->fetch()) {
+            $pdo->exec("CREATE TABLE messages (
+                message_id INT AUTO_INCREMENT PRIMARY KEY,
+                conversation_id INT NOT NULL,
+                sender_id INT NOT NULL,
+                body TEXT NOT NULL,
+                is_read BOOLEAN DEFAULT FALSE,
+                sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (conversation_id) REFERENCES conversations(conversation_id) ON DELETE CASCADE,
+                FOREIGN KEY (sender_id) REFERENCES users(user_id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+        } else {
+            // Check if is_read column exists, add if not
+            $checkCol = $pdo->query("SHOW COLUMNS FROM messages LIKE 'is_read'");
+            if (!$checkCol->fetch()) {
+                $pdo->exec("ALTER TABLE messages ADD COLUMN is_read BOOLEAN DEFAULT FALSE");
+            }
+            // Check if sent_at column exists, add if not
+            $checkCol = $pdo->query("SHOW COLUMNS FROM messages LIKE 'sent_at'");
+            if (!$checkCol->fetch()) {
+                $pdo->exec("ALTER TABLE messages ADD COLUMN sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
+            }
+        }
+        
+        // Check if message_attachments table exists
+        $stmt = $pdo->query("SHOW TABLES LIKE 'message_attachments'");
+        if (!$stmt->fetch()) {
+            $pdo->exec("CREATE TABLE message_attachments (
+                attachment_id INT AUTO_INCREMENT PRIMARY KEY,
+                message_id INT NOT NULL,
+                file_name VARCHAR(255) NOT NULL,
+                file_url VARCHAR(255) NOT NULL,
+                uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (message_id) REFERENCES messages(message_id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+        }
+
+        // Check assessment_sessions table - fix post_id to allow NULL
+        $stmt = $pdo->query("SHOW TABLES LIKE 'assessment_sessions'");
+        if ($stmt->fetch()) {
+            try {
+                // Drop any foreign key constraint on post_id first
+                $result = $pdo->query("SELECT CONSTRAINT_NAME FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_NAME = 'assessment_sessions' AND COLUMN_NAME = 'post_id' AND REFERENCED_TABLE_NAME IS NOT NULL");
+                $fkRow = $result->fetch(PDO::FETCH_ASSOC);
+                if ($fkRow) {
+                    $fkName = $fkRow['CONSTRAINT_NAME'];
+                    $pdo->exec("ALTER TABLE assessment_sessions DROP FOREIGN KEY `$fkName`");
+                }
+                // Make post_id nullable
+                $pdo->exec("ALTER TABLE assessment_sessions MODIFY COLUMN post_id INT NULL");
+                // Re-add foreign key with ON DELETE SET NULL
+                $pdo->exec("ALTER TABLE assessment_sessions ADD CONSTRAINT fk_assessment_sessions_post_id FOREIGN KEY (post_id) REFERENCES posts(post_id) ON DELETE SET NULL");
+            } catch (Exception $e) {
+                // Ignore errors
+            }
+        }
+
+        // Fix order_items.product_id and seed products
+        try {
+            // Make order_items.product_id nullable
+            $result = $pdo->query("SELECT CONSTRAINT_NAME FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_NAME = 'order_items' AND COLUMN_NAME = 'product_id' AND REFERENCED_TABLE_NAME IS NOT NULL");
+            $fkRow = $result->fetch(PDO::FETCH_ASSOC);
+            if ($fkRow) {
+                $fkName = $fkRow['CONSTRAINT_NAME'];
+                $pdo->exec("ALTER TABLE order_items DROP FOREIGN KEY `$fkName`");
+            }
+            $pdo->exec("ALTER TABLE order_items MODIFY COLUMN product_id INT NULL");
+            // Re-add foreign key with ON DELETE SET NULL
+            $pdo->exec("ALTER TABLE order_items ADD CONSTRAINT fk_order_items_product_id FOREIGN KEY (product_id) REFERENCES products(product_id) ON DELETE SET NULL");
+
+            // Seed product categories and products
+            $categories = [
+                'Courses',
+                'Books',
+                'Resources'
+            ];
+            $categoryMap = [];
+            foreach ($categories as $catName) {
+                $stmt = $pdo->prepare("SELECT category_id FROM product_categories WHERE name = ?");
+                $stmt->execute([$catName]);
+                $existing = $stmt->fetchColumn();
+                if (!$existing) {
+                    $stmt = $pdo->prepare("INSERT INTO product_categories (name) VALUES (?)");
+                    $stmt->execute([$catName]);
+                    $categoryMap[$catName] = $pdo->lastInsertId();
+                } else {
+                    $categoryMap[$catName] = $existing;
+                }
+            }
+
+            // Define product data directly here (no include)
+            $productData = [
+                [
+                    'id' => 'pci-dss-360',
+                    'name' => 'PCI-DSS 360°',
+                    'category' => 'Courses',
+                    'description' => 'Master the requirements, implementation, and assessment of PCI-DSS for payment card security.',
+                    'price' => 12999,
+                    'image' => 'https://plus.unsplash.com/premium_photo-1664303693721-e3c0f2757f64?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+                    'badge' => 'TOP'
+                ],
+                [
+                    'id' => 'soc-analyst',
+                    'name' => 'SOC Analyst Pro',
+                    'category' => 'Courses',
+                    'description' => 'Step into a Security Operations Center and learn incident response, threat hunting, and SIEM management.',
+                    'price' => 9500,
+                    'image' => 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?q=80&w=1934&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+                    'badge' => 'NEW'
+                ],
+                [
+                    'id' => 'iso-27001-lead',
+                    'name' => 'ISO 27001 Lead Auditor',
+                    'category' => 'Courses',
+                    'description' => 'Become a certified lead auditor for Information Security Management Systems.',
+                    'price' => 14999,
+                    'image' => 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?q=80&w=2015&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'
+                ],
+                [
+                    'id' => 'cyber-forensics',
+                    'name' => 'Cyber Forensics Fundamentals',
+                    'category' => 'Courses',
+                    'description' => 'Learn digital investigation techniques, chain of custody, and forensic analysis tools.',
+                    'price' => 8500,
+                    'image' => 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'
+                ],
+                [
+                    'id' => 'art-of-invisibility',
+                    'name' => 'The Art of Invisibility',
+                    'category' => 'Books',
+                    'description' => 'Your guide to privacy and anonymity on the internet.',
+                    'price' => 1250,
+                    'image' => 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=1974&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'
+                ],
+                [
+                    'id' => 'security-engineering',
+                    'name' => 'Security Engineering',
+                    'category' => 'Books',
+                    'description' => 'A comprehensive guide to building secure systems.',
+                    'price' => 2100,
+                    'image' => 'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?q=80&w=1945&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'
+                ],
+                [
+                    'id' => 'ctf-toolkit',
+                    'name' => 'CTF Toolkit Pro',
+                    'category' => 'Resources',
+                    'description' => 'Over 50 custom scripts, wordlists, and payloads for Capture The Flag competitions.',
+                    'price' => 4500,
+                    'image' => 'https://images.unsplash.com/photo-1550751659-4b76e7099f6b?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+                    'badge' => 'HOT'
+                ],
+                [
+                    'id' => 'policy-templates',
+                    'name' => 'Enterprise Policy Pack',
+                    'category' => 'Resources',
+                    'description' => 'Ready-to-use security policy templates for ISO 27001, HIPAA, and GDPR compliance.',
+                    'price' => 6500,
+                    'image' => 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'
+                ],
+                [
+                    'id' => 'red-team-pro',
+                    'name' => 'Red Team Operations',
+                    'category' => 'Courses',
+                    'description' => 'Learn advanced adversarial tactics, techniques, and procedures.',
+                    'price' => 16999,
+                    'image' => 'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'
+                ],
+                [
+                    'id' => 'bug-bounty-playbook',
+                    'name' => 'Bug Bounty Playbook',
+                    'category' => 'Books',
+                    'description' => 'Strategies and techniques for finding security vulnerabilities.',
+                    'price' => 1500,
+                    'image' => 'https://images.unsplash.com/photo-1495446815901-a7297e633e8d?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'
+                ]
+            ];
+
+            // Seed products
+            foreach ($productData as $product) {
+                $stmt = $pdo->prepare("SELECT product_id FROM products WHERE product_id = ?");
+                $stmt->execute([$product['id']]);
+                $exists = $stmt->fetchColumn();
+
+                $catId = $categoryMap[$product['category']] ?? 1;
+                if (!$exists) {
+                    $stmt = $pdo->prepare("
+                        INSERT INTO products (product_id, category_id, name, description, price, image_url, badge, stock, discount_pct)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, 100, 0.00)
+                    ");
+                    $stmt->execute([
+                        $product['id'],
+                        $catId,
+                        $product['name'],
+                        $product['description'],
+                        $product['price'],
+                        $product['image'],
+                        $product['badge'] ?? null
+                    ]);
+                }
+            }
+        } catch (Exception $e) {
+            // Ignore errors
+        }
+    } catch (Exception $e) {
+        // Silently ignore table errors in production
+    }
+}
+ensure_tables_exist();
 
 // ── String helpers (works even without mbstring) ──
 function cs_strlen(string $s): int {

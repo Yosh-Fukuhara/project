@@ -585,10 +585,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'share
         }
     }
 
+    // Try to save to database if $pid is numeric, or if we can find it in posts table
+    $newPostId = null;
+    $dbSharedFrom = null;
+    try {
+        $pdo = get_db_connection();
+        // Check if $pid is a valid post_id in database
+        if (is_numeric($pid)) {
+            $checkStmt = $pdo->prepare('SELECT post_id FROM posts WHERE post_id = ?');
+            $checkStmt->execute([$pid]);
+            if ($checkStmt->fetch()) {
+                $dbSharedFrom = $pid;
+            }
+        }
+        // Insert new shared post
+        $stmt = $pdo->prepare('INSERT INTO posts (user_id, content, type, shared_from) VALUES (?, ?, ?, ?)');
+        $stmt->execute([
+            $_SESSION['user']['user_id'],
+            $shareText,
+            'post',
+            $dbSharedFrom
+        ]);
+        $newPostId = $pdo->lastInsertId();
+    } catch (Exception $e) {
+        // Fallback if DB fails
+        error_log("Failed to save shared post to DB: " . $e->getMessage());
+    }
+
     // Create a "Facebook-style" share: a new post by the current user that contains a preview of the original post.
     $newPost = [
         'type' => 'user',
-        'id' => 'p_' . uniqid('', true),
+        'id' => $newPostId ?? ('p_' . uniqid('', true)),
         'username' => $_SESSION['user']['first_name'] . ' ' . $_SESSION['user']['last_name'],
         'first_name' => $_SESSION['user']['first_name'],
         'last_name' => $_SESSION['user']['last_name'],
@@ -1136,6 +1163,59 @@ include 'includes/header.php';
                         $enableApply = $postJobDetails[$row['post_id']]['enable_apply'];
                     }
                     
+                    // Handle shared post
+                    $sharedFrom = $row['shared_from'] ?? null;
+                    $sharedPost = null;
+                    if ($sharedFrom) {
+                        // Load original post
+                        $originalStmt = $pdo->prepare('
+                            SELECT p.*, u.first_name, u.last_name, u.email, up.profile_pic as avatar 
+                            FROM posts p 
+                            JOIN users u ON p.user_id = u.user_id 
+                            LEFT JOIN user_profiles up ON u.user_id = up.user_id 
+                            WHERE p.post_id = ?
+                        ');
+                        $originalStmt->execute([$sharedFrom]);
+                        $originalRow = $originalStmt->fetch();
+                        if ($originalRow) {
+                            $originalAtt = null;
+                            if (isset($postAttachments[$originalRow['post_id']])) {
+                                $oAtt = $postAttachments[$originalRow['post_id']];
+                                $oKind = $oAtt['mime'] ? (
+                                    str_starts_with($oAtt['mime'], 'image/') ? 'image' :
+                                    (str_starts_with($oAtt['mime'], 'video/') ? 'video' : 'document')
+                                ) : null;
+                                $originalAtt = [
+                                    'path' => $oAtt['path'],
+                                    'mime' => $oAtt['mime'],
+                                    'kind' => $oKind
+                                ];
+                            }
+                            $originalHiring = false;
+                            $originalEnableApply = false;
+                            if (isset($postJobDetails[$originalRow['post_id']])) {
+                                $originalHiring = $postJobDetails[$originalRow['post_id']]['is_hiring'];
+                                $originalEnableApply = $postJobDetails[$originalRow['post_id']]['enable_apply'];
+                            }
+                            $originalUsername = trim($originalRow['first_name'] . ' ' . $originalRow['last_name']);
+                            $sharedPost = [
+                                'type' => 'user',
+                                'id' => $originalRow['post_id'],
+                                'username' => $originalUsername,
+                                'first_name' => $originalRow['first_name'],
+                                'last_name' => $originalRow['last_name'],
+                                'email' => $originalRow['email'],
+                                'avatar' => $originalRow['avatar'],
+                                'time' => date('M j, Y g:i A', strtotime($originalRow['created_at'])),
+                                'content' => $originalRow['content'],
+                                'attachment' => $originalAtt,
+                                'tags' => $postTags[$originalRow['post_id']] ?? [],
+                                'hiring' => $originalHiring,
+                                'enable_apply' => $originalEnableApply,
+                            ];
+                        }
+                    }
+                    
                     $dbPosts[] = [
                         'type' => 'user',
                         'id' => $row['post_id'],
@@ -1150,6 +1230,8 @@ include 'includes/header.php';
                         'tags' => $postTags[$row['post_id']] ?? [],
                         'hiring' => $hiring,
                         'enable_apply' => $enableApply,
+                        'shared_from' => $sharedFrom,
+                        'shared_post' => $sharedPost,
                     ];
                 }
                 // Load comments from DB
