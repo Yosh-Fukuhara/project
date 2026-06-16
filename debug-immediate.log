@@ -282,3 +282,85 @@ Start here: http://localhost:8080/php.works/MarcksBranch/project/assessment_sess
 2026-06-16 08:26:25 - Checking send_assessment_msg handler
 2026-06-16 08:27:19 - Checking send_assessment_msg handler
 2026-06-16 08:29:51 - Checking send_assessment_msg handler
+2026-06-16 09:04:10 - Checking send_assessment_msg handler
+2026-06-16 09:04:12 - Checking send_assessment_msg handler
+2026-06-16 09:08:18 - Checking send_assessment_msg handler
+2026-06-16 09:08:31 - Checking send_assessment_msg handler
+2026-06-16 09:08:41 - Checking send_assessment_msg handler
+2026-06-16 09:08:41 - POST RECEIVED: Array
+(
+    [action] => send_assessment_msg
+    [assess_id] => assess_2
+    [post_id] => 
+    [recipient_email] => johncarson5000@gmail.com
+    [deadline] => 
+    [custom_message] => hey
+)
+
+2026-06-16 09:08:41 - send_assessment_msg handler ACTIVATED!
+2026-06-16 09:08:41 - assessId: assess_2, recipEmail: johncarson5000@gmail.com, assessment exists? YES
+2026-06-16 09:08:41 - senderUserId: 9, myEmail: mabalotmarckjedrick@gmail.com
+2026-06-16 09:08:41 - recipUserId: 
+2026-06-16 09:08:41 - msgText: hey
+
+📋 Skill Assessment: HTML Quiz
+Role: General
+Time Limit: 30 minutes
+Start here: http://localhost:8080/project/assessment_session.php?session=assess_2
+2026-06-16 09:08:41 - Skipping DB message: sender or recipient ID missing
+2026-06-16 09:08:41 - Transaction committed successfully!
+2026-06-16 09:08:41 - Checking send_assessment_msg handler
+2026-06-16 09:09:01 - Checking send_assessment_msg handler
+2026-06-16 09:09:04 - Checking send_assessment_msg handler
+2026-06-16 09:09:05 - Checking send_assessment_msg handler
+2026-06-16 09:09:11 - Checking send_assessment_msg handler
+2026-06-16 09:09:33 - Checking send_assessment_msg handler
+2026-06-16 09:09:33 - POST RECEIVED: Array
+(
+    [action] => send_assessment_msg
+    [assess_id] => assess_2
+    [post_id] => 
+    [recipient_email] => johncarson5000@gmail.com
+    [deadline] => 2026-06-24T15:09
+    [custom_message] => 
+)
+
+2026-06-16 09:09:33 - send_assessment_msg handler ACTIVATED!
+2026-06-16 09:09:33 - assessId: assess_2, recipEmail: johncarson5000@gmail.com, assessment exists? YES
+2026-06-16 09:09:33 - senderUserId: 9, myEmail: mabalotmarckjedrick@gmail.com
+2026-06-16 09:09:33 - recipUserId: 
+2026-06-16 09:09:33 - msgText: 📋 Skill Assessment: HTML Quiz
+Role: General
+Time Limit: 30 minutes
+Start here: http://localhost:8080/project/assessment_session.php?session=assess_2
+2026-06-16 09:09:33 - Skipping DB message: sender or recipient ID missing
+2026-06-16 09:09:33 - Transaction committed successfully!
+2026-06-16 09:09:33 - Checking send_assessment_msg handler
+2026-06-16 09:10:51 - Checking send_assessment_msg handler
+2026-06-16 09:10:59 - Checking send_assessment_msg handler
+2026-06-16 09:10:59 - POST RECEIVED: Array
+(
+    [action] => send_assessment_msg
+    [assess_id] => assess_2
+    [post_id] => 3
+    [recipient_email] => mabalotmarckjedrick2@gmail.com
+    [deadline] => 2026-06-17T15:10
+    [custom_message] => heyy
+)
+
+2026-06-16 09:10:59 - send_assessment_msg handler ACTIVATED!
+2026-06-16 09:10:59 - assessId: assess_2, recipEmail: mabalotmarckjedrick2@gmail.com, assessment exists? YES
+2026-06-16 09:10:59 - senderUserId: 9, myEmail: mabalotmarckjedrick@gmail.com
+2026-06-16 09:10:59 - recipUserId: 13
+2026-06-16 09:10:59 - msgText: heyy
+
+📋 Skill Assessment: HTML Quiz
+Role: General
+Time Limit: 30 minutes
+Start here: http://localhost:8080/project/assessment_session.php?session=assess_2
+2026-06-16 09:10:59 - convId: 3
+2026-06-16 09:10:59 - message inserted with ID: 7
+2026-06-16 09:10:59 - assessment session created with ID: 2, post_id: 3, deadline: 2026-06-17 15:10:00
+2026-06-16 09:10:59 - Transaction committed successfully!
+2026-06-16 09:10:59 - Notification saved for user ID: 13
+2026-06-16 09:10:59 - Checking send_assessment_msg handler

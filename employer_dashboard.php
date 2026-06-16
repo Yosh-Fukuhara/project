@@ -65,12 +65,20 @@ function ensure_tables_exist() {
         // Check assessment_sessions table - fix post_id to allow NULL
         $stmt = $pdo->query("SHOW TABLES LIKE 'assessment_sessions'");
         if ($stmt->fetch()) {
-            // Check if post_id is nullable
-            $checkCol = $pdo->query("SHOW COLUMNS FROM assessment_sessions LIKE 'post_id'");
-            $colInfo = $checkCol->fetch(PDO::FETCH_ASSOC);
-            if ($colInfo && strpos(strtolower($colInfo['Null']), 'no') !== false) {
+            try {
+                // Drop any foreign key constraint on post_id first
+                $result = $pdo->query("SELECT CONSTRAINT_NAME FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_NAME = 'assessment_sessions' AND COLUMN_NAME = 'post_id' AND REFERENCED_TABLE_NAME IS NOT NULL");
+                $fkRow = $result->fetch(PDO::FETCH_ASSOC);
+                if ($fkRow) {
+                    $fkName = $fkRow['CONSTRAINT_NAME'];
+                    $pdo->exec("ALTER TABLE assessment_sessions DROP FOREIGN KEY `$fkName`");
+                }
                 // Make post_id nullable
-                $pdo->exec("ALTER TABLE assessment_sessions MODIFY COLUMN post_id INT NULL, DROP FOREIGN KEY IF EXISTS assessment_sessions_ibfk_2, ADD CONSTRAINT assessment_sessions_ibfk_2 FOREIGN KEY (post_id) REFERENCES posts(post_id) ON DELETE SET NULL");
+                $pdo->exec("ALTER TABLE assessment_sessions MODIFY COLUMN post_id INT NULL");
+                // Re-add foreign key with ON DELETE SET NULL
+                $pdo->exec("ALTER TABLE assessment_sessions ADD CONSTRAINT fk_assessment_sessions_post_id FOREIGN KEY (post_id) REFERENCES posts(post_id) ON DELETE SET NULL");
+            } catch (Exception $e) {
+                // Ignore errors
             }
         }
     } catch (Exception $e) {
@@ -104,6 +112,7 @@ $companyName = $_SESSION['user']['company_name'] ?? $_SESSION['user']['username'
 
 // ── Handle Create Assessment POST ─────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'create_assessment') {
+    file_put_contents($immediateLog, date('Y-m-d H:i:s') . " - create_assessment handler ACTIVATED! POST: " . print_r($_POST, true) . "\n", FILE_APPEND);
     $title      = trim($_POST['assess_title'] ?? '');
     $role       = trim($_POST['assess_role'] ?? '');
     $timeLimit  = max(5, min(180, (int)($_POST['assess_time'] ?? 30)));
@@ -203,6 +212,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creat
     $assessErrors = [];
     if (!$title) $assessErrors[] = 'Assessment title is required.';
     if (empty($challenges)) $assessErrors[] = 'Add at least one challenge.';
+    file_put_contents($immediateLog, date('Y-m-d H:i:s') . " - assessErrors: " . print_r($assessErrors, true) . "\n", FILE_APPEND);
 
     if (empty($assessErrors)) {
         $pdo = get_db_connection();
@@ -350,6 +360,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'send_
     $assessId    = $_POST['assess_id'] ?? '';
     $recipEmail  = trim($_POST['recipient_email'] ?? '');
     $customMsg   = trim($_POST['custom_message'] ?? '');
+    $deadline    = !empty($_POST['deadline']) ? $_POST['deadline'] : null;
+    $postId      = !empty($_POST['post_id']) ? $_POST['post_id'] : null;
     $assessment  = cs_get_assessment_by_id($assessId);
     $dbAssessId  = $assessment['db_id'] ?? null;
     
@@ -405,10 +417,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'send_
             // 3. Create assessment session if we have db assess id
             $sessionId = null;
             if ($dbAssessId && $recipUserId) {
+                // Process deadline: convert datetime-local (YYYY-MM-DDTHH:MM) to MySQL datetime (YYYY-MM-DD HH:MM:SS)
+                $dbDeadline = null;
+                if ($deadline) {
+                    $dateObj = new DateTime($deadline);
+                    $dbDeadline = $dateObj->format('Y-m-d H:i:s');
+                }
                 $stmtSession = $pdo->prepare('INSERT INTO assessment_sessions (assessment_id, post_id, deadline, status) VALUES (?, ?, ?, ?)');
-                $stmtSession->execute([$dbAssessId, null, null, 'active']);
+                $stmtSession->execute([$dbAssessId, $postId, $dbDeadline, 'active']);
                 $sessionId = $pdo->lastInsertId();
-                file_put_contents($immediateLog, date('Y-m-d H:i:s') . " - assessment session created with ID: $sessionId\n", FILE_APPEND);
+                file_put_contents($immediateLog, date('Y-m-d H:i:s') . " - assessment session created with ID: $sessionId, post_id: $postId, deadline: $dbDeadline\n", FILE_APPEND);
             }
 
             $pdo->commit();
@@ -667,7 +685,8 @@ include 'includes/header.php';
                             <button
                                 class="send-assess-btn bg-purple-700 hover:bg-purple-800 text-white text-xs font-bold px-3 py-1.5 rounded-xl transition"
                                 data-name="<?php echo htmlspecialchars($app['name'] ?? ''); ?>"
-                                data-email="<?php echo htmlspecialchars($app['email'] ?? ''); ?>">
+                                data-email="<?php echo htmlspecialchars($app['email'] ?? ''); ?>"
+                                data-post-id="<?php echo htmlspecialchars($app['post_id'] ?? ''); ?>">
                                 Send Assessment
                             </button>
                         </td>
@@ -820,6 +839,7 @@ include 'includes/header.php';
         <form method="POST" class="p-5 space-y-4">
             <input type="hidden" name="action" value="send_assessment_msg">
             <input type="hidden" id="sendAssessId" name="assess_id" value="">
+            <input type="hidden" id="sendPostId" name="post_id" value="">
             <div>
                 <label class="block text-sm font-semibold text-gray-700 mb-1">Assessment</label>
                 <p id="sendAssessTitle" class="text-blue-900 font-bold text-sm"></p>
@@ -829,11 +849,18 @@ include 'includes/header.php';
                 <input type="email" name="recipient_email" id="sendAssessEmail" required
                        class="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm" placeholder="applicant@email.com">
             </div>
-            <div>
-                <label class="block text-sm font-semibold text-gray-700 mb-1">Personal Message (optional)</label>
-                <textarea name="custom_message" rows="3"
-                          class="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm resize-none"
-                          placeholder="Hi [Name], we'd like you to complete this assessment…"></textarea>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">Deadline (optional)</label>
+                    <input type="datetime-local" name="deadline"
+                           class="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm">
+                </div>
+                <div class="sm:col-span-1">
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">Personal Message (optional)</label>
+                    <textarea name="custom_message" rows="2"
+                              class="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm resize-none"
+                              placeholder="Hi [Name], we'd like you to complete this assessment…"></textarea>
+                </div>
             </div>
             <button type="submit" class="w-full bg-purple-700 hover:bg-purple-800 text-white font-bold py-3 rounded-xl transition">
                 Send via Messages
@@ -848,6 +875,7 @@ const sendModal = document.getElementById('sendAssessModal');
 const sendAssessId    = document.getElementById('sendAssessId');
 const sendAssessTitle = document.getElementById('sendAssessTitle');
 const sendAssessEmail = document.getElementById('sendAssessEmail');
+const sendPostId      = document.getElementById('sendPostId');
 
 <?php
 // Build an assessment ID→title map for JS
@@ -863,12 +891,14 @@ document.addEventListener('click', e => {
     const title = btn.dataset.assessTitle || (id ? (assessTitles[id] || '') : '');
     const email = btn.dataset.email || '';
     const name  = btn.dataset.name  || '';
+    const postId = btn.dataset.postId || '';
 
     // If no assess id given (coming from applicant row), pick first available
     const firstId = id || Object.keys(assessTitles)[0] || '';
     sendAssessId.value    = firstId;
     sendAssessTitle.textContent = title || (firstId ? (assessTitles[firstId] || 'Assessment') : 'No assessments yet — create one first.');
     sendAssessEmail.value = email;
+    sendPostId.value = postId;
 
     // If email is provided (from applicant row), make it readonly
     if (email) {
