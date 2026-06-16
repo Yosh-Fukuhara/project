@@ -364,3 +364,33 @@ Start here: http://localhost:8080/project/assessment_session.php?session=assess_
 2026-06-16 09:10:59 - Transaction committed successfully!
 2026-06-16 09:10:59 - Notification saved for user ID: 13
 2026-06-16 09:10:59 - Checking send_assessment_msg handler
+2026-06-16 09:13:28 - Checking send_assessment_msg handler
+2026-06-16 09:13:30 - Checking send_assessment_msg handler
+2026-06-16 09:13:33 - Checking send_assessment_msg handler
+2026-06-16 09:13:56 - Checking send_assessment_msg handler
+2026-06-16 09:13:56 - POST RECEIVED: Array
+(
+    [action] => send_assessment_msg
+    [assess_id] => assess_1
+    [post_id] => 2
+    [recipient_email] => limutosgerald2@gmail.com
+    [deadline] => 2026-06-17T15:13
+    [custom_message] => Please take.
+)
+
+2026-06-16 09:13:56 - send_assessment_msg handler ACTIVATED!
+2026-06-16 09:13:56 - assessId: assess_1, recipEmail: limutosgerald2@gmail.com, assessment exists? YES
+2026-06-16 09:13:56 - senderUserId: 1, myEmail: limutosgerald@gmail.com
+2026-06-16 09:13:56 - recipUserId: 6
+2026-06-16 09:13:56 - msgText: Please take.
+
+📋 Skill Assessment: Network Engineer Assessment
+Role: General
+Time Limit: 30 minutes
+Start here: http://localhost:8080/php.works/MarcksBranch/project/assessment_session.php?session=assess_1
+2026-06-16 09:13:56 - convId: 1
+2026-06-16 09:13:56 - message inserted with ID: 6
+2026-06-16 09:13:56 - assessment session created with ID: 2, post_id: 2, deadline: 2026-06-17 15:13:00
+2026-06-16 09:13:56 - Transaction committed successfully!
+2026-06-16 09:13:56 - Notification saved for user ID: 6
+2026-06-16 09:13:56 - Checking send_assessment_msg handler
