@@ -21,8 +21,29 @@ $active = $active ?? '';
         <a href="users.php" class="<?php echo $active === 'users' ? 'bg-blue-50 text-blue-900' : 'text-slate-700 hover:bg-slate-50'; ?> flex items-center gap-2 px-3 py-2 rounded-lg font-semibold">
             <span>Users</span>
         </a>
-        <a href="posts.php" class="<?php echo $active === 'posts' ? 'bg-blue-50 text-blue-900' : 'text-slate-700 hover:bg-slate-50'; ?> flex items-center gap-2 px-3 py-2 rounded-lg font-semibold">
-            <span>Posts</span>
+        <a href="employers.php" class="<?php echo $active === 'employers' ? 'bg-blue-50 text-blue-900' : 'text-slate-700 hover:bg-slate-50'; ?> flex items-center gap-2 px-3 py-2 rounded-lg font-semibold">
+            <span>Employers</span>
+        </a>
+        <a href="job_posts.php" class="<?php echo $active === 'job_posts' ? 'bg-blue-50 text-blue-900' : 'text-slate-700 hover:bg-slate-50'; ?> flex items-center gap-2 px-3 py-2 rounded-lg font-semibold">
+            <span>Job Posts</span>
+        </a>
+        <a href="job_applications.php" class="<?php echo $active === 'job_applications' ? 'bg-blue-50 text-blue-900' : 'text-slate-700 hover:bg-slate-50'; ?> flex items-center gap-2 px-3 py-2 rounded-lg font-semibold">
+            <span>Job Applications</span>
+        </a>
+        <a href="community_posts.php" class="<?php echo $active === 'community_posts' ? 'bg-blue-50 text-blue-900' : 'text-slate-700 hover:bg-slate-50'; ?> flex items-center gap-2 px-3 py-2 rounded-lg font-semibold">
+            <span>Community Posts</span>
+        </a>
+        <a href="product_categories.php" class="<?php echo $active === 'product_categories' ? 'bg-blue-50 text-blue-900' : 'text-slate-700 hover:bg-slate-50'; ?> flex items-center gap-2 px-3 py-2 rounded-lg font-semibold">
+            <span>Product Categories</span>
+        </a>
+        <a href="products.php" class="<?php echo $active === 'products' ? 'bg-blue-50 text-blue-900' : 'text-slate-700 hover:bg-slate-50'; ?> flex items-center gap-2 px-3 py-2 rounded-lg font-semibold">
+            <span>Products</span>
+        </a>
+        <a href="orders.php" class="<?php echo $active === 'orders' ? 'bg-blue-50 text-blue-900' : 'text-slate-700 hover:bg-slate-50'; ?> flex items-center gap-2 px-3 py-2 rounded-lg font-semibold">
+            <span>Orders</span>
+        </a>
+        <a href="attachments.php" class="<?php echo $active === 'attachments' ? 'bg-blue-50 text-blue-900' : 'text-slate-700 hover:bg-slate-50'; ?> flex items-center gap-2 px-3 py-2 rounded-lg font-semibold">
+            <span>Attachments</span>
         </a>
     </nav>
 

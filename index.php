@@ -240,23 +240,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 $stmtTag->execute([$postId, $tag]);
             }
 
-            $newPost = [
-                'type' => 'user',
-                'id' => $postId,
-                'username' => $_SESSION['user']['first_name'] . ' ' . $_SESSION['user']['last_name'],
-                'first_name' => $_SESSION['user']['first_name'],
-                'last_name' => $_SESSION['user']['last_name'],
-                'email' => $_SESSION['user']['email'],
-                'avatar' => $_SESSION['user']['profile_pic'] ?? null,
-                'time' => date('M j, Y g:i A'),
-                'content' => $content,
-                'attachment' => $attachment,
-                'tags'         => $selectedTags,
-                'hiring'       => $isHiringPost,
-                'enable_apply' => $enableApply,
-            ];
-            array_unshift($_SESSION['posts'], $newPost);
-
             // Notification: own post uploaded
             cs_save_notification($_SESSION['user']['user_id'], 'Your post was published successfully.', 'index.php?post=' . urlencode($postId));
 
@@ -284,26 +267,60 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 
         if (empty($postErrors)) {
             $updated = false;
-            foreach ($_SESSION['posts'] as $idx => $p) {
-                if (($p['id'] ?? '') === $postId) {
-                    $isOwner = ($p['type'] ?? '') === 'user'
-                        && (($p['email'] ?? '') === ($_SESSION['user']['email'] ?? ''));
+            try {
+                $pdo = get_db_connection();
+                // First check if the user owns this post
+                $checkStmt = $pdo->prepare('SELECT user_id FROM posts WHERE post_id = ?');
+                $checkStmt->execute([$postId]);
+                $ownerId = $checkStmt->fetchColumn();
+                if ($ownerId && $ownerId == $_SESSION['user']['user_id']) {
+                    // Update content in database
+                    $updateStmt = $pdo->prepare('UPDATE posts SET content = ? WHERE post_id = ?');
+                    $updateStmt->execute([$content, $postId]);
+                    // Update attachment if provided
+                    if ($newAttachment) {
+                        // Get old attachment path
+                        $oldStmt = $pdo->prepare('SELECT file_path FROM post_attachments WHERE post_id = ?');
+                        $oldStmt->execute([$postId]);
+                        $oldPath = $oldStmt->fetchColumn();
+                        if ($oldPath) {
+                            safeUnlinkUpload($oldPath);
+                            // Update existing attachment
+                            $updateAttachStmt = $pdo->prepare('UPDATE post_attachments SET file_path = ?, mime_type = ? WHERE post_id = ?');
+                            $updateAttachStmt->execute([$newAttachment['path'], $newAttachment['mime'], $postId]);
+                        } else {
+                            // Insert new attachment
+                            $insertAttachStmt = $pdo->prepare('INSERT INTO post_attachments (post_id, file_path, mime_type) VALUES (?, ?, ?)');
+                            $insertAttachStmt->execute([$postId, $newAttachment['path'], $newAttachment['mime']]);
+                        }
+                    }
+                    $updated = true;
+                } else {
+                    $postErrors[] = 'You can only edit your own posts.';
+                }
+            } catch (Exception $e) {
+                // Fallback to session
+                foreach ($_SESSION['posts'] as $idx => $p) {
+                    if (($p['id'] ?? '') === $postId) {
+                        $isOwner = ($p['type'] ?? '') === 'user'
+                            && (($p['email'] ?? '') === ($_SESSION['user']['email'] ?? ''));
 
-                    if (!$isOwner) {
-                        $postErrors[] = 'You can only edit your own posts.';
+                        if (!$isOwner) {
+                            $postErrors[] = 'You can only edit your own posts.';
+                            break;
+                        }
+
+                        $_SESSION['posts'][$idx]['content'] = $content;
+
+                        if ($newAttachment) {
+                            $old = $_SESSION['posts'][$idx]['attachment']['path'] ?? null;
+                            safeUnlinkUpload($old);
+                            $_SESSION['posts'][$idx]['attachment'] = $newAttachment;
+                        }
+
+                        $updated = true;
                         break;
                     }
-
-                    $_SESSION['posts'][$idx]['content'] = $content;
-
-                    if ($newAttachment) {
-                        $old = $_SESSION['posts'][$idx]['attachment']['path'] ?? null;
-                        safeUnlinkUpload($old);
-                        $_SESSION['posts'][$idx]['attachment'] = $newAttachment;
-                    }
-
-                    $updated = true;
-                    break;
                 }
             }
 
@@ -327,19 +344,53 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             $postErrors[] = 'Missing post id.';
         } else {
             $deleted = false;
-            foreach ($_SESSION['posts'] as $idx => $p) {
-                if (($p['id'] ?? '') === $postId) {
-                    // Only allow deleting own posts
-                    $isOwner = ($p['type'] ?? '') === 'user'
-                        && (($p['email'] ?? '') === ($_SESSION['user']['email'] ?? ''));
-                    if (!$isOwner) {
-                        $postErrors[] = 'You can only delete your own posts.';
-                    } else {
-                        safeUnlinkUpload($p['attachment']['path'] ?? null);
-                        array_splice($_SESSION['posts'], $idx, 1);
-                        $deleted = true;
+            try {
+                $pdo = get_db_connection();
+                // First check if the user owns this post
+                $checkStmt = $pdo->prepare('SELECT user_id FROM posts WHERE post_id = ?');
+                $checkStmt->execute([$postId]);
+                $ownerId = $checkStmt->fetchColumn();
+                if ($ownerId && $ownerId == $_SESSION['user']['user_id']) {
+                    // Get attachment path first
+                    $attachStmt = $pdo->prepare('SELECT file_path FROM post_attachments WHERE post_id = ?');
+                    $attachStmt->execute([$postId]);
+                    $attachPath = $attachStmt->fetchColumn();
+                    if ($attachPath) {
+                        safeUnlinkUpload($attachPath);
                     }
-                    break;
+                    // Delete from database tables
+                    $deleteAttachStmt = $pdo->prepare('DELETE FROM post_attachments WHERE post_id = ?');
+                    $deleteAttachStmt->execute([$postId]);
+                    $deleteJobStmt = $pdo->prepare('DELETE FROM job_post_details WHERE post_id = ?');
+                    $deleteJobStmt->execute([$postId]);
+                    $deleteTagsStmt = $pdo->prepare('DELETE FROM post_tags WHERE post_id = ?');
+                    $deleteTagsStmt->execute([$postId]);
+                    $deleteLikesStmt = $pdo->prepare('DELETE FROM post_likes WHERE post_id = ?');
+                    $deleteLikesStmt->execute([$postId]);
+                    $deleteCommentsStmt = $pdo->prepare('DELETE FROM comments WHERE post_id = ?');
+                    $deleteCommentsStmt->execute([$postId]);
+                    $deletePostStmt = $pdo->prepare('DELETE FROM posts WHERE post_id = ?');
+                    $deletePostStmt->execute([$postId]);
+                    $deleted = true;
+                } else {
+                    $postErrors[] = 'You can only delete your own posts.';
+                }
+            } catch (Exception $e) {
+                // Fallback to session
+                foreach ($_SESSION['posts'] as $idx => $p) {
+                    if (($p['id'] ?? '') === $postId) {
+                        // Only allow deleting own posts
+                        $isOwner = ($p['type'] ?? '') === 'user'
+                            && (($p['email'] ?? '') === ($_SESSION['user']['email'] ?? ''));
+                        if (!$isOwner) {
+                            $postErrors[] = 'You can only delete your own posts.';
+                        } else {
+                            safeUnlinkUpload($p['attachment']['path'] ?? null);
+                            array_splice($_SESSION['posts'], $idx, 1);
+                            $deleted = true;
+                        }
+                        break;
+                    }
                 }
             }
 
@@ -613,20 +664,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'share
     }
 
     // Create a "Facebook-style" share: a new post by the current user that contains a preview of the original post.
-    $newPost = [
-        'type' => 'user',
-        'id' => $newPostId ?? ('p_' . uniqid('', true)),
-        'username' => $_SESSION['user']['first_name'] . ' ' . $_SESSION['user']['last_name'],
-        'first_name' => $_SESSION['user']['first_name'],
-        'last_name' => $_SESSION['user']['last_name'],
-        'email' => $_SESSION['user']['email'],
-        'avatar' => $_SESSION['user']['profile_pic'] ?? null,
-        'time' => date('M j, Y g:i A'),
-        'content' => $shareText,
-        'shared_from' => $pid,
-        'shared_post' => $original,
-    ];
-    array_unshift($_SESSION['posts'], $newPost);
+    // We don't add to $_SESSION['posts'] since we get posts from the database
 
     // Notify original owner (if we know it)
     if ($original && !empty($original['email']) && ($original['email'] !== ($_SESSION['user']['email'] ?? ''))) {

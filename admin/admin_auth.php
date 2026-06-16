@@ -1,4 +1,4 @@
-﻿<?php
+﻿﻿<?php
 require_once __DIR__ . '/admin_config.php';
 
 if (session_status() === PHP_SESSION_NONE) {
