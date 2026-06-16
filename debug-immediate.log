@@ -394,3 +394,39 @@ Start here: http://localhost:8080/php.works/MarcksBranch/project/assessment_sess
 2026-06-16 09:13:56 - Transaction committed successfully!
 2026-06-16 09:13:56 - Notification saved for user ID: 6
 2026-06-16 09:13:56 - Checking send_assessment_msg handler
+2026-06-16 09:28:08 - Checking send_assessment_msg handler
+2026-06-16 09:28:19 - Checking send_assessment_msg handler
+2026-06-16 09:28:24 - Checking send_assessment_msg handler
+2026-06-16 09:28:38 - Checking send_assessment_msg handler
+2026-06-16 09:28:55 - Checking send_assessment_msg handler
+2026-06-16 09:29:06 - Checking send_assessment_msg handler
+2026-06-16 09:29:13 - Checking send_assessment_msg handler
+2026-06-16 09:29:39 - Checking send_assessment_msg handler
+2026-06-16 09:29:39 - POST RECEIVED: Array
+(
+    [action] => send_assessment_msg
+    [assess_id] => assess_1
+    [post_id] => 2
+    [recipient_email] => limutosgerald@gmail.com
+    [deadline] => 2026-06-17T15:29
+    [custom_message] => Hello please answer
+)
+
+2026-06-16 09:29:39 - send_assessment_msg handler ACTIVATED!
+2026-06-16 09:29:39 - assessId: assess_1, recipEmail: limutosgerald@gmail.com, assessment exists? YES
+2026-06-16 09:29:39 - senderUserId: 1, myEmail: limutosgerald@gmail.com
+2026-06-16 09:29:39 - recipUserId: 1
+2026-06-16 09:29:39 - msgText: Hello please answer
+
+📋 Skill Assessment: Network Engineer Assessment
+Role: General
+Time Limit: 30 minutes
+Start here: http://localhost:8080/php.works/MarcksBranch/project/assessment_session.php?session=assess_1
+2026-06-16 09:29:39 - convId: NULL
+2026-06-16 09:29:39 - ERROR: SQLSTATE[23000]: Integrity constraint violation: 1048 Column 'conversation_id' cannot be null | Trace: #0 C:\xampp\htdocs\php.works\MarcksBranch\project\employer_dashboard.php(410): PDOStatement->execute(Array)
+#1 {main}
+2026-06-16 09:29:39 - Checking send_assessment_msg handler
+2026-06-16 09:30:17 - Checking send_assessment_msg handler
+2026-06-16 09:31:29 - Checking send_assessment_msg handler
+2026-06-16 09:37:19 - Checking send_assessment_msg handler
+2026-06-16 09:37:24 - Checking send_assessment_msg handler
