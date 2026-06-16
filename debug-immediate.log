@@ -105,3 +105,116 @@
 2026-06-15 19:28:05 - Checking send_assessment_msg handler
 2026-06-15 19:29:23 - Checking send_assessment_msg handler
 2026-06-15 19:29:25 - Checking send_assessment_msg handler
+2026-06-16 04:46:44 - Checking send_assessment_msg handler
+2026-06-16 04:49:37 - Checking send_assessment_msg handler
+2026-06-16 04:52:17 - Checking send_assessment_msg handler
+2026-06-16 04:52:49 - Checking send_assessment_msg handler
+2026-06-16 04:53:04 - Checking send_assessment_msg handler
+2026-06-16 04:56:30 - Checking send_assessment_msg handler
+2026-06-16 05:04:16 - Checking send_assessment_msg handler
+2026-06-16 05:05:39 - Checking send_assessment_msg handler
+2026-06-16 05:05:39 - POST action: send_assessment_msg
+2026-06-16 05:05:39 - send_assessment_msg handler ACTIVATED!
+2026-06-16 05:05:39 - assessId: assess_1, recipEmail: john@example.com, assessment exists? YES
+2026-06-16 05:05:39 - Checking send_assessment_msg handler
+2026-06-16 05:09:13 - Checking send_assessment_msg handler
+2026-06-16 05:09:23 - Checking send_assessment_msg handler
+2026-06-16 05:09:23 - POST action: send_assessment_msg
+2026-06-16 05:09:23 - send_assessment_msg handler ACTIVATED!
+2026-06-16 05:09:23 - assessId: assess_1, recipEmail: john@example.com, assessment exists? YES
+2026-06-16 05:09:23 - Checking send_assessment_msg handler
+2026-06-16 05:10:37 - Checking send_assessment_msg handler
+2026-06-16 05:10:37 - POST action: send_assessment_msg
+2026-06-16 05:10:37 - send_assessment_msg handler ACTIVATED!
+2026-06-16 05:10:37 - assessId: assess_1, recipEmail: john@example.com, assessment exists? YES
+2026-06-16 05:10:37 - Checking send_assessment_msg handler
+2026-06-16 05:20:58 - Checking send_assessment_msg handler
+2026-06-16 05:21:44 - Checking send_assessment_msg handler
+2026-06-16 05:21:44 - POST RECEIVED: Array
+(
+    [action] => send_assessment_msg
+    [assess_id] => assess_1
+    [recipient_email] => john@example.com
+    [custom_message] => HI! Were interested in your application, please complete this skill assessment before proceeding. Thank you!
+)
+
+2026-06-16 05:21:44 - send_assessment_msg handler ACTIVATED!
+2026-06-16 05:21:44 - assessId: assess_1, recipEmail: john@example.com, assessment exists? YES
+2026-06-16 05:21:44 - senderUserId: 9, myEmail: mabalotmarckjedrick@gmail.com
+2026-06-16 05:21:44 - recipUserId: 5
+2026-06-16 05:21:44 - msgText: HI! Were interested in your application, please complete this skill assessment before proceeding. Thank you!
+
+📋 Skill Assessment: QA Testing Skill ASSESSMENT
+Role: General
+Time Limit: 30 minutes
+Start here: http://localhost:8080/project/assessment_session.php?session=assess_1
+2026-06-16 05:21:44 - convId: 2
+2026-06-16 05:21:44 - message inserted with ID: 4
+2026-06-16 05:21:44 - ERROR: SQLSTATE[23000]: Integrity constraint violation: 1048 Column 'post_id' cannot be null | Trace: #0 C:\xampp\htdocs\project\employer_dashboard.php(379): PDOStatement->execute(Array)
+#1 {main}
+2026-06-16 05:21:44 - Checking send_assessment_msg handler
+2026-06-16 05:21:51 - Checking send_assessment_msg handler
+2026-06-16 05:24:57 - Checking send_assessment_msg handler
+2026-06-16 05:25:43 - Checking send_assessment_msg handler
+2026-06-16 05:25:43 - POST RECEIVED: Array
+(
+    [action] => send_assessment_msg
+    [assess_id] => assess_1
+    [recipient_email] => john@example.com
+    [custom_message] => Were interested in your application. Please complete this skill assessment before proceeding. Thank you!
+)
+
+2026-06-16 05:25:43 - send_assessment_msg handler ACTIVATED!
+2026-06-16 05:25:43 - assessId: assess_1, recipEmail: john@example.com, assessment exists? YES
+2026-06-16 05:25:43 - senderUserId: 9, myEmail: mabalotmarckjedrick@gmail.com
+2026-06-16 05:25:43 - recipUserId: 5
+2026-06-16 05:25:43 - msgText: Were interested in your application. Please complete this skill assessment before proceeding. Thank you!
+
+📋 Skill Assessment: QA Testing Skill ASSESSMENT
+Role: General
+Time Limit: 30 minutes
+Start here: http://localhost:8080/project/assessment_session.php?session=assess_1
+2026-06-16 05:25:43 - convId: 2
+2026-06-16 05:25:43 - message inserted with ID: 5
+2026-06-16 05:25:44 - ERROR: SQLSTATE[23000]: Integrity constraint violation: 1048 Column 'post_id' cannot be null | Trace: #0 C:\xampp\htdocs\project\employer_dashboard.php(379): PDOStatement->execute(Array)
+#1 {main}
+2026-06-16 05:25:44 - Checking send_assessment_msg handler
+2026-06-16 05:27:24 - Checking send_assessment_msg handler
+2026-06-16 05:27:24 - POST RECEIVED: Array
+(
+    [action] => send_assessment_msg
+    [assess_id] => assess_1
+    [recipient_email] => john@example.com
+    [custom_message] => Hi! Were interested in your application. Please complete this skill assessment before proceeding. Thank you!
+)
+
+2026-06-16 05:27:24 - send_assessment_msg handler ACTIVATED!
+2026-06-16 05:27:24 - assessId: assess_1, recipEmail: john@example.com, assessment exists? YES
+2026-06-16 05:27:24 - senderUserId: 9, myEmail: mabalotmarckjedrick@gmail.com
+2026-06-16 05:27:24 - recipUserId: 5
+2026-06-16 05:27:24 - msgText: Hi! Were interested in your application. Please complete this skill assessment before proceeding. Thank you!
+
+📋 Skill Assessment: QA Testing Skill ASSESSMENT
+Role: General
+Time Limit: 30 minutes
+Start here: http://localhost:8080/project/assessment_session.php?session=assess_1
+2026-06-16 05:27:24 - convId: 2
+2026-06-16 05:27:24 - message inserted with ID: 6
+2026-06-16 05:27:24 - assessment session created with ID: 1
+2026-06-16 05:27:24 - Transaction committed successfully!
+2026-06-16 05:27:24 - Notification saved for user ID: 5
+2026-06-16 05:27:24 - Checking send_assessment_msg handler
+2026-06-16 05:29:39 - Checking send_assessment_msg handler
+2026-06-16 05:29:44 - Checking send_assessment_msg handler
+2026-06-16 05:38:20 - Checking send_assessment_msg handler
+2026-06-16 05:38:23 - Checking send_assessment_msg handler
+2026-06-16 05:38:24 - Checking send_assessment_msg handler
+2026-06-16 05:59:10 - Checking send_assessment_msg handler
+2026-06-16 06:01:58 - Checking send_assessment_msg handler
+2026-06-16 06:11:47 - Checking send_assessment_msg handler
+2026-06-16 06:14:07 - Checking send_assessment_msg handler
+2026-06-16 06:14:13 - Checking send_assessment_msg handler
+2026-06-16 07:14:33 - Checking send_assessment_msg handler
+2026-06-16 07:14:36 - Checking send_assessment_msg handler
+2026-06-16 07:16:05 - Checking send_assessment_msg handler
+2026-06-16 07:17:58 - Checking send_assessment_msg handler

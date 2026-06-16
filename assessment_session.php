@@ -116,10 +116,15 @@ if ($dynamicAssessment) {
         'instructions' => $dynamicAssessment['instructions'] ?? 'Answer each challenge as accurately as possible.',
     ];
     $challenges = $dynamicAssessment['challenges'];
-    // Build CORRECT map from correct_flag fields
+    // Build CORRECT map from correct_flag fields OR for MCQ, store the correct option(s)
     $correctMap = [];
     foreach ($challenges as $ch) {
-        $correctMap[$ch['id']] = !empty($ch['correct_flag']) ? $ch['correct_flag'] : null;
+        if ($ch['type'] === 'multiple_choice' || $ch['type'] === 'mcq') {
+            // For MCQ, we don't need correct_flag in JS (we use data-is-correct)
+            $correctMap[$ch['id']] = null;
+        } else {
+            $correctMap[$ch['id']] = !empty($ch['correct_flag']) ? $ch['correct_flag'] : null;
+        }
     }
 } else {
     // ── Static simulation data (NetSentinel default) ──────────────────────
@@ -201,6 +206,12 @@ if ($dynamicAssessment) {
 $totalPoints = array_sum(array_column($challenges, 'points'));
 $pageTitle   = $session['title'] . ' - CyberSphere';
 $currentPage = 'assessment';
+// Debug output
+/*
+echo "<pre>";
+var_dump($challenges);
+echo "</pre>";
+*/
 ?>
 <?php include 'includes/header.php'; ?>
 
@@ -371,7 +382,18 @@ $currentPage = 'assessment';
                                     <?php echo $ch['points']; ?> pts
                                 </span>
                                 <span class="pts-badge bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full uppercase">
-                                    <?php echo $ch['type'] === 'flag' ? '🚩 Flag' : ($ch['type'] === 'code' ? '💻 Code' : '✍️ Short Answer'); ?>
+                                    <?php 
+                                    $typeLower = strtolower(trim($ch['type'] ?? ''));
+                                    if ($typeLower === 'flag') {
+                                        echo '🚩 Flag';
+                                    } elseif ($typeLower === 'code') {
+                                        echo '💻 Code';
+                                    } elseif (in_array($typeLower, ['multiple_choice', 'mcq', 'multiple choice'])) {
+                                        echo '📝 Multiple Choice';
+                                    } else {
+                                        echo '✍️ Short Answer';
+                                    }
+                                    ?>
                                 </span>
                             </div>
                         </div>
@@ -438,7 +460,32 @@ $currentPage = 'assessment';
                 <?php endif; ?>
 
                 <!-- Answer input -->
-                <?php if ($ch['type'] === 'code' || $ch['type'] === 'short'): ?>
+                <?php 
+                $typeLower = strtolower(trim($ch['type'] ?? ''));
+                if (in_array($typeLower, ['multiple_choice', 'mcq', 'multiple choice'])): 
+                ?>
+                    <div id="answer-<?php echo $ch['id']; ?>-container" class="space-y-3">
+                        <?php 
+                        $optionLetters = ['A', 'B', 'C', 'D', 'E'];
+                        foreach (($ch['options'] ?? []) as $index => $option): 
+                            $letter = $optionLetters[$index] ?? '';
+                            $optionId = $option['option_id'] ?? ($index + 1);
+                        ?>
+                            <label class="flex items-center gap-3 p-4 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 transition group">
+                                <input 
+                                    type="radio" 
+                                    name="answer-<?php echo $ch['id']; ?>" 
+                                    value="<?php echo htmlspecialchars($option['option_text']); ?>"
+                                    data-option-id="<?php echo htmlspecialchars($optionId); ?>"
+                                    data-is-correct="<?php echo ($option['is_correct'] ?? 0) ? 'true' : 'false'; ?>"
+                                    class="w-5 h-5 text-blue-900 focus:ring-blue-500"
+                                >
+                                <span class="font-bold text-blue-900 text-lg min-w-[1.5rem]"><?php echo $letter; ?></span>
+                                <span class="text-gray-700 text-sm"><?php echo htmlspecialchars($option['option_text']); ?></span>
+                            </label>
+                        <?php endforeach; ?>
+                    </div>
+                <?php elseif ($ch['type'] === 'code' || $ch['type'] === 'short'): ?>
                 <textarea
                     id="answer-<?php echo $ch['id']; ?>"
                     rows="<?php echo $ch['type'] === 'code' ? 8 : 4; ?>"
@@ -593,70 +640,104 @@ $currentPage = 'assessment';
     });
 
     // ── Submit individual answer ──────────────────────────────────────────
-    document.querySelectorAll('.submit-challenge-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const cid    = btn.dataset.challenge;
-            const pts    = parseInt(btn.dataset.points, 10);
-            const type   = btn.dataset.type;
-            const input  = document.getElementById('answer-' + cid);
-            const answer = (input?.value || '').trim();
-            const fb     = document.getElementById('feedback-' + cid);
-            const card   = document.getElementById('card-' + cid);
-            const badge  = document.getElementById('solved-badge-' + cid);
-            const navIcon = document.getElementById('nav-icon-' + cid);
+        document.querySelectorAll('.submit-challenge-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const cid    = btn.dataset.challenge;
+                const pts    = parseInt(btn.dataset.points, 10);
+                const type   = btn.dataset.type;
+                const fb     = document.getElementById('feedback-' + cid);
+                const card   = document.getElementById('card-' + cid);
+                const badge  = document.getElementById('solved-badge-' + cid);
+                const navIcon = document.getElementById('nav-icon-' + cid);
 
-            if (!answer) {
-                fb.textContent = '⚠ Please enter an answer first.';
-                fb.className   = 'text-xs font-semibold text-amber-600';
-                fb.classList.remove('hidden');
-                return;
-            }
+                let answer = '';
+                let selectedOption = null;
+                
+                const typeLower = type ? type.toLowerCase().trim() : '';
+                const isMcq = ['multiple_choice', 'mcq', 'multiple choice'].includes(typeLower);
+                if (isMcq) {
+                    const checkedRadio = document.querySelector(`input[name="answer-${cid}"]:checked`);
+                    if (checkedRadio) {
+                        answer = checkedRadio.value.trim();
+                        selectedOption = checkedRadio;
+                    }
+                } else {
+                    const input = document.getElementById('answer-' + cid);
+                    answer = (input?.value || '').trim();
+                }
 
-            if (solved.has(cid)) {
-                fb.textContent = '✓ Already submitted.';
-                fb.className   = 'text-xs font-semibold text-green-600';
-                fb.classList.remove('hidden');
-                return;
-            }
+                if (!answer) {
+                    fb.textContent = '⚠ Please select an answer first.';
+                    fb.className   = 'text-xs font-semibold text-amber-600';
+                    fb.classList.remove('hidden');
+                    return;
+                }
 
-            let correct = false;
-            if (type === 'code' || type === 'short') {
-                // Non-flag: accept any non-empty answer, award points
-                correct = true;
-            } else {
-                correct = (answer.toUpperCase() === (CORRECT[cid] || '').toUpperCase());
-            }
+                if (solved.has(cid)) {
+                    fb.textContent = '✓ Already submitted.';
+                    fb.className   = 'text-xs font-semibold text-green-600';
+                    fb.classList.remove('hidden');
+                    return;
+                }
 
-            if (correct) {
-                solved.add(cid);
-                updateScore(pts);
-                updateProgress();
+                let correct = false;
+                if (isMcq) {
+                    correct = selectedOption ? selectedOption.dataset.isCorrect === 'true' : false;
+                } else if (type === 'code' || type === 'short') {
+                    // Non-flag: accept any non-empty answer, award points
+                    correct = true;
+                } else {
+                    correct = (answer.toUpperCase() === (CORRECT[cid] || '').toUpperCase());
+                }
 
-                card.classList.add('solved');
-                badge.classList.remove('hidden');
-                badge.classList.add('flex');
+                if (correct) {
+                    solved.add(cid);
+                    updateScore(pts);
+                    updateProgress();
 
-                navIcon.className = 'w-6 h-6 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0 text-white';
-                navIcon.innerHTML = `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>`;
+                    card.classList.add('solved');
+                    badge.classList.remove('hidden');
+                    badge.classList.add('flex');
 
-                fb.textContent = `✓ Correct! +${pts} pts`;
-                fb.className   = 'text-xs font-semibold text-green-600';
-                fb.classList.remove('hidden');
+                    navIcon.className = 'w-6 h-6 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0 text-white';
+                    navIcon.innerHTML = `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>`;
 
-                input.disabled = true;
-                btn.disabled   = true;
-                btn.textContent = 'Submitted';
-                btn.className   = btn.className.replace('bg-blue-900 hover:bg-blue-800', 'bg-green-500 cursor-default');
-            } else {
-                fb.textContent = '✗ Incorrect flag. Try again.';
-                fb.className   = 'text-xs font-semibold text-red-500';
-                fb.classList.remove('hidden');
+                    fb.textContent = `✓ Correct! +${pts} pts`;
+                    fb.className   = 'text-xs font-semibold text-green-600';
+                    fb.classList.remove('hidden');
 
-                input.classList.add('border-red-300', 'bg-red-50');
-                setTimeout(() => input.classList.remove('border-red-300', 'bg-red-50'), 1200);
-            }
+                    if (isMcq) {
+                        document.querySelectorAll(`input[name="answer-${cid}"]`).forEach(radio => {
+                            radio.disabled = true;
+                        });
+                    } else {
+                        const input = document.getElementById('answer-' + cid);
+                        if (input) input.disabled = true;
+                    }
+                    btn.disabled   = true;
+                    btn.textContent = 'Submitted';
+                    btn.className   = btn.className.replace('bg-blue-900 hover:bg-blue-800', 'bg-green-500 cursor-default');
+                } else {
+                    fb.textContent = '✗ Incorrect. Try again.';
+                    fb.className   = 'text-xs font-semibold text-red-500';
+                    fb.classList.remove('hidden');
+
+                    if (type === 'multiple_choice' || type === 'mcq') {
+                        const container = document.getElementById('answer-' + cid + '-container');
+                        if (container) {
+                            container.classList.add('border-red-300', 'bg-red-50', 'rounded-xl', 'p-3');
+                            setTimeout(() => container.classList.remove('border-red-300', 'bg-red-50', 'rounded-xl', 'p-3'), 1200);
+                        }
+                    } else {
+                        const input = document.getElementById('answer-' + cid);
+                        if (input) {
+                            input.classList.add('border-red-300', 'bg-red-50');
+                            setTimeout(() => input.classList.remove('border-red-300', 'bg-red-50'), 1200);
+                        }
+                    }
+                }
+            });
         });
-    });
 
     // ── Submit All ────────────────────────────────────────────────────────
     const submitAllBtn   = document.getElementById('submitAllBtn');
@@ -679,13 +760,20 @@ $currentPage = 'assessment';
 
     confirmBtn.addEventListener('click', () => {
         // Collect all answers
-        const answers = {};
-        CHALLENGES.forEach(cid => {
-            const input = document.getElementById('answer-' + cid);
-            if (input) {
-                answers[cid] = input.value.trim();
-            }
-        });
+                const answers = {};
+                CHALLENGES.forEach(cid => {
+                    // Check if challenge is multiple choice first
+                    const mcqRadios = document.querySelectorAll(`input[name="answer-${cid}"]`);
+                    if (mcqRadios.length > 0) {
+                        const checkedRadio = document.querySelector(`input[name="answer-${cid}"]:checked`);
+                        answers[cid] = checkedRadio ? checkedRadio.value.trim() : '';
+                    } else {
+                        const input = document.getElementById('answer-' + cid);
+                        if (input) {
+                            answers[cid] = input.value.trim();
+                        }
+                    }
+                });
 
         // Send submission to server
         const formData = new FormData();

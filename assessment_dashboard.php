@@ -2,6 +2,52 @@
 require_once 'includes/bootstrap.php';
 require_once 'role_helpers.php';
 
+// Handle sending assessment via direct message
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_assessment'])) {
+    header('Content-Type: application/json');
+    $applicantUserId = (int)($_POST['applicant_user_id'] ?? 0);
+    $customMessage = trim($_POST['message'] ?? '');
+    $assessmentUrl = $_POST['assessment_url'] ?? '';
+    $myUserId = $_SESSION['user']['user_id'] ?? 0;
+
+    if (!$applicantUserId || !$myUserId || !$assessmentUrl) {
+        echo json_encode(['ok' => false, 'error' => 'Missing required fields']);
+        exit;
+    }
+
+    // Get or create conversation
+    $conv = cs_get_or_create_conversation($myUserId, $applicantUserId);
+    if (!$conv) {
+        echo json_encode(['ok' => false, 'error' => 'Could not create conversation']);
+        exit;
+    }
+
+    // Build full message
+    $fullMessage = ($customMessage ? $customMessage . "\n\n" : '') . 
+        "📋 Assessment Invitation:\n" . 
+        "Assessment: " . ($_POST['assessment_title'] ?? 'Skill Assessment') . "\n" . 
+        "Link: " . $assessmentUrl;
+
+    try {
+        $pdo = get_db_connection();
+        // Save message to DB
+        $stmt = $pdo->prepare('INSERT INTO messages (conversation_id, sender_id, body, is_read) VALUES (?, ?, ?, 0)');
+        $stmt->execute([$conv['conversation_id'], $myUserId, $fullMessage]);
+        $messageId = $pdo->lastInsertId();
+
+        // Send notification
+        if (function_exists('cs_save_notification')) {
+            cs_save_notification($applicantUserId, 'You received an assessment invitation!', 'messages.php?conv=' . $conv['conversation_id']);
+        }
+
+        echo json_encode(['ok' => true, 'conv_id' => $conv['conversation_id']]);
+        exit;
+    } catch (Exception $e) {
+        echo json_encode(['ok' => false, 'error' => 'Failed to send message: ' . $e->getMessage()]);
+        exit;
+    }
+}
+
 // Get assessment ID from URL parameter
 $assessId = $_GET['assess_id'] ?? null;
 $session = null;
@@ -49,6 +95,7 @@ if (!$session) {
     $applicants = [
         [
             'id'           => 'app_001',
+            'user_id'      => 2, // Assuming user_id 2 is John Doe
             'name'         => 'John Doe',
             'email'        => 'john@example.com',
             'avatar'       => null,
@@ -311,10 +358,10 @@ $currentPage = 'assessment';
                             Message
                         </a>
                     <?php elseif ($app['status'] === 'pending'): ?>
-                        <button onclick="openSendAssessmentModal(<?php echo htmlspecialchars(json_encode(['name'=>$app['name'],'email'=>$app['email'],'conv'=>'conv1'])); ?>)"
-                                class="text-xs font-semibold text-blue-700 border border-blue-200 px-3 py-1.5 rounded-lg hover:bg-blue-50 transition">
-                            Send Link
-                        </button>
+                        <button onclick="openSendAssessmentModal(<?php echo htmlspecialchars(json_encode(['name'=>$app['name'],'email'=>$app['email'],'user_id'=>$app['user_id']])); ?>)"
+                class="text-xs font-semibold text-blue-700 border border-blue-200 px-3 py-1.5 rounded-lg hover:bg-blue-50 transition">
+            Send Link
+        </button>
                     <?php else: ?>
                         <span class="text-xs text-gray-400 italic">Awaiting...</span>
                     <?php endif; ?>
@@ -413,6 +460,7 @@ $currentPage = 'assessment';
                     <p class="text-gray-500 text-xs" id="sendModalEmail">email</p>
                 </div>
             </div>
+            <input type="hidden" id="sendModalApplicantUserId" value="">
             <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
                 <p class="text-xs font-semibold text-blue-700 mb-1">Assessment link to be sent:</p>
                 <p class="text-xs text-blue-900 font-mono break-all" id="sendModalLink"></p>
@@ -420,11 +468,15 @@ $currentPage = 'assessment';
             <textarea id="sendModalMessage" rows="4"
                 class="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm resize-none"
                 placeholder="Add a message (optional)..."></textarea>
+            <div class="mt-4 flex items-center gap-2">
+                <input type="checkbox" id="sendViaDM" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500" checked>
+                <label for="sendViaDM" class="text-sm text-gray-700">Send via Direct Message</label>
+            </div>
             <p id="sendModalFeedback" class="text-xs font-semibold mt-2 hidden"></p>
         </div>
         <div class="flex border-t border-gray-200">
             <button onclick="closeSendAssessmentModal()" class="flex-1 py-3 font-semibold text-gray-600 hover:bg-gray-50 transition text-sm">Cancel</button>
-            <button id="sendAssessmentConfirmBtn" class="flex-1 py-3 font-bold bg-blue-900 text-white hover:bg-blue-800 transition text-sm">Send via Messages</button>
+            <button id="sendAssessmentConfirmBtn" class="flex-1 py-3 font-bold bg-blue-900 text-white hover:bg-blue-800 transition text-sm">Send</button>
         </div>
     </div>
 </div>
@@ -468,6 +520,7 @@ function openSendAssessmentModal(app) {
     document.getElementById('sendModalName').textContent    = app.name;
     document.getElementById('sendModalEmail').textContent   = app.email;
     document.getElementById('sendModalLink').textContent    = assessmentUrl;
+    document.getElementById('sendModalApplicantUserId').value = app.user_id || '';
     document.getElementById('sendModalMessage').value       = '';
     document.getElementById('sendModalFeedback').classList.add('hidden');
     const modal = document.getElementById('sendAssessmentModal');
@@ -485,43 +538,74 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!_sendTarget) return;
         const assessmentUrl = window.location.origin + '/assessment_session.php?session=sess_netsentinel_001';
         const customMsg = document.getElementById('sendModalMessage').value.trim();
-        const fullText = (customMsg ? customMsg + '\n\n' : '') +
-            '📋 Assessment Link for ' + <?php echo json_encode($session['title']); ?> + ':\n' + assessmentUrl;
+        const sendViaDM = document.getElementById('sendViaDM').checked;
+        const applicantUserId = document.getElementById('sendModalApplicantUserId').value;
         const fb = document.getElementById('sendModalFeedback');
         const btn = document.getElementById('sendAssessmentConfirmBtn');
+        
+        if (sendViaDM && !applicantUserId) {
+            fb.textContent = '✗ Could not get applicant user ID.';
+            fb.className = 'text-xs font-semibold mt-2 text-red-500';
+            fb.classList.remove('hidden');
+            return;
+        }
+
         btn.textContent = 'Sending...';
         btn.disabled = true;
 
-        // POST to messages.php send_message action using conv1 (NetSentinel conversation)
-        const formData = new FormData();
-        formData.append('action', 'send_message');
-        formData.append('conv', 'conv1');
-        formData.append('text', fullText);
+        if (sendViaDM) {
+            // Send via our own PHP handler
+            const formData = new FormData();
+            formData.append('send_assessment', '1');
+            formData.append('applicant_user_id', applicantUserId);
+            formData.append('message', customMsg);
+            formData.append('assessment_url', assessmentUrl);
+            formData.append('assessment_title', <?php echo json_encode($session['title']); ?>);
 
-        fetch('messages.php', { method: 'POST', body: formData })
-            .then(r => r.json())
-            .then(data => {
-                if (data.ok) {
-                    fb.textContent = '✓ Assessment link sent via Messages!';
-                    fb.className = 'text-xs font-semibold mt-2 text-green-600';
-                    fb.classList.remove('hidden');
-                    btn.textContent = 'Sent!';
-                    setTimeout(() => closeSendAssessmentModal(), 1800);
-                } else {
-                    fb.textContent = '✗ ' + (data.error || 'Could not send message.');
+            fetch('', { method: 'POST', body: formData })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.ok) {
+                        fb.textContent = '✓ Assessment link sent via Direct Message!';
+                        fb.className = 'text-xs font-semibold mt-2 text-green-600';
+                        fb.classList.remove('hidden');
+                        btn.textContent = 'Sent!';
+                        setTimeout(() => {
+                            closeSendAssessmentModal();
+                            // Optionally open the messages page
+                            // window.location.href = 'messages.php?conv=' + data.conv_id;
+                        }, 1800);
+                    } else {
+                        fb.textContent = '✗ ' + (data.error || 'Could not send message.');
+                        fb.className = 'text-xs font-semibold mt-2 text-red-500';
+                        fb.classList.remove('hidden');
+                        btn.textContent = 'Send';
+                        btn.disabled = false;
+                    }
+                })
+                .catch(() => {
+                    fb.textContent = '✗ Network error. Please try again.';
                     fb.className = 'text-xs font-semibold mt-2 text-red-500';
                     fb.classList.remove('hidden');
-                    btn.textContent = 'Send via Messages';
+                    btn.textContent = 'Send';
                     btn.disabled = false;
-                }
-            })
-            .catch(() => {
-                fb.textContent = '✗ Network error. Please try again.';
+                });
+        } else {
+            // Just copy to clipboard
+            navigator.clipboard.writeText(assessmentUrl).then(() => {
+                fb.textContent = '✓ Link copied to clipboard!';
+                fb.className = 'text-xs font-semibold mt-2 text-green-600';
+                fb.classList.remove('hidden');
+                btn.textContent = 'Copied!';
+                setTimeout(() => closeSendAssessmentModal(), 1800);
+            }).catch(() => {
+                fb.textContent = '✗ Failed to copy link.';
                 fb.className = 'text-xs font-semibold mt-2 text-red-500';
                 fb.classList.remove('hidden');
-                btn.textContent = 'Send via Messages';
+                btn.textContent = 'Send';
                 btn.disabled = false;
             });
+        }
     });
 
     // Close on backdrop click

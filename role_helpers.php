@@ -1,7 +1,44 @@
 <?php
 require_once __DIR__ . '/includes/bootstrap.php';
 // ── Role helpers ──────────────────────────────────────────────────────────
-// Roles: 'applicant' (default), 'employer', 'admin'
+// Roles: 'applicant', 'employer', 'admin'
+
+// Helper function to get user by email
+function cs_get_user_by_email(string $email): ?array {
+    try {
+        $pdo = get_db_connection();
+        $stmt = $pdo->prepare('SELECT user_id, first_name, last_name, email FROM users WHERE email = ?');
+        $stmt->execute([$email]);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    } catch (Exception $e) {
+        return null;
+    }
+}
+
+// Helper function to get or create conversation
+function cs_get_or_create_conversation(int $my_id, int $other_id): ?array {
+    if ($my_id == $other_id) return null;
+    $low = min($my_id, $other_id);
+    $high = max($my_id, $other_id);
+    try {
+        $pdo = get_db_connection();
+        $stmt = $pdo->prepare('SELECT conversation_id, user_a, user_b, created_at FROM conversations WHERE (user_a = ? AND user_b = ?) OR (user_a = ? AND user_b = ?)');
+        $stmt->execute([$low, $high, $low, $high]);
+        $conv = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($conv) return $conv;
+        
+        $stmt = $pdo->prepare('INSERT INTO conversations (user_a, user_b) VALUES (?, ?)');
+        $stmt->execute([$low, $high]);
+        return [
+            'conversation_id' => $pdo->lastInsertId(),
+            'user_a' => $low,
+            'user_b' => $high,
+            'created_at' => date('Y-m-d H:i:s')
+        ];
+    } catch (Exception $e) {
+        return null;
+    }
+}
 
 function cs_role(): string {
     return $_SESSION['user']['role'] ?? 'applicant';
@@ -404,7 +441,56 @@ function cs_get_employer_by_user_id(int $userId): ?array {
 
 // ── Session-based assessments ─────────────────────────────────────────────
 function cs_init_assessments(): void {
-    if (!isset($_SESSION['cs_assessments'])) $_SESSION['cs_assessments'] = [];
+    if (!isset($_SESSION['cs_assessments'])) {
+        $_SESSION['cs_assessments'] = [];
+    }
+    
+    // Always add/update our sample MCQ assessment
+    $sampleId = 'sample_mcq_assessment';
+    $filtered = [];
+    foreach ($_SESSION['cs_assessments'] as $a) {
+        if (($a['id'] ?? '') !== $sampleId) {
+            $filtered[] = $a;
+        }
+    }
+    $_SESSION['cs_assessments'] = $filtered;
+    $_SESSION['cs_assessments'][] = [
+        'id' => $sampleId,
+        'employer_email' => 'sample@cybersphere.com',
+        'employer_name' => 'CyberSphere',
+        'title' => 'Cybersecurity Fundamentals Assessment',
+        'role' => 'Entry-level',
+        'time_limit' => 10,
+        'instructions' => 'Answer all multiple-choice questions!',
+        'challenges' => [
+            [
+                'id' => 'c_1',
+                'type' => 'multiple_choice',
+                'title' => 'Question 1',
+                'body' => 'What is the primary goal of information security?',
+                'points' => 10,
+                'options' => [
+                    ['option_id' => 1, 'option_text' => 'To make systems faster', 'is_correct' => 0],
+                    ['option_id' => 2, 'option_text' => 'To protect confidentiality, integrity, and availability', 'is_correct' => 1],
+                    ['option_id' => 3, 'option_text' => 'To eliminate all risks', 'is_correct' => 0],
+                    ['option_id' => 4, 'option_text' => 'To only protect data from hackers', 'is_correct' => 0]
+                ]
+            ],
+            [
+                'id' => 'c_2',
+                'type' => 'multiple_choice',
+                'title' => 'Question 2',
+                'body' => 'Which protocol is used for secure web communication?',
+                'points' => 10,
+                'options' => [
+                    ['option_id' => 1, 'option_text' => 'HTTP', 'is_correct' => 0],
+                    ['option_id' => 2, 'option_text' => 'FTP', 'is_correct' => 0],
+                    ['option_id' => 3, 'option_text' => 'HTTPS', 'is_correct' => 1],
+                    ['option_id' => 4, 'option_text' => 'SMTP', 'is_correct' => 0]
+                ]
+            ],
+        ]
+    ];
 }
 function cs_get_assessments_by_employer(string $email): array {
     cs_init_assessments();
@@ -431,7 +517,7 @@ function cs_get_assessments_by_employer(string $email): array {
             $stmtChallenges->execute([$dbAssess['assessment_id']]);
             $challenges = $stmtChallenges->fetchAll(PDO::FETCH_ASSOC);
             
-            // Format challenges like session format
+                // Format challenges like session format
             $formattedChallenges = [];
             foreach ($challenges as $ch) {
                 // Get attachments for this challenge
@@ -440,7 +526,7 @@ function cs_get_assessments_by_employer(string $email): array {
                 $attachments = $stmtAttach->fetchAll(PDO::FETCH_ASSOC);
                 
                 // Get options for this challenge
-                $stmtOptions = $pdo->prepare('SELECT option_id, option_text, is_correct FROM challenge_options WHERE challenge_id = ?');
+                $stmtOptions = $pdo->prepare('SELECT option_id, option_text, is_correct FROM challenge_options WHERE challenge_id = ? ORDER BY option_id ASC');
                 $stmtOptions->execute([$ch['challenge_id']]);
                 $options = $stmtOptions->fetchAll(PDO::FETCH_ASSOC);
                 
@@ -513,6 +599,11 @@ function cs_get_assessment_by_id(string $id): ?array {
                         $stmtAttach->execute([$ch['challenge_id']]);
                         $attachments = $stmtAttach->fetchAll(PDO::FETCH_ASSOC);
                         
+                        // Get options for this challenge
+                        $stmtOptions = $pdo->prepare('SELECT option_id, option_text, is_correct FROM challenge_options WHERE challenge_id = ? ORDER BY option_id ASC');
+                        $stmtOptions->execute([$ch['challenge_id']]);
+                        $options = $stmtOptions->fetchAll(PDO::FETCH_ASSOC);
+                        
                         $formattedChallenges[] = [
                             'id' => 'c_' . $ch['challenge_id'],
                             'db_id' => $ch['challenge_id'],
@@ -524,6 +615,7 @@ function cs_get_assessment_by_id(string $id): ?array {
                             'correct_flag' => $ch['correct_answer'],
                             'attachment' => null,
                             'attachments' => $attachments,
+                            'options' => $options,
                         ];
                     }
                     
@@ -614,6 +706,7 @@ function cs_get_assessment_attempts(int $assessmentId): array {
 
             $formattedAttempts[] = [
                 'id' => 'app_' . $att['attempt_id'],
+                'user_id' => $att['user_id'],
                 'name' => trim(($att['first_name'] ?? '') . ' ' . ($att['last_name'] ?? '')) ?: 'Applicant',
                 'email' => $att['email'],
                 'avatar' => null,

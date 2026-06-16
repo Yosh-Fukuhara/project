@@ -1,0 +1,1022 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Marck Jedrick S. Mabalot — Portfolio</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"/>
+
+   <link rel="icon" type="image/png" href="Assets/Images/Logo.png">
+
+  <style>
+    :root {
+      --bg: #060b14;
+      --surface: #0d1520;
+      --surface2: #111d2e;
+      --cyan: #00ffe7;
+      --green: #39ff6a;
+      --text: #c8d8e8;
+      --muted: #5a7080;
+      --border: rgba(0,255,231,0.12);
+      --font-display: 'Syne', sans-serif;
+      --font-mono: 'Share Tech Mono', monospace;
+    }
+
+    :root.light-mode {
+      --bg: #eef2f6;
+      --surface: #ffffff;
+      --surface2: #e4ebf1;
+      --cyan: #0e7490;
+      --green: #047857;
+      --text: #1e293b;
+      --muted: #64748b;
+      --border: rgba(15,23,42,0.1);
+    }
+    :root.light-mode body::before { opacity: 0.15; }
+    :root.light-mode .exp-card:hover { box-shadow: 0 10px 30px rgba(14, 116, 144, 0.15); }
+    :root.light-mode .proj-card:hover { box-shadow: 0 10px 30px rgba(14, 116, 144, 0.15); }
+    :root.light-mode .comp-item:hover { box-shadow: 0 10px 30px rgba(14, 116, 144, 0.15); }
+    :root.light-mode .btn-primary-c { background: #0e7490; color: white; }
+    :root.light-mode .btn-primary-c:hover { box-shadow: 0 0 20px rgba(14, 116, 144, 0.3); }
+    :root.light-mode .hero-grid { background-image: linear-gradient(rgba(14,116,144,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(14,116,144,0.05) 1px, transparent 1px); }
+    :root.light-mode .hero-glow { background: radial-gradient(circle, rgba(14,116,144,0.08) 0%, transparent 70%); }
+    :root.light-mode nav { background: rgba(248, 250, 252, 0.9); }
+    :root.light-mode .section-title,
+    :root.light-mode .exp-role,
+    :root.light-mode .proj-title,
+    :root.light-mode .comp-name { color: #1e293b; }
+    :root.light-mode .skill-tag { background: rgba(14,116,144,.08); border-color: rgba(14,116,144,.25); }
+    :root.light-mode .skill-tag:hover { background: rgba(14,116,144,.15); }
+    :root.light-mode .exp-tag { background: rgba(16,185,129,.08); border-color: rgba(16,185,129,.25); }
+    :root.light-mode .proj-tech span { background: rgba(14,116,144,.05); }
+    :root.light-mode .lightbox { background: rgba(15, 23, 42, 0.92); }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-display);
+      overflow-x: hidden;
+    }
+
+    /* ── NOISE OVERLAY ── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none; z-index: 9999; opacity: .4;
+    }
+
+    /* ── NAVBAR ── */
+    nav {
+      position: fixed; top: 0; width: 100%; z-index: 1000;
+      background: rgba(6,11,20,0.85);
+      backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--border);
+      padding: .9rem 1.5rem;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .nav-brand {
+      display: flex; align-items: center;
+      text-decoration: none;
+    }
+    .nav-brand-logo {
+      height: 36px; width: auto; border-radius: 4px;
+      object-fit: contain; filter: brightness(1.15);
+    }
+    .nav-links { display: flex; gap: 1.5rem; list-style: none; }
+    .nav-links a {
+      color: var(--muted); font-size: .85rem; text-decoration: none;
+      letter-spacing: .08em; text-transform: uppercase;
+      transition: color .2s;
+    }
+    .nav-links a:hover { color: var(--cyan); }
+    .nav-toggle { display: none; background: none; border: none; color: var(--cyan); font-size: 1.4rem; cursor: pointer; }
+    .theme-toggle {
+      background: transparent; border: 1px solid var(--border);
+      color: var(--cyan); padding: 0.4rem 0.8rem; border-radius: 4px;
+      cursor: pointer; transition: background 0.3s, transform 0.2s;
+      font-size: 1rem;
+    }
+    .theme-toggle:hover { background: rgba(0,255,231,.08); transform: translateY(-2px); }
+    .nav-right { display: flex; align-items: center; gap: 1rem; }
+
+    @media (max-width: 768px) {
+      .nav-links { display: none; flex-direction: column; position: absolute; top: 100%; left: 0; right: 0; background: rgba(6,11,20,.97); padding: 1rem 1.5rem; border-bottom: 1px solid var(--border); gap: 1rem; }
+      .light-mode .nav-links { background: rgba(248, 250, 252, 0.97); }
+      .nav-links.open { display: flex; }
+      .nav-toggle { display: block; }
+    }
+
+    /* ── HERO ── */
+    #hero {
+      min-height: 100vh;
+      display: flex; align-items: center;
+      padding: 7rem 1.5rem 4rem;
+      position: relative; overflow: hidden;
+    }
+    .hero-grid {
+      position: absolute; inset: 0;
+      background-image:
+        linear-gradient(rgba(0,255,231,.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,255,231,.04) 1px, transparent 1px);
+      background-size: 60px 60px;
+      transition: transform 0.1s ease-out;
+    }
+    .hero-glow {
+      position: absolute; top: -150px; right: -150px;
+      width: 600px; height: 600px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(0,255,231,.08) 0%, transparent 70%);
+      pointer-events: none;
+      transition: transform 0.3s ease-out;
+    }
+    .hero-particles {
+      position: absolute; inset: 0; pointer-events: none; overflow: hidden;
+    }
+    .particle {
+      position: absolute; width: 4px; height: 4px;
+      background: var(--cyan); border-radius: 50%; opacity: 0.3;
+      animation: float 12s infinite ease-in-out;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0) translateX(0); }
+      25% { transform: translateY(-30px) translateX(20px); }
+      50% { transform: translateY(-60px) translateX(0); }
+      75% { transform: translateY(-30px) translateX(-20px); }
+    }
+
+    /* Two-column hero layout */
+    .hero-inner {
+      position: relative; z-index: 1;
+      width: 100%;
+      display: flex; align-items: center;
+      justify-content: space-between; gap: 3rem;
+    }
+    .hero-content { flex: 1; min-width: 0; }
+    .hero-photo-col {
+      flex-shrink: 0;
+      animation: fadeUp .8s .3s ease both, floatSlow 6s ease-in-out infinite;
+    }
+    @keyframes floatSlow {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+    .hero-photo-wrap {
+      position: relative; width: 260px; height: 320px;
+      transition: transform 0.2s ease-out;
+    }
+    .hero-photo-wrap::before {
+      content: '';
+      position: absolute; inset: -3px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--cyan), transparent 60%);
+      z-index: 0;
+      animation: pulse 2s infinite ease-in-out;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+    .hero-photo-wrap::after {
+      content: '';
+      position: absolute; bottom: -12px; right: -12px;
+      width: 100%; height: 100%;
+      border: 1px solid var(--border);
+      border-radius: 12px; z-index: -1;
+    }
+    .hero-photo {
+      position: relative; z-index: 1;
+      width: 100%; height: 100%;
+      object-fit: cover; object-position: top center;
+      border-radius: 10px;
+      filter: brightness(.95) contrast(1.05);
+      transition: transform 0.3s ease-out;
+    }
+    .hero-photo-wrap:hover .hero-photo {
+      transform: scale(1.02);
+    }
+    @media (max-width: 768px) {
+      .hero-inner { flex-direction: column-reverse; align-items: flex-start; gap: 2rem; }
+      .hero-photo-wrap { width: 160px; height: 200px; }
+    }
+
+    .hero-tag {
+      font-family: var(--font-mono); color: var(--cyan);
+      font-size: .8rem; letter-spacing: .2em;
+      margin-bottom: 1rem;
+      animation: fadeUp .6s ease both, typewriter 0.8s steps(15) 0.2s both;
+      overflow: hidden; white-space: nowrap;
+    }
+    @keyframes typewriter {
+      from { width: 0; }
+      to { width: 100%; }
+    }
+    .hero-name {
+      font-size: clamp(2.4rem, 6vw, 5rem);
+      font-weight: 800; line-height: 1.05;
+      color: #fff;
+      animation: fadeUp .7s .1s ease both;
+      -webkit-text-stroke: 1px transparent;
+    }
+    .light-mode .hero-name { color: #1e293b; }
+    .hero-name span {
+      color: var(--cyan);
+      position: relative;
+      display: inline-block;
+    }
+    .hero-name span::after {
+      content: '';
+      position: absolute; bottom: 0; left: 0;
+      width: 100%; height: 3px; background: var(--cyan);
+      animation: underlineExpand 0.8s ease-out 0.6s both;
+      transform-origin: left;
+    }
+    @keyframes underlineExpand {
+      from { transform: scaleX(0); }
+      to { transform: scaleX(1); }
+    }
+    .hero-tagline {
+      margin-top: 1.2rem; font-size: clamp(.88rem,2vw,1rem);
+      color: var(--muted); max-width: 520px; line-height: 1.7;
+      animation: fadeUp .7s .2s ease both;
+    }
+    .hero-btns {
+      margin-top: 2rem; display: flex; gap: 1rem; flex-wrap: wrap;
+      animation: fadeUp .7s .3s ease both;
+    }
+    .btn-primary-c {
+      background: var(--cyan); color: #060b14;
+      font-family: var(--font-display); font-weight: 700;
+      padding: .7rem 1.6rem; border-radius: 4px; border: none;
+      text-decoration: none; font-size: .9rem; letter-spacing: .05em;
+      transition: transform .2s, box-shadow .2s;
+    }
+    .btn-primary-c:hover { transform: translateY(-3px) scale(1.02); box-shadow: 0 0 30px rgba(0,255,231,.45); color: #060b14; }
+    .btn-outline-c {
+      background: transparent; color: var(--cyan);
+      border: 1px solid var(--cyan);
+      font-family: var(--font-display); font-weight: 600;
+      padding: .7rem 1.6rem; border-radius: 4px;
+      text-decoration: none; font-size: .9rem; letter-spacing: .05em;
+      transition: background .2s, transform .2s;
+    }
+    .btn-outline-c:hover { background: rgba(0,255,231,.08); transform: translateY(-3px); color: var(--cyan); }
+
+    .social-row { display: flex; gap: 1rem; margin-top: 2rem; animation: fadeUp .7s .4s ease both; }
+    .social-row a {
+      color: var(--muted); font-size: 1.2rem;
+      transition: color .2s, transform .2s;
+      position: relative;
+    }
+    .social-row a:hover { color: var(--cyan); transform: translateY(-4px) scale(1.15); }
+    .social-row a::after {
+      content: '';
+      position: absolute; bottom: -5px; left: 50%;
+      width: 0; height: 2px; background: var(--cyan);
+      transition: width 0.3s, left 0.3s;
+    }
+    .social-row a:hover::after {
+      width: 100%; left: 0;
+    }
+
+    /* ── SECTION BASE ── */
+    section { padding: 5rem 1.5rem; }
+    .section-label {
+      font-family: var(--font-mono); color: var(--cyan);
+      font-size: .75rem; letter-spacing: .25em;
+      text-transform: uppercase; margin-bottom: .5rem;
+    }
+    .section-title {
+      font-size: clamp(1.6rem, 4vw, 2.4rem);
+      font-weight: 800; color: #fff; margin-bottom: 2.5rem;
+    }
+
+    /* ── ABOUT ── */
+    #about { background: var(--surface); }
+    .about-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; align-items: start; }
+    @media (max-width: 768px) { .about-grid { grid-template-columns: 1fr; } }
+    .about-text { color: var(--text); line-height: 1.8; font-size: .95rem; }
+    .about-strong { color: #fff; }
+    :root.light-mode .about-strong { color: #1e293b; }
+    .info-card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px; padding: 1.5rem;
+    }
+    .info-item { display: flex; gap: .8rem; margin-bottom: 1rem; align-items: flex-start; }
+    .info-item i { color: var(--cyan); font-size: 1.1rem; margin-top: .1rem; flex-shrink: 0; }
+    .info-item a { color: var(--text); text-decoration: none; font-size: .88rem; word-break: break-all; }
+    .info-item a:hover { color: var(--cyan); }
+    .info-item span { color: var(--text); font-size: .88rem; }
+
+    /* ── SKILLS ── */
+    #skills { background: var(--bg); }
+    .skills-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
+    @media (max-width: 768px) { .skills-grid { grid-template-columns: 1fr; } }
+    .skill-group {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px; padding: 1.5rem;
+      transition: border-color .3s;
+    }
+    .skill-group:hover { border-color: var(--cyan); }
+    .skill-group-title {
+      font-family: var(--font-mono); color: var(--cyan);
+      font-size: .8rem; letter-spacing: .15em;
+      text-transform: uppercase; margin-bottom: 1rem;
+    }
+    .skill-tags { display: flex; flex-wrap: wrap; gap: .5rem; }
+    .skill-tag {
+      background: rgba(0,255,231,.07);
+      border: 1px solid rgba(0,255,231,.2);
+      color: var(--cyan); font-family: var(--font-mono);
+      font-size: .78rem; padding: .3rem .75rem; border-radius: 3px;
+      transition: background .2s;
+    }
+    .skill-tag:hover { background: rgba(0,255,231,.15); }
+
+    /* ── EXPERIENCE ── */
+    #experience { background: var(--surface); }
+    .exp-card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--cyan);
+      border-radius: 0 8px 8px 0;
+      padding: 1.5rem 1.8rem; margin-bottom: 1.5rem;
+      transition: transform .25s, box-shadow .25s;
+      display: flex; gap: 1.5rem; align-items: flex-start;
+    }
+    .exp-card:hover { transform: translateX(6px); box-shadow: -4px 0 24px rgba(0,255,231,.12); }
+    .exp-logo {
+      width: 52px; height: 52px; border-radius: 8px;
+      object-fit: contain; background: var(--surface);
+      border: 1px solid var(--border); padding: 6px;
+      flex-shrink: 0;
+    }
+    .exp-body { flex: 1; min-width: 0; }
+    .exp-role { font-size: 1.05rem; font-weight: 700; color: #fff; }
+    .exp-org { color: var(--cyan); font-family: var(--font-mono); font-size: .82rem; margin: .2rem 0 .8rem; }
+    .exp-desc { color: var(--text); font-size: .88rem; line-height: 1.7; }
+    .exp-desc ul { padding-left: 1.2rem; margin-top: .5rem; }
+    .exp-desc li { margin-bottom: .4rem; }
+    .exp-tags { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1rem; }
+    .exp-tag {
+      background: rgba(57,255,106,.07);
+      border: 1px solid rgba(57,255,106,.2);
+      color: var(--green); font-family: var(--font-mono);
+      font-size: .72rem; padding: .2rem .6rem; border-radius: 3px;
+    }
+    @media (max-width: 600px) { .exp-card { flex-direction: column; gap: .8rem; } }
+
+    /* ── PROJECTS ── */
+    #projects { background: var(--bg); }
+    .projects-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px,1fr)); gap: 1.5rem; }
+    .proj-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px; overflow: hidden;
+      transition: transform .3s, box-shadow .3s;
+      display: flex; flex-direction: column;
+    }
+    .proj-card:hover { transform: translateY(-6px); box-shadow: 0 16px 40px rgba(0,255,231,.1); }
+    .proj-img {
+      width: 100%; height: 180px; object-fit: cover;
+      filter: brightness(.8) saturate(.8);
+      transition: filter .3s;
+    }
+    .proj-card:hover .proj-img { filter: brightness(.95) saturate(1); }
+    .proj-body { padding: 1.4rem; flex: 1; display: flex; flex-direction: column; }
+    .proj-badge {
+      font-family: var(--font-mono); font-size: .7rem;
+      color: var(--green); letter-spacing: .12em; margin-bottom: .5rem;
+    }
+    .proj-title { font-size: 1.1rem; font-weight: 700; color: #fff; margin-bottom: .6rem; }
+    .proj-desc { color: var(--text); font-size: .85rem; line-height: 1.65; flex: 1; }
+    .proj-tech { display: flex; flex-wrap: wrap; gap: .4rem; margin: 1rem 0; }
+    .proj-tech span {
+      background: rgba(0,255,231,.06);
+      border: 1px solid var(--border);
+      color: var(--muted); font-family: var(--font-mono);
+      font-size: .72rem; padding: .2rem .55rem; border-radius: 3px;
+    }
+    .proj-footer { display: flex; gap: .7rem; flex-wrap: wrap; margin-top: auto; }
+    .proj-link {
+      display: inline-flex; align-items: center; gap: .4rem;
+      font-family: var(--font-mono); font-size: .78rem;
+      color: var(--cyan); border: 1px solid var(--border);
+      padding: .35rem .8rem; border-radius: 4px;
+      text-decoration: none; transition: background .2s, border-color .2s;
+    }
+    .proj-link:hover { background: rgba(0,255,231,.08); border-color: var(--cyan); color: var(--cyan); }
+    .proj-link.disabled { opacity: .4; pointer-events: none; cursor: default; }
+
+    /* ── COMPETITIONS ── */
+    #competitions { background: var(--surface); }
+    .comp-list { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; }
+    @media (max-width: 700px) { .comp-list { grid-template-columns: 1fr; } }
+    .comp-item {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px; overflow: hidden;
+      transition: border-color .25s, transform .25s, box-shadow .25s;
+      display: flex; flex-direction: column;
+      cursor: pointer;
+    }
+    .comp-item:hover { border-color: var(--cyan); transform: translateY(-4px); box-shadow: 0 12px 32px rgba(0,255,231,.1); }
+    .comp-thumb {
+      width: 100%; height: 180px;
+      object-fit: cover; object-position: center;
+      display: block;
+      filter: brightness(.8) saturate(.7);
+      transition: filter .3s;
+    }
+    .comp-item:hover .comp-thumb { filter: brightness(1) saturate(1); }
+    .comp-thumb-placeholder {
+      width: 100%; height: 180px;
+      background: var(--surface2);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 3rem;
+    }
+    .comp-body { padding: 1rem 1.2rem; }
+    .comp-icon { font-size: 1.1rem; margin-right: .4rem; }
+    .comp-name { font-weight: 700; color: #fff; font-size: .93rem; display: inline; }
+    .comp-result { font-family: var(--font-mono); font-size: .76rem; color: var(--cyan); margin-top: .35rem; }
+
+    /* ── LIGHTBOX ── */
+    .lightbox {
+      display: none; position: fixed; inset: 0; z-index: 2000;
+      background: rgba(6,11,20,.92); backdrop-filter: blur(6px);
+      align-items: center; justify-content: center; padding: 1.5rem;
+    }
+    .lightbox.open { display: flex; }
+    .lightbox img {
+      max-width: 90vw; max-height: 85vh;
+      border-radius: 8px; border: 1px solid var(--border);
+      box-shadow: 0 0 60px rgba(0,255,231,.15);
+    }
+    .lightbox-close {
+      position: absolute; top: 1.2rem; right: 1.5rem;
+      background: none; border: none; color: var(--cyan);
+      font-size: 2rem; cursor: pointer; line-height: 1;
+    }
+
+    /* ── FOOTER ── */
+    footer {
+      background: var(--bg);
+      border-top: 1px solid var(--border);
+      padding: 2.5rem 1.5rem;
+      text-align: center;
+    }
+    footer p { color: var(--muted); font-family: var(--font-mono); font-size: .78rem; }
+    footer a { color: var(--cyan); text-decoration: none; }
+
+    /* ── SCROLL REVEAL ── */
+    .reveal { opacity: 0; transform: translateY(28px); transition: opacity .55s ease, transform .55s ease; }
+    .reveal.visible { opacity: 1; transform: none; }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(22px); }
+      to   { opacity: 1; transform: none; }
+    }
+
+    /* ── SCROLLBAR ── */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--cyan); border-radius: 3px; }
+  </style>
+</head>
+<body>
+
+<!-- ── NAVBAR ── -->
+<nav>
+  <a href="index.html" class="nav-brand">
+    <img src="Assets/Images/Logo.png" alt="Logo" class="nav-brand-logo"/>
+  </a>
+  <div class="nav-right">
+    <button class="theme-toggle" id="themeToggle"><i class="bi bi-moon"></i></button>
+    <button class="nav-toggle" id="navToggle"><i class="bi bi-list"></i></button>
+    <ul class="nav-links" id="navLinks">
+      <li><a href="index.html">Home</a></li>
+      <li><a href="projects.html">Projects</a></li>
+      <li><a href="education.html">Education</a></li>
+      <li><a href="experiences.html">Experiences</a></li>
+      <li><a href="achievements.html">Achievements</a></li>
+    </ul>
+  </div>
+</nav>
+
+<!-- ── HERO ── -->
+<section id="hero">
+  <div class="hero-grid" id="heroGrid"></div>
+  <div class="hero-glow" id="heroGlow"></div>
+  <div class="hero-particles" id="heroParticles"></div>
+  <div class="container">
+    <div class="hero-inner">
+
+      <!-- Text side -->
+      <div class="hero-content">
+        <p class="hero-tag">// Hello, World!</p>
+        <h1 class="hero-name">Marck Jedrick<br/><span>S. Mabalot</span></h1>
+        <p class="hero-tagline">BS Information Technology Student &bull; Developer &bull; Cybersecurity Enthusiast &bull; Project Leader</p>
+        <div class="hero-btns">
+          <a href="#projects" class="btn-primary-c">View Projects</a>
+        </div>
+        <div class="social-row">
+          <a href="https://github.com/MarckJedrickMabalot" target="_blank" title="GitHub"><i class="bi bi-github"></i></a>
+          <a href="https://www.linkedin.com/in/marck-jedrick-mabalot-145821403/" target="_blank" title="LinkedIn"><i class="bi bi-linkedin"></i></a>
+          <a href="https://www.facebook.com/MarckJedSM" target="_blank" title="Facebook"><i class="bi bi-facebook"></i></a>
+          <a href="https://www.instagram.com/attex.h/" target="_blank" title="Instagram"><i class="bi bi-instagram"></i></a>
+          <a href="mailto:mabalotmarckjedrick@gmail.com" title="Email"><i class="bi bi-envelope"></i></a>
+        </div>
+      </div>
+
+      <!-- Photo side -->
+      <div class="hero-photo-col" id="heroPhotoCol">
+        <div class="hero-photo-wrap">
+          <img src="Assets/Images/Profile_Picture.jpg" alt="Marck Jedrick S. Mabalot" class="hero-photo"/>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ── ABOUT ── -->
+<section id="about">
+  <div class="container">
+    <p class="section-label reveal">01 // About</p>
+    <h2 class="section-title reveal">Who I Am</h2>
+    <div class="about-grid">
+      <div class="about-text reveal">
+        <p>I am a <strong class="about-strong">Bachelor of Science in Information Technology</strong> student from Polytechnic University of the Philippines – Sto. Tomas Campus with strong interests in software development, artificial intelligence, cybersecurity, and project management.</p>
+        <br/>
+        <p>I enjoy building technology-driven solutions, leading collaborative projects, and continuously learning emerging technologies that create real-world impact. Currently serving as <strong class="about-strong">Head of Educational and Research Committee</strong> at the PUP STC Computer Society and co-founder of <strong class="about-strong">LIQ Solutions</strong>.</p>
+      </div>
+      <div class="info-card reveal">
+        <div class="info-item"><i class="bi bi-geo-alt"></i><span>PUP – Sto. Tomas Campus, Philippines</span></div>
+        <div class="info-item"><i class="bi bi-envelope"></i><a href="mailto:mabalotmarckjedrick@gmail.com">mabalotmarckjedrick@gmail.com</a></div>
+        <div class="info-item"><i class="bi bi-github"></i><a href="https://github.com/MarckJedrickMabalot" target="_blank">github.com/MarckJedrickMabalot</a></div>
+        <div class="info-item"><i class="bi bi-linkedin"></i><a href="https://www.linkedin.com/in/marck-jedrick-mabalot-145821403/" target="_blank">linkedin.com/in/marck-jedrick-mabalot</a></div>
+        <div class="info-item"><i class="bi bi-facebook"></i><a href="https://www.facebook.com/MarckJedSM" target="_blank">facebook.com/MarckJedSM</a></div>
+        <div class="info-item"><i class="bi bi-instagram"></i><a href="https://www.instagram.com/attex.h/" target="_blank">instagram.com/attex.h</a></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── SKILLS ── -->
+<section id="skills">
+  <div class="container">
+    <p class="section-label reveal">02 // Skills</p>
+    <h2 class="section-title reveal">Technical Arsenal</h2>
+    <div class="skills-grid">
+      <div class="skill-group reveal">
+        <p class="skill-group-title"><i class="bi bi-code-slash"></i> &nbsp;Programming &amp; Development</p>
+        <div class="skill-tags">
+          <span class="skill-tag">Python</span><span class="skill-tag">Flask</span><span class="skill-tag">Dart</span>
+          <span class="skill-tag">C++</span><span class="skill-tag">C#</span><span class="skill-tag">PHP</span>
+          <span class="skill-tag">HTML</span><span class="skill-tag">CSS</span><span class="skill-tag">JavaScript</span>
+          <span class="skill-tag">Bootstrap</span><span class="skill-tag">MySQL</span><span class="skill-tag">SQLite</span>
+          <span class="skill-tag">CTurbo</span>
+        </div>
+      </div>
+      <div class="skill-group reveal">
+        <p class="skill-group-title"><i class="bi bi-shield-lock"></i> &nbsp;Cybersecurity &amp; IT</p>
+        <div class="skill-tags">
+          <span class="skill-tag">Linux Ubuntu</span><span class="skill-tag">Windows Investigation</span>
+          <span class="skill-tag">Networking</span><span class="skill-tag">Troubleshooting</span>
+          <span class="skill-tag">Digital Forensics</span><span class="skill-tag">Autopsy</span>
+          <span class="skill-tag">CyberChef</span><span class="skill-tag">Regex Searching</span>
+          <span class="skill-tag">Cryptography</span><span class="skill-tag">Encoding &amp; Decoding</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── EXPERIENCE ── -->
+<section id="experience">
+  <div class="container">
+    <p class="section-label reveal">03 // Experience</p>
+    <h2 class="section-title reveal">Work &amp; Leadership</h2>
+
+    <div class="exp-card reveal">
+      <img src="Assets/Images/ERC.png" alt="ERC Logo" class="exp-logo"/>
+      <div class="exp-body">
+        <p class="exp-role">Head of Educational &amp; Research Committee</p>
+        <p class="exp-org">Computer Society – PUP Sto. Tomas Campus &nbsp;|&nbsp; 2025 – 2026 |  <a href="https://www.facebook.com/PUPSTCCS" target="_blank" style="color:var(--cyan)">FB Page</a> </p>
+        <div class="exp-desc">
+          <ul>
+            <li>Led and coordinated educational and technology-focused initiatives for BSIT students.</li>
+            <li>Organized <em>"From Algorithms to Intelligence"</em> — a seminar on AI systems and machine learning.</li>
+            <li>Organized <em>"Ctrl+Alt+Lead: Project Management for the IT Generation"</em> — a seminar on modern software testing, project management, and their real-world applications.</li>
+            <li>Organized <em>EduCTF: 2026 Comsoc Hacking Competition</em> — a school-wide cybersecurity event.</li>
+            <li>Collaborated with officers, speakers, and committees for successful event execution.</li>
+          </ul>
+        </div>
+        <div class="exp-tags">
+          <span class="exp-tag">Event Management</span>
+          <span class="exp-tag">AI / ML</span>
+          <span class="exp-tag">CTF</span>
+          <span class="exp-tag">Leadership</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="exp-card reveal">
+      <img src="Assets/Images/LIQ.jpg" alt="LIQ Logo" class="exp-logo"/>
+      <div class="exp-body">
+        <p class="exp-role">Co-Founder / Head Developer / Project Manager</p>
+        <p class="exp-org">LIQ Solutions (Startup) &nbsp;&bull;&nbsp; <a href="https://www.facebook.com/profile.php?id=61573990467672" target="_blank" style="color:var(--cyan)">FB Page</a></p>
+        <div class="exp-desc">
+          <p>Co-founded LIQ Solutions, a startup focused on building digital tools and systems that help businesses improve efficiency, streamline operations, and accelerate growth.</p>
+          <ul>
+            <li>Leading development planning and project coordination</li>
+            <li>Designing and managing system workflows</li>
+            <li>Collaborating with developers and designers</li>
+            <li>Creating wireframes and project prototypes</li>
+            <li>Managing timelines and technical documentation</li>
+          </ul>
+        </div>
+        <div class="exp-tags">
+          <span class="exp-tag">Project Management</span>
+          <span class="exp-tag">Web Apps</span>
+          <span class="exp-tag">UI/UX</span>
+          <span class="exp-tag">Startup</span>
+        </div>
+      </div>
+    </div>
+    <div class="exp-card reveal">
+      <img src="Assets/Images/MgaApoNiTomasLogo.jpg" alt="Mga Apo ni Tomas Logo" class="exp-logo"/>
+      <div class="exp-body">
+        <p class="exp-role">President</p>
+        <p class="exp-org">Mga Apo ni Tomas Youth Organization &nbsp;|&nbsp; 2024 – Present &nbsp;&bull;&nbsp; <a href="https://www.facebook.com/profile.php?id=61573639553277" target="_blank" style="color:var(--cyan)">FB Page</a></p>
+        <div class="exp-desc">
+          <ul>
+            <li>Drafted and organized bylaws for the organization.</li>
+            <li>Led events and created accomplishment reports.</li>
+          </ul>
+        </div>
+        <div class="exp-tags">
+          <span class="exp-tag">Leadership</span>
+          <span class="exp-tag">Community</span>
+          <span class="exp-tag">Event Management</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="exp-card reveal">
+      <img src="Assets/Images/jolibeelogo.png" alt="Jolibee Logo" class="exp-logo"/>
+      <div class="exp-body">
+        <p class="exp-role">Crew Counter and Drivethru Station</p>
+        <p class="exp-org">Jolibee &nbsp;|&nbsp; 2024 – 2025</p>
+        <div class="exp-desc">
+          <ul>
+            <li>Won Best Counter September 17, 2024</li>
+            <li>Won Best Counter January 8, 2025</li>
+          </ul>
+        </div>
+        <div class="exp-tags">
+          <span class="exp-tag">Customer Service</span>
+          <span class="exp-tag">Time Management</span>
+          <span class="exp-tag">Fast Food Operations</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ── PROJECTS ── -->
+<section id="projects">
+  <div class="container">
+    <p class="section-label reveal">04 // Projects</p>
+    <h2 class="section-title reveal">What I've Built</h2>
+    <div class="projects-grid">
+
+      <!-- SagipQ -->
+      <div class="proj-card reveal">
+        <img src="Assets/Images/Sagipq.png" alt="SagipQ Hackathon" class="proj-img"/>
+        <div class="proj-body">
+          <p class="proj-badge">🏆 3rd Runner Up – PUP Hackathon 2025</p>
+          <h3 class="proj-title">SagipQ</h3>
+          <p class="proj-desc">AI-powered incident reporting system designed to improve emergency response and public safety. Users quickly submit reports with AI-assisted categorization to streamline response management.</p>
+          <div class="proj-tech">
+            <span>Python</span><span>Flask</span><span>MySQL</span><span>HTML/CSS</span><span>JavaScript</span><span>Bootstrap</span>
+          </div>
+          <div class="proj-footer">
+            <a href="https://youtu.be/yvPCN1qrgyg?si=SDQKDG5Tn3gyTa4c" target="_blank" class="proj-link"><i class="bi bi-youtube"></i> Pitch Video</a>
+            <a href="#" class="proj-link disabled"><i class="bi bi-github"></i> Repo</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Fronesis -->
+      <div class="proj-card reveal">
+        <img src="Assets/Images/Fronesis.png" alt="Fronesis" class="proj-img"/>
+        <div class="proj-body">
+          <p class="proj-badge">AI Ready ASEAN Youth Challenge 2026</p>
+          <h3 class="proj-title">Fronesis</h3>
+          <p class="proj-desc">AI-Powered Adaptive Learning System that personalizes educational content based on student performance, learning behavior, and response patterns with intelligent recommendations.</p>
+          <div class="proj-tech">
+            <span>Dart</span><span>Python</span><span>SQL Database</span><span>Ollama Open-Source AI</span><span>AI/ML</span><span>Educational Tech</span>
+          </div>
+          <div class="proj-footer">
+            <a href="https://youtu.be/c4ypLnhL77U?si=NiOvO4pJcjFmzCta" target="_blank" class="proj-link"><i class="bi bi-youtube"></i> Pitch Video</a>
+            <a href="https://github.com/MarckJedrickMabalot/Fronesis" target="_blank" class="proj-link"><i class="bi bi-github"></i> Repo</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Cathedread -->
+      <div class="proj-card reveal">
+        <img src="Assets/Images/Cathedread.png" alt="Cathedread Game" class="proj-img" style="object-position:center;"/>
+        <div class="proj-body">
+          <p class="proj-badge">Computer Programming 2 – 2025</p>
+          <h3 class="proj-title">Cathedread</h3>
+          <p class="proj-desc">Python Pygame-based game developed as part of CP2 coursework. Implements game mechanics, collision handling, player interaction systems, and graphical interface design.</p>
+          <div class="proj-tech">
+            <span>Python</span><span>Pygame</span><span>OOP</span><span>Game Dev</span><span>Raycasting</span>
+          </div>
+          <div class="proj-footer">
+            <a href="#" class="proj-link disabled"><i class="bi bi-github"></i> Repo</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Jed's Armory -->
+      <div class="proj-card reveal">
+        <img src="Assets/Images/JedsArmory.png" alt="Jed's Armory" class="proj-img"/>
+        <div class="proj-body">
+          <p class="proj-badge">Computer Programming 3 – Web Development</p>
+          <h3 class="proj-title">Jed's Armory</h3>
+          <p class="proj-desc">A web-based inventory and management system designed to streamline the tracking, organization, and monitoring of equipment, items, and records through a centralized digital platform with real-time operations.</p>
+          <div class="proj-tech">
+            <span>HTML</span><span>CSS</span><span>JavaScript</span><span>Bootstrap</span><span>PHP</span><span>MySQL</span><span>XAMPP</span><span>Figma</span>
+          </div>
+          <div class="proj-footer">
+            <a href="https://github.com/MarckJedrickMabalot/jeds_armory.github.io" target="_blank" class="proj-link"><i class="bi bi-github"></i> Repo</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Attex Luxury Watches -->
+      <div class="proj-card reveal">
+        <img src="Assets/Images/AttexLuxuryWatches.png" alt="Attex Luxury Watches" class="proj-img"/>
+        <div class="proj-body">
+          <p class="proj-badge">Hobby / For Fun</p>
+          <h3 class="proj-title">Attex Luxury Watches</h3>
+          <p class="proj-desc">A PHP e-commerce website showcasing a fictional premium watch collection — a Rolex competitor brand concept built for fun, featuring a clean collection catalog and product detail views.</p>
+          <div class="proj-tech">
+            <span>PHP</span><span>HTML</span><span>CSS</span><span>JavaScript</span>
+          </div>
+          <div class="proj-footer">
+            <a href="https://github.com/MarckJedrickMabalot/Attex_Luxury_Watches.github.io" target="_blank" class="proj-link"><i class="bi bi-github"></i> Repo</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- The Archmage's Ledger -->
+      <div class="proj-card reveal">
+        <img src="Assets/Images/ArchmagesLedger.png" alt="The Archmage's Ledger" class="proj-img"/>
+        <div class="proj-body">
+          <p class="proj-badge">Hobby / For Fun – OOP PHP</p>
+          <h3 class="proj-title">The Archmage's Ledger</h3>
+          <p class="proj-desc">A high-fantasy single-page web application blending complex data processing with an immersive interface. Built to demonstrate mastery of core OOP principles in PHP across four functional computational modules.</p>
+          <div class="proj-tech">
+            <span>PHP (OOP)</span><span>MySQL</span><span>SQLite</span><span>HTML5</span><span>CSS3</span>
+          </div>
+          <div class="proj-footer">
+            <a href="https://github.com/MarckJedrickMabalot/The-Archmage-s-Ledger" target="_blank" class="proj-link"><i class="bi bi-github"></i> Repo</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Comsoc Night -->
+      <div class="proj-card reveal">
+        <img src="Assets/Images/GameForGF.jpg" alt="Comsoc Night" class="proj-img"/>
+        <div class="proj-body">
+          <p class="proj-badge">❤️ Gift for my Girlfriend</p>
+          <h3 class="proj-title">Comsoc Night</h3>
+          <p class="proj-desc">A Pygame recreation of how me and my girlfriend first met — a personal, heartfelt game built as a gift, recreating the magic of Comsoc Night: The Grand ExiT.</p>
+          <div class="proj-tech">
+            <span>Python</span><span>Pygame</span><span>Game Dev</span>
+          </div>
+          <div class="proj-footer">
+            <a href="#" class="proj-link disabled"><i class="bi bi-github"></i> Repo</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Cybersphere -->
+      <div class="proj-card reveal">
+        <img src="Assets/Images/cybersphere.png" alt="Cybersphere" class="proj-img"/>
+        <div class="proj-body">
+          <p class="proj-badge">Final Project – OOP, Integrated Programming &amp; Info Management</p>
+          <h3 class="proj-title">Cybersphere</h3>
+          <p class="proj-desc">A web-based platform that combines social networking, recruitment, technical skill validation, and e-commerce into one integrated ecosystem designed for the Philippine technology and cybersecurity industry. Built to simplify how tech professionals connect with recruiters and companies.</p>
+          <div class="proj-tech">
+            <span>PHP</span><span>MySQL</span>
+          </div>
+          <div class="proj-footer">
+            <a href="https://github.com/Yosh-Fukuhara/project" target="_blank" class="proj-link"><i class="bi bi-github"></i> Repo</a>
+          </div>
+        </div>
+      </div>
+
+    </div>
+    <p style="font-family:var(--font-mono);font-size:.75rem;color:var(--muted);margin-top:1.5rem;" class="reveal">
+      * Repository links coming soon. Greyed-out links will be updated when available.
+    </p>
+  </div>
+</section>
+
+<!-- ── COMPETITIONS ── -->
+<section id="competitions">
+  <div class="container">
+    <p class="section-label reveal">05 // Competitions</p>
+    <h2 class="section-title reveal">Achievements &amp; Competitions</h2>
+    <div class="comp-list">
+
+      <div class="comp-item reveal" onclick="openLightbox('Assets/Images/PUP_Uthack_ang_PuhunanAwarding.jpg')">
+        <img src="Assets/Images/PUP_Uthack_ang_PuhunanAwarding.jpg" alt="Uthack" class="comp-thumb"/>
+        <div class="comp-body">
+          <p><span class="comp-icon">🥉</span><span class="comp-name">PUP Hackathon Uthack ang Puhunan</span></p>
+          <p class="comp-result">3rd Runner Up &bull; 2025</p>
+        </div>
+      </div>
+
+      <div class="comp-item reveal" onclick="openLightbox('Assets/Images/Trend_Micro_Careers_Philippines_University_Capture_the_Flag_2025_STANDING_84thPLACE.jpg')">
+        <img src="Assets/Images/Trend_Micro_Careers_Philippines_University_Capture_the_Flag_2025_STANDING_84thPLACE.jpg" alt="Trend Micro CTF" class="comp-thumb"/>
+        <div class="comp-body">
+          <p><span class="comp-icon">🚩</span><span class="comp-name">Trend Micro University Capture the Flag</span></p>
+          <p class="comp-result">84th Place – Preliminary Competitor &bull; 2025</p>
+        </div>
+      </div>
+
+      <div class="comp-item reveal" onclick="openLightbox('Assets/Images/UACDebateCategory.jpg')">
+        <img src="Assets/Images/UACDebateCategory.jpg" alt="Debate Competition" class="comp-thumb"/>
+        <div class="comp-body">
+          <p><span class="comp-icon">🥈</span><span class="comp-name">University Academic Competition – Debate Category</span></p>
+          <p class="comp-result">2nd Place Overall &bull; 2026</p>
+        </div>
+      </div>
+
+      <div class="comp-item reveal" onclick="openLightbox('Assets/Images/AIReadyASEANYouthChallenge.png')">
+        <img src="Assets/Images/AIReadyASEANYouthChallenge.png" alt="AI Ready ASEAN" class="comp-thumb" style="object-fit:contain;background:#fff;padding:12px;"/>
+        <div class="comp-body">
+          <p><span class="comp-icon">🌏</span><span class="comp-name">AI Ready ASEAN Youth Challenge</span></p>
+          <p class="comp-result">Participant &bull; 2026</p>
+        </div>
+      </div>
+
+      <div class="comp-item reveal" onclick="openLightbox('Assets/Images/BITS_x_DOST_Student_Pitching_Competition.jpg')">
+        <img src="Assets/Images/BITS_x_DOST_Student_Pitching_Competition.jpg" alt="BITS x DOST" class="comp-thumb"/>
+        <div class="comp-body">
+          <p><span class="comp-icon">🎤</span><span class="comp-name">BITS x DOST Student Pitching Competition</span></p>
+          <p class="comp-result">Participant &bull; 2026</p>
+        </div>
+      </div>
+
+      <div class="comp-item reveal" onclick="openLightbox('Assets/Images/MCGIBiblePreaching.jpg')">
+        <img src="Assets/Images/MCGIBiblePreaching.jpg" alt="MCGI Bible Preaching" class="comp-thumb"/>
+        <div class="comp-body">
+          <p><span class="comp-icon">✝️</span><span class="comp-name">MCGI Bible Preaching Competition</span></p>
+          <p class="comp-result">2nd Place &bull; 2026</p>
+        </div>
+      </div>
+
+      <div class="comp-item reveal" onclick="openLightbox('Assets/Images/BestCounterSept.jpg')">
+        <img src="Assets/Images/BestCounterSept.jpg" alt="Best Counter September" class="comp-thumb"/>
+        <div class="comp-body">
+          <p><span class="comp-icon">🏆</span><span class="comp-name">Best Counter September 17, 2024</span></p>
+          <p class="comp-result">Jolibee Crew Award &bull; 2024</p>
+        </div>
+      </div>
+
+      <div class="comp-item reveal" onclick="openLightbox('Assets/Images/BestCounterJan.jpg')">
+        <img src="Assets/Images/BestCounterJan.jpg" alt="Best Counter January" class="comp-thumb"/>
+        <div class="comp-body">
+          <p><span class="comp-icon">🏆</span><span class="comp-name">Best Counter January 8, 2025</span></p>
+          <p class="comp-result">Jolibee Crew Award &bull; 2025</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ── LIGHTBOX ── -->
+<div class="lightbox" id="lightbox" onclick="closeLightbox()">
+  <button class="lightbox-close" onclick="closeLightbox()">&times;</button>
+  <img id="lightbox-img" src="" alt=""/>
+</div>
+
+<!-- ── FOOTER ── -->
+<footer>
+  <p>Designed &amp; Built by <a href="#hero">Marck Jedrick S. Mabalot</a></p>
+  <p style="margin-top:.4rem;">mabalotmarckjedrick@gmail.com</p>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  // Theme Toggle
+  const themeToggle = document.getElementById('themeToggle');
+  const savedTheme = localStorage.getItem('portfolioTheme');
+  if (savedTheme) {
+    document.documentElement.classList.add(savedTheme);
+    updateThemeIcon();
+  }
+
+  themeToggle.addEventListener('click', () => {
+    document.documentElement.classList.toggle('light-mode');
+    const isLight = document.documentElement.classList.contains('light-mode');
+    localStorage.setItem('portfolioTheme', isLight ? 'light-mode' : '');
+    updateThemeIcon();
+  });
+
+  function updateThemeIcon() {
+    themeToggle.innerHTML = document.documentElement.classList.contains('light-mode')
+      ? '<i class="bi bi-sun"></i>'
+      : '<i class="bi bi-moon"></i>';
+  }
+
+  // Navbar Toggle
+  document.getElementById('navToggle').addEventListener('click', () => {
+    document.getElementById('navLinks').classList.toggle('open');
+  });
+  document.querySelectorAll('.nav-links a').forEach(a => {
+    a.addEventListener('click', () => document.getElementById('navLinks').classList.remove('open'));
+  });
+
+  // Intersection Observer for reveals
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); } });
+  }, { threshold: 0.1, rootMargin: '0px 0px -30px 0px' });
+  document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+  document.querySelectorAll('.skills-grid, .projects-grid, .comp-list').forEach(grid => {
+    grid.querySelectorAll('.reveal').forEach((el, i) => {
+      el.style.transitionDelay = `${i * 0.08}s`;
+    });
+  });
+
+  // Lightbox functions
+  function openLightbox(src) {
+    const lightboxImg = document.getElementById('lightbox-img');
+    const lightbox = document.getElementById('lightbox');
+    if (lightboxImg && lightbox) {
+      lightboxImg.src = src;
+      lightbox.classList.add('open');
+      document.body.style.overflow = 'hidden';
+    }
+  }
+  function closeLightbox() {
+    const lightbox = document.getElementById('lightbox');
+    if (lightbox) {
+      lightbox.classList.remove('open');
+      document.body.style.overflow = '';
+    }
+  }
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(); });
+
+  // Hero Particles
+  function createParticles() {
+    const container = document.getElementById('heroParticles');
+    if (!container) return;
+    for (let i = 0; i < 30; i++) {
+      const particle = document.createElement('div');
+      particle.className = 'particle';
+      particle.style.left = `${Math.random() * 100}%`;
+      particle.style.top = `${Math.random() * 100}%`;
+      particle.style.animationDelay = `${Math.random() * 10}s`;
+      particle.style.animationDuration = `${8 + Math.random() * 10}s`;
+      particle.style.width = `${2 + Math.random() * 4}px`;
+      particle.style.height = particle.style.width;
+      container.appendChild(particle);
+    }
+  }
+  createParticles();
+
+  // Mouse Parallax Effect
+  const heroGrid = document.getElementById('heroGrid');
+  const heroGlow = document.getElementById('heroGlow');
+  const heroPhotoCol = document.getElementById('heroPhotoCol');
+  document.addEventListener('mousemove', (e) => {
+    if (!heroGrid || !heroGlow) return;
+    const x = (e.clientX / window.innerWidth - 0.5) * 20;
+    const y = (e.clientY / window.innerHeight - 0.5) * 20;
+    heroGrid.style.transform = `translate(${x * 0.3}px, ${y * 0.3}px)`;
+    heroGlow.style.transform = `translate(${x * -1}px, ${y * -1}px)`;
+    if (heroPhotoCol) {
+      heroPhotoCol.style.transform = `translate(${x * 0.8}px, ${y * 0.8}px)`;
+    }
+  });
+</script>
+</body>
+</html>

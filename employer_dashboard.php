@@ -312,7 +312,7 @@ function get_or_create_conversation($my_id, $other_id) {
 $immediateLog = __DIR__ . '/debug-immediate.log';
 file_put_contents($immediateLog, date('Y-m-d H:i:s') . " - Checking send_assessment_msg handler\n", FILE_APPEND);
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    file_put_contents($immediateLog, date('Y-m-d H:i:s') . " - POST action: " . ($_POST['action'] ?? 'NOT SET') . "\n", FILE_APPEND);
+    file_put_contents($immediateLog, date('Y-m-d H:i:s') . " - POST RECEIVED: " . print_r($_POST, true) . "\n", FILE_APPEND);
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'send_assessment_msg') {
@@ -331,6 +331,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'send_
         $companyName = $_SESSION['user']['company_name'] ?? $_SESSION['user']['username'] ?? 'Your Company';
         $senderUserId = $_SESSION['user']['user_id'] ?? null;
 
+        file_put_contents($immediateLog, date('Y-m-d H:i:s') . " - senderUserId: $senderUserId, myEmail: $myEmail\n", FILE_APPEND);
+
         $pdo = get_db_connection();
         try {
             $pdo->beginTransaction();
@@ -339,6 +341,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'send_
             $stmtUserId = $pdo->prepare('SELECT user_id FROM users WHERE email = ?');
             $stmtUserId->execute([$recipEmail]);
             $recipUserId = $stmtUserId->fetchColumn();
+            file_put_contents($immediateLog, date('Y-m-d H:i:s') . " - recipUserId: " . ($recipUserId ?? 'NULL') . "\n", FILE_APPEND);
 
             $link = 'assessment_session.php?session=' . urlencode($assessId);
             // Use http instead of https for localhost, and get correct base path
@@ -351,16 +354,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'send_
                  . 'Role: ' . ($assessment['role'] ?: 'General') . "\n"
                  . 'Time Limit: ' . $assessment['time_limit'] . " minutes\n"
                  . 'Start here: ' . $fullLink;
+            file_put_contents($immediateLog, date('Y-m-d H:i:s') . " - msgText: $msgText\n", FILE_APPEND);
 
             // 1. Find or create conversation in database
             $convId = null;
             if ($senderUserId && $recipUserId) {
                 $conv = get_or_create_conversation($senderUserId, $recipUserId);
-                $convId = $conv['conversation_id'];
+                $convId = $conv['conversation_id'] ?? null;
+                file_put_contents($immediateLog, date('Y-m-d H:i:s') . " - convId: " . ($convId ?? 'NULL') . "\n", FILE_APPEND);
 
                 // 2. Add message to conversation
                 $stmtMsg = $pdo->prepare('INSERT INTO messages (conversation_id, sender_id, body, is_read) VALUES (?, ?, ?, ?)');
                 $stmtMsg->execute([$convId, $senderUserId, $msgText, false]);
+                $messageId = $pdo->lastInsertId();
+                file_put_contents($immediateLog, date('Y-m-d H:i:s') . " - message inserted with ID: $messageId\n", FILE_APPEND);
+            } else {
+                file_put_contents($immediateLog, date('Y-m-d H:i:s') . " - Skipping DB message: sender or recipient ID missing\n", FILE_APPEND);
             }
 
             // 3. Create assessment session if we have db assess id
@@ -369,9 +378,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'send_
                 $stmtSession = $pdo->prepare('INSERT INTO assessment_sessions (assessment_id, post_id, deadline, status) VALUES (?, ?, ?, ?)');
                 $stmtSession->execute([$dbAssessId, null, null, 'active']);
                 $sessionId = $pdo->lastInsertId();
+                file_put_contents($immediateLog, date('Y-m-d H:i:s') . " - assessment session created with ID: $sessionId\n", FILE_APPEND);
             }
 
             $pdo->commit();
+            file_put_contents($immediateLog, date('Y-m-d H:i:s') . " - Transaction committed successfully!\n", FILE_APPEND);
 
             // Also update session for backwards compatibility
             if (!isset($_SESSION['messages'])) $_SESSION['messages'] = [];
@@ -408,6 +419,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'send_
             // Notify recipient
             if ($recipUserId) {
                 cs_save_notification($recipUserId, $companyName . ' sent you a skill assessment: ' . $assessment['title'], 'messages.php?conv=' . urlencode($convId));
+                file_put_contents($immediateLog, date('Y-m-d H:i:s') . " - Notification saved for user ID: $recipUserId\n", FILE_APPEND);
             } else {
                 array_unshift($_SESSION['notifications'], [
                     'msg'  => $companyName . ' sent you a skill assessment: ' . $assessment['title'],
@@ -418,6 +430,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'send_
             }
         } catch (Exception $e) {
             $pdo->rollBack();
+            file_put_contents($immediateLog, date('Y-m-d H:i:s') . " - ERROR: " . $e->getMessage() . " | Trace: " . $e->getTraceAsString() . "\n", FILE_APPEND);
             // Fall back to old session method
             if (!isset($_SESSION['messages'])) $_SESSION['messages'] = [];
             $sessionConvId = null;
@@ -882,6 +895,7 @@ function addChallenge() {
                         <option value="flag">Flag (exact answer)</option>
                         <option value="code">Code (open-ended)</option>
                         <option value="short">Short Answer</option>
+                        <option value="multiple-choice">Multiple Choice</option>
                     </select>
                 </div>
                 <div>
@@ -896,6 +910,39 @@ function addChallenge() {
             <textarea name="challenges[${i}][body]" rows="3" required placeholder="Describe the challenge…"
                       class="w-full px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"></textarea>
         </div>
+        
+        <!-- Multiple Choice Options Panel -->
+        <div id="mc-options-${i}" class="mb-4 hidden">
+            <label class="block text-xs font-semibold text-gray-600 mb-2">Options (A, B, C, D) *</label>
+            <div class="space-y-3">
+                <div class="flex items-center gap-3">
+                    <span class="w-6 h-6 rounded-full bg-blue-900 text-white flex items-center justify-center text-xs font-bold">A</span>
+                    <input name="challenges[${i}][options][A]" required placeholder="Option A" class="flex-1 px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div class="flex items-center gap-3">
+                    <span class="w-6 h-6 rounded-full bg-blue-900 text-white flex items-center justify-center text-xs font-bold">B</span>
+                    <input name="challenges[${i}][options][B]" required placeholder="Option B" class="flex-1 px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div class="flex items-center gap-3">
+                    <span class="w-6 h-6 rounded-full bg-blue-900 text-white flex items-center justify-center text-xs font-bold">C</span>
+                    <input name="challenges[${i}][options][C]" required placeholder="Option C" class="flex-1 px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div class="flex items-center gap-3">
+                    <span class="w-6 h-6 rounded-full bg-blue-900 text-white flex items-center justify-center text-xs font-bold">D</span>
+                    <input name="challenges[${i}][options][D]" required placeholder="Option D" class="flex-1 px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+            </div>
+            <div class="mt-3">
+                <label class="block text-xs font-semibold text-gray-600 mb-1">Correct Answer (A, B, C, or D) *</label>
+                <select name="challenges[${i}][correct_option]" class="w-full px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="A">A</option>
+                    <option value="B">B</option>
+                    <option value="C">C</option>
+                    <option value="D">D</option>
+                </select>
+            </div>
+        </div>
+        
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
             <div class="flag-field-wrap">
                 <label class="block text-xs font-semibold text-gray-600 mb-1">Correct Flag / Answer</label>
@@ -920,12 +967,23 @@ function addChallenge() {
 
     challengesList.appendChild(card);
 
-    // Show/hide flag field based on type
+    // Show/hide flag field and multiple choice options based on type
     const sel = card.querySelector('.challenge-type-sel');
     const flagWrap = card.querySelector('.flag-field-wrap');
-    sel.addEventListener('change', () => {
-        flagWrap.style.opacity = (sel.value === 'flag') ? '1' : '0.4';
-    });
+    const mcOptions = card.querySelector(`#mc-options-${i}`);
+    
+    function updateTypeFields() {
+        if (sel.value === 'multiple-choice') {
+            flagWrap.style.opacity = '0.4';
+            mcOptions.classList.remove('hidden');
+        } else {
+            flagWrap.style.opacity = (sel.value === 'flag') ? '1' : '0.4';
+            mcOptions.classList.add('hidden');
+        }
+    }
+    
+    updateTypeFields();
+    sel.addEventListener('change', updateTypeFields);
 }
 
 // Define file icon map once
