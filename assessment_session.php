@@ -120,12 +120,12 @@ if ($dynamicAssessment) {
     $correctMap = [];
     foreach ($challenges as $ch) {
         $typeLower = strtolower(trim($ch['type'] ?? ''));
-        if (in_array($typeLower, ['multiple_choice', 'mcq', 'multiple choice'])) {
-            // For MCQ, we don't need correct_flag in JS (we use data-is-correct)
-            $correctMap[$ch['id']] = null;
-        } else {
-            $correctMap[$ch['id']] = !empty($ch['correct_flag']) ? $ch['correct_flag'] : null;
-        }
+                if (in_array($typeLower, ['multiple_choice', 'mcq', 'multiple choice', 'multiple-choice'])) {
+                    // For MCQ, we don't need correct_flag in JS (we use data-is-correct)
+                    $correctMap[$ch['id']] = null;
+                } else {
+                    $correctMap[$ch['id']] = !empty($ch['correct_flag']) ? $ch['correct_flag'] : null;
+                }
     }
 } else {
     // ── Static simulation data (NetSentinel default) ──────────────────────
@@ -389,7 +389,7 @@ echo "</pre>";
                                         echo '🚩 Flag';
                                     } elseif ($typeLower === 'code') {
                                         echo '💻 Code';
-                                    } elseif (in_array($typeLower, ['multiple_choice', 'mcq', 'multiple choice'])) {
+                                    } elseif (in_array($typeLower, ['multiple_choice', 'mcq', 'multiple choice', 'multiple-choice'])) {
                                         echo '📝 Multiple Choice';
                                     } else {
                                         echo '✍️ Short Answer';
@@ -463,7 +463,7 @@ echo "</pre>";
                 <!-- Answer input -->
                 <?php 
                 $typeLower = strtolower(trim($ch['type'] ?? ''));
-                if (in_array($typeLower, ['multiple_choice', 'mcq', 'multiple choice'])): 
+                if (in_array($typeLower, ['multiple_choice', 'mcq', 'multiple choice', 'multiple-choice'])): 
                 ?>
                     <div id="answer-<?php echo $ch['id']; ?>-container" class="space-y-3">
                         <?php 
@@ -655,7 +655,7 @@ echo "</pre>";
                 let selectedOption = null;
                 
                 const typeLower = type ? type.toLowerCase().trim() : '';
-                const isMcq = ['multiple_choice', 'mcq', 'multiple choice'].includes(typeLower);
+                const isMcq = ['multiple_choice', 'mcq', 'multiple choice', 'multiple-choice'].includes(typeLower);
                 if (isMcq) {
                     const checkedRadio = document.querySelector(`input[name="answer-${cid}"]:checked`);
                     if (checkedRadio) {

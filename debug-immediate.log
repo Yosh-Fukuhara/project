@@ -218,3 +218,31 @@ Start here: http://localhost:8080/project/assessment_session.php?session=assess_
 2026-06-16 07:14:36 - Checking send_assessment_msg handler
 2026-06-16 07:16:05 - Checking send_assessment_msg handler
 2026-06-16 07:17:58 - Checking send_assessment_msg handler
+2026-06-16 07:25:02 - Checking send_assessment_msg handler
+2026-06-16 07:26:01 - Checking send_assessment_msg handler
+2026-06-16 07:26:38 - Checking send_assessment_msg handler
+2026-06-16 07:33:20 - Checking send_assessment_msg handler
+2026-06-16 07:33:55 - Checking send_assessment_msg handler
+2026-06-16 07:34:10 - Checking send_assessment_msg handler
+2026-06-16 07:34:10 - POST RECEIVED: Array
+(
+    [action] => send_assessment_msg
+    [assess_id] => assess_9
+    [recipient_email] => limutosgerald@gmail.com
+    [custom_message] => 
+)
+
+2026-06-16 07:34:10 - send_assessment_msg handler ACTIVATED!
+2026-06-16 07:34:10 - assessId: assess_9, recipEmail: limutosgerald@gmail.com, assessment exists? YES
+2026-06-16 07:34:10 - senderUserId: 17, myEmail: limutosgerald2@gmail.com
+2026-06-16 07:34:10 - recipUserId: 15
+2026-06-16 07:34:10 - msgText: 📋 Skill Assessment: hoy
+Role: General
+Time Limit: 30 minutes
+Start here: http://localhost:8080/php.works/MarcksBranch/project/assessment_session.php?session=assess_9
+2026-06-16 07:34:10 - convId: 4
+2026-06-16 07:34:10 - message inserted with ID: 20
+2026-06-16 07:34:10 - assessment session created with ID: 8
+2026-06-16 07:34:10 - Transaction committed successfully!
+2026-06-16 07:34:10 - Notification saved for user ID: 15
+2026-06-16 07:34:10 - Checking send_assessment_msg handler

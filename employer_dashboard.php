@@ -110,80 +110,95 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creat
     $instructions = trim($_POST['assess_instructions'] ?? '');
 
     $challengesRaw = $_POST['challenges'] ?? [];
-    $challenges = [];
-    // We'll collect attachments per challenge index
-    $challengeAttachments = [];
-    foreach ($challengesRaw as $index => $c) {
-        $ctype  = trim($c['type'] ?? 'flag');
-        $ctitle = trim($c['title'] ?? '');
-        $cbody  = trim($c['body'] ?? '');
-        $cpts   = max(10, min(500, (int)($c['points'] ?? 100)));
-        $chint  = trim($c['hint'] ?? '');
-        $cflag  = trim($c['correct_flag'] ?? '');
-        if (!$ctitle || !$cbody) continue;
-        
-        // Check for uploaded files and notes for this challenge
-        $attachments = [];
-        $attachmentNotes = $c['attachment_notes'] ?? [];
-        
-        // Function to get file icon based on extension
-        $getFileIcon = function($fileName) {
-            $ext = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
-            $iconMap = [
-                'pdf' => '📕',
-                'doc' => '📄', 'docx' => '📄', 'odt' => '📄', 'rtf' => '📄', 'txt' => '📄',
-                'png' => '🖼️', 'jpg' => '🖼️', 'jpeg' => '🖼️', 'gif' => '🖼️', 'svg' => '🖼️', 'ico' => '🖼️',
-                'ppt' => '📊', 'pptx' => '📊', 'xls' => '📊', 'xlsx' => '📊', 'csv' => '📊',
-                'zip' => '📦', 'rar' => '📦', '7z' => '📦', 'tar' => '📦', 'gz' => '📦', 'xz' => '📦', 'bz2' => '📦',
-                'mp3' => '🎵', 'wav' => '🎵', 'ogg' => '🎵', 'm4a' => '🎵',
-                'mp4' => '🎬', 'webm' => '🎬', 'avi' => '🎬', 'mov' => '🎬',
-                'pcap' => '🔍', 'pcapng' => '🔍',
-                'pka' => '🔬', 'pkt' => '🔬', // Packet Tracer
-                'md' => '📝',
-                'html' => '🌐',
-                'css' => '🎨', 'scss' => '🎨', 'less' => '🎨',
-                'js' => '💻', 'ts' => '💻',
-                'json' => '📋', 'xml' => '📋', 'yaml' => '📋', 'yml' => '📋',
-                'php' => '🐘',
-                'py' => '🐍', 'rb' => '💎',
-                'java' => '☕', 'class' => '☕', 'jar' => '☕',
-                'cpp' => '⚙️', 'c' => '⚙️', 'h' => '⚙️',
-                'cs' => '🔷',
-                'go' => '🐹', 'rs' => '🦀', 'kt' => '📱'
-            ];
-            return $iconMap[$ext] ?? '📄';
-        };
-        
-        if (isset($_FILES['challenges']) && isset($_FILES['challenges']['name'][$index]) && isset($_FILES['challenges']['name'][$index]['attachments'])) {
-            $fileNames = $_FILES['challenges']['name'][$index]['attachments'];
-            $fileTmpPaths = $_FILES['challenges']['tmp_name'][$index]['attachments'];
-            $fileErrors = $_FILES['challenges']['error'][$index]['attachments'];
+        $challenges = [];
+        // We'll collect attachments per challenge index
+        $challengeAttachments = [];
+        $challengeOptions = [];
+        foreach ($challengesRaw as $index => $c) {
+            $ctype  = trim($c['type'] ?? 'flag');
+            // Normalize the type name
+            if (in_array($ctype, ['multiple-choice', 'multiple_choice', 'mcq'])) {
+                $ctype = 'multiple_choice';
+            }
+            $ctitle = trim($c['title'] ?? '');
+            $cbody  = trim($c['body'] ?? '');
+            $cpts   = max(10, min(500, (int)($c['points'] ?? 100)));
+            $chint  = trim($c['hint'] ?? '');
+            $cflag  = trim($c['correct_flag'] ?? '');
+            if (!$ctitle || !$cbody) continue;
             
-            foreach ($fileNames as $fileIdx => $fileName) {
-                if ($fileErrors[$fileIdx] === UPLOAD_ERR_OK && !empty($fileName)) {
-                    $attachments[] = [
-                        'name' => $fileName,
-                        'tmp_name' => $fileTmpPaths[$fileIdx],
-                        'type' => $_FILES['challenges']['type'][$index]['attachments'][$fileIdx],
-                        'icon' => $getFileIcon($fileName),
-                        'note' => $attachmentNotes[$fileIdx] ?? ''
-                    ];
+            // Get options for multiple choice
+            $options = $c['options'] ?? [];
+            $correctOption = $c['correct_option'] ?? 'A';
+            
+            // Check for uploaded files and notes for this challenge
+            $attachments = [];
+            $attachmentNotes = $c['attachment_notes'] ?? [];
+            
+            // Function to get file icon based on extension
+            $getFileIcon = function($fileName) {
+                $ext = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+                $iconMap = [
+                    'pdf' => '📕',
+                    'doc' => '📄', 'docx' => '📄', 'odt' => '📄', 'rtf' => '📄', 'txt' => '📄',
+                    'png' => '🖼️', 'jpg' => '🖼️', 'jpeg' => '🖼️', 'gif' => '🖼️', 'svg' => '🖼️', 'ico' => '🖼️',
+                    'ppt' => '📊', 'pptx' => '📊', 'xls' => '📊', 'xlsx' => '📊', 'csv' => '📊',
+                    'zip' => '📦', 'rar' => '📦', '7z' => '📦', 'tar' => '📦', 'gz' => '📦', 'xz' => '📦', 'bz2' => '📦',
+                    'mp3' => '🎵', 'wav' => '🎵', 'ogg' => '🎵', 'm4a' => '🎵',
+                    'mp4' => '🎬', 'webm' => '🎬', 'avi' => '🎬', 'mov' => '🎬',
+                    'pcap' => '🔍', 'pcapng' => '🔍',
+                    'pka' => '🔬', 'pkt' => '🔬', // Packet Tracer
+                    'md' => '📝',
+                    'html' => '🌐',
+                    'css' => '🎨', 'scss' => '🎨', 'less' => '🎨',
+                    'js' => '💻', 'ts' => '💻',
+                    'json' => '📋', 'xml' => '📋', 'yaml' => '📋', 'yml' => '📋',
+                    'php' => '🐘',
+                    'py' => '🐍', 'rb' => '💎',
+                    'java' => '☕', 'class' => '☕', 'jar' => '☕',
+                    'cpp' => '⚙️', 'c' => '⚙️', 'h' => '⚙️',
+                    'cs' => '🔷',
+                    'go' => '🐹', 'rs' => '🦀', 'kt' => '📱'
+                ];
+                return $iconMap[$ext] ?? '📄';
+            };
+            
+            if (isset($_FILES['challenges']) && isset($_FILES['challenges']['name'][$index]) && isset($_FILES['challenges']['name'][$index]['attachments'])) {
+                $fileNames = $_FILES['challenges']['name'][$index]['attachments'];
+                $fileTmpPaths = $_FILES['challenges']['tmp_name'][$index]['attachments'];
+                $fileErrors = $_FILES['challenges']['error'][$index]['attachments'];
+                
+                foreach ($fileNames as $fileIdx => $fileName) {
+                    if ($fileErrors[$fileIdx] === UPLOAD_ERR_OK && !empty($fileName)) {
+                        $attachments[] = [
+                            'name' => $fileName,
+                            'tmp_name' => $fileTmpPaths[$fileIdx],
+                            'type' => $_FILES['challenges']['type'][$index]['attachments'][$fileIdx],
+                            'icon' => $getFileIcon($fileName),
+                            'note' => $attachmentNotes[$fileIdx] ?? ''
+                        ];
+                    }
                 }
             }
+            $challengeAttachments[] = $attachments;
+            $challengeOptions[] = [
+                'options' => $options,
+                'correct_option' => $correctOption
+            ];
+            
+            $challenges[] = [
+                'id'           => 'c_' . uniqid('', true),
+                'type'         => $ctype,
+                'title'        => $ctitle,
+                'body'         => $cbody,
+                'points'       => $cpts,
+                'hint'         => $chint,
+                'correct_flag' => $cflag,
+                'attachments'  => $attachments,
+                'options'      => $options,
+                'correct_option' => $correctOption
+            ];
         }
-        $challengeAttachments[] = $attachments;
-        
-        $challenges[] = [
-            'id'           => 'c_' . uniqid('', true),
-            'type'         => in_array($ctype, ['flag','code','short']) ? $ctype : 'flag',
-            'title'        => $ctitle,
-            'body'         => $cbody,
-            'points'       => $cpts,
-            'hint'         => $chint,
-            'correct_flag' => $cflag,
-            'attachments'  => $attachments,
-        ];
-    }
 
     $assessErrors = [];
     if (!$title) $assessErrors[] = 'Assessment title is required.';
@@ -235,6 +250,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creat
                                 $attachment['icon'] ?? 'file',
                                 $attachment['note'] ?? null
                             ]);
+                        }
+                    }
+                }
+                
+                // Insert multiple choice options if type is multiple_choice
+                if ($challenge['type'] === 'multiple_choice' && isset($challengeOptions[$index])) {
+                    $options = $challengeOptions[$index]['options'];
+                    $correctLetter = $challengeOptions[$index]['correct_option'];
+                    $optionLetters = ['A', 'B', 'C', 'D', 'E'];
+                    foreach ($optionLetters as $optIndex => $letter) {
+                        if (isset($options[$letter])) {
+                            $optionText = trim($options[$letter]);
+                            $isCorrect = ($letter === $correctLetter) ? 1 : 0;
+                            $stmtOption = $pdo->prepare('INSERT INTO challenge_options (challenge_id, option_text, is_correct) VALUES (?, ?, ?)');
+                            $stmtOption->execute([$challengeId, $optionText, $isCorrect]);
                         }
                     }
                 }
