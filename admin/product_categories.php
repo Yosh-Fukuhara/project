@@ -5,51 +5,66 @@ admin_require_login();
 $active = 'product_categories';
 $pageTitle = 'Manage Product Categories - Admin';
 
-// Original marketplace categories
-$categories = ['Courses', 'Books', 'Resources'];
-
+$pdo = get_db_connection();
 $success = '';
 $error = '';
 
-// Note: Using session for any edits
-if (!isset($_SESSION['admin_categories'])) {
-    $_SESSION['admin_categories'] = $categories;
-}
-$displayCategories = $_SESSION['admin_categories'];
-
-// Handle actions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
-    
+
     if ($action === 'create') {
-        $newCat = trim($_POST['name']);
-        if (!in_array($newCat, $displayCategories)) {
-            $displayCategories[] = $newCat;
-            $_SESSION['admin_categories'] = $displayCategories;
-            $success = 'Category created successfully!';
+        $name = trim($_POST['name'] ?? '');
+        $description = trim($_POST['description'] ?? '');
+
+        if ($name === '') {
+            $error = 'Category name is required.';
         } else {
-            $error = 'Category already exists!';
-        }
-    } elseif ($action === 'update') {
-        $oldName = trim($_POST['old_name']);
-        $newName = trim($_POST['name']);
-        foreach ($displayCategories as $idx => $cat) {
-            if ($cat === $oldName) {
-                $displayCategories[$idx] = $newName;
-                $_SESSION['admin_categories'] = $displayCategories;
-                $success = 'Category updated successfully!';
-                break;
+            try {
+                $stmt = $pdo->prepare('INSERT INTO product_categories (name, description) VALUES (?, ?)');
+                $stmt->execute([$name, $description !== '' ? $description : null]);
+                $success = 'Category created successfully!';
+            } catch (PDOException $e) {
+                $error = 'Error creating category: ' . $e->getMessage();
             }
         }
-    } elseif ($action === 'delete' && isset($_POST['name'])) {
-        $catName = trim($_POST['name']);
-        $displayCategories = array_filter($displayCategories, function($c) use ($catName) {
-            return $c !== $catName;
-        });
-        $_SESSION['admin_categories'] = array_values($displayCategories);
-        $success = 'Category deleted successfully!';
+    } elseif ($action === 'update') {
+        $categoryId = (int)($_POST['category_id'] ?? 0);
+        $name = trim($_POST['name'] ?? '');
+        $description = trim($_POST['description'] ?? '');
+
+        if ($categoryId <= 0 || $name === '') {
+            $error = 'Category and name are required.';
+        } else {
+            try {
+                $stmt = $pdo->prepare('UPDATE product_categories SET name = ?, description = ? WHERE category_id = ?');
+                $stmt->execute([$name, $description !== '' ? $description : null, $categoryId]);
+                $success = 'Category updated successfully!';
+            } catch (PDOException $e) {
+                $error = 'Error updating category: ' . $e->getMessage();
+            }
+        }
+    } elseif ($action === 'delete' && isset($_POST['category_id'])) {
+        $categoryId = (int)$_POST['category_id'];
+
+        try {
+            $stmt = $pdo->prepare('DELETE FROM product_categories WHERE category_id = ?');
+            $stmt->execute([$categoryId]);
+            $success = 'Category deleted successfully!';
+        } catch (PDOException $e) {
+            $error = 'Error deleting category: ' . $e->getMessage();
+        }
     }
 }
+
+$displayCategories = $pdo->query('
+    SELECT
+        pc.*,
+        COUNT(p.product_id) AS product_count
+    FROM product_categories pc
+    LEFT JOIN products p ON p.category_id = pc.category_id
+    GROUP BY pc.category_id, pc.name, pc.description
+    ORDER BY pc.name ASC
+')->fetchAll();
 
 include __DIR__ . '/partials/top.php';
 include __DIR__ . '/partials/sidebar.php';
@@ -111,19 +126,25 @@ include __DIR__ . '/partials/sidebar.php';
                 <table class="min-w-full text-sm">
                     <thead class="bg-slate-50 text-xs uppercase text-slate-500 tracking-wide">
                         <tr>
+                            <th class="text-left px-5 py-3">ID</th>
                             <th class="text-left px-5 py-3">Name</th>
+                            <th class="text-left px-5 py-3">Description</th>
+                            <th class="text-left px-5 py-3">Products</th>
                             <th class="text-center px-5 py-3">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
                         <?php foreach ($displayCategories as $cat): ?>
                             <tr class="hover:bg-slate-50">
-                                <td class="px-5 py-4 font-semibold text-slate-900"><?php echo htmlspecialchars($cat); ?></td>
+                                <td class="px-5 py-4 font-mono text-xs"><?php echo htmlspecialchars($cat['category_id']); ?></td>
+                                <td class="px-5 py-4 font-semibold text-slate-900"><?php echo htmlspecialchars($cat['name']); ?></td>
+                                <td class="px-5 py-4 text-slate-600"><?php echo htmlspecialchars($cat['description'] ?: 'No description'); ?></td>
+                                <td class="px-5 py-4 text-slate-600"><?php echo htmlspecialchars($cat['product_count']); ?></td>
                                 <td class="px-5 py-4 text-center">
-                                    <button onclick="openEditModal('<?php echo htmlspecialchars($cat, ENT_QUOTES); ?>')" class="text-slate-700 hover:text-slate-900 font-semibold mr-2">Edit</button>
+                                    <button onclick="openEditModal(<?php echo htmlspecialchars(json_encode($cat)); ?>)" class="text-slate-700 hover:text-slate-900 font-semibold mr-2">Edit</button>
                                     <form method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete this category?');">
                                         <input type="hidden" name="action" value="delete">
-                                        <input type="hidden" name="name" value="<?php echo htmlspecialchars($cat); ?>">
+                                        <input type="hidden" name="category_id" value="<?php echo htmlspecialchars($cat['category_id']); ?>">
                                         <button type="submit" class="text-red-600 hover:text-red-800 font-semibold">Delete</button>
                                     </form>
                                 </td>
@@ -153,6 +174,10 @@ include __DIR__ . '/partials/sidebar.php';
                 <label class="block text-sm font-semibold text-slate-700 mb-1">Name</label>
                 <input type="text" name="name" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
             </div>
+            <div>
+                <label class="block text-sm font-semibold text-slate-700 mb-1">Description</label>
+                <textarea name="description" rows="3" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"></textarea>
+            </div>
             <div class="pt-4 flex gap-3 justify-end">
                 <button type="button" onclick="closeCreateModal()" class="px-4 py-2 bg-slate-200 text-slate-700 rounded-lg font-semibold hover:bg-slate-300">Cancel</button>
                 <button type="submit" class="px-4 py-2 bg-blue-900 text-white rounded-lg font-semibold hover:bg-blue-800">Create</button>
@@ -174,10 +199,14 @@ include __DIR__ . '/partials/sidebar.php';
         </div>
         <form method="POST" class="space-y-4">
             <input type="hidden" name="action" value="update">
-            <input type="hidden" name="old_name" id="edit_old_name">
+            <input type="hidden" name="category_id" id="edit_category_id">
             <div>
                 <label class="block text-sm font-semibold text-slate-700 mb-1">Name</label>
                 <input type="text" name="name" id="edit_name" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            </div>
+            <div>
+                <label class="block text-sm font-semibold text-slate-700 mb-1">Description</label>
+                <textarea name="description" id="edit_description" rows="3" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"></textarea>
             </div>
             <div class="pt-4 flex gap-3 justify-end">
                 <button type="button" onclick="closeEditModal()" class="px-4 py-2 bg-slate-200 text-slate-700 rounded-lg font-semibold hover:bg-slate-300">Cancel</button>
@@ -196,9 +225,10 @@ function closeCreateModal() {
     document.getElementById('createModal').classList.add('hidden');
 }
 
-function openEditModal(catName) {
-    document.getElementById('edit_old_name').value = catName;
-    document.getElementById('edit_name').value = catName;
+function openEditModal(category) {
+    document.getElementById('edit_category_id').value = category.category_id;
+    document.getElementById('edit_name').value = category.name;
+    document.getElementById('edit_description').value = category.description || '';
     document.getElementById('editModal').classList.remove('hidden');
 }
 

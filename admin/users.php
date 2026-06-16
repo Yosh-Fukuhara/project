@@ -9,58 +9,128 @@ $pdo = get_db_connection();
 $success = '';
 $error = '';
 
-// Handle actions
+function admin_profile_payload(): array
+{
+    return [
+        trim($_POST['profile_pic'] ?? ''),
+        trim($_POST['cover_pic'] ?? ''),
+        trim($_POST['bio'] ?? ''),
+        trim($_POST['location'] ?? ''),
+        trim($_POST['website'] ?? ''),
+        trim($_POST['phone'] ?? ''),
+    ];
+}
+
+function admin_save_user_profile(PDO $pdo, int $userId, array $profileData): void
+{
+    $stmt = $pdo->prepare('SELECT profile_id FROM user_profiles WHERE user_id = ? LIMIT 1');
+    $stmt->execute([$userId]);
+    $profileId = $stmt->fetchColumn();
+
+    if ($profileId) {
+        $stmt = $pdo->prepare('
+            UPDATE user_profiles
+            SET profile_pic = ?, cover_pic = ?, bio = ?, location = ?, website = ?, phone = ?
+            WHERE user_id = ?
+        ');
+        $stmt->execute(array_merge($profileData, [$userId]));
+        return;
+    }
+
+    $stmt = $pdo->prepare('
+        INSERT INTO user_profiles (user_id, profile_pic, cover_pic, bio, location, website, phone)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    ');
+    $stmt->execute(array_merge([$userId], $profileData));
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
-    
+
     if ($action === 'create') {
-        $first_name = trim($_POST['first_name']);
-        $last_name = trim($_POST['last_name']);
-        $email = trim($_POST['email']);
-        $password = password_hash(trim($_POST['password']), PASSWORD_BCRYPT);
-        $role = $_POST['role'];
-        $status = $_POST['status'];
-        
-        try {
-            $stmt = $pdo->prepare('INSERT INTO users (first_name, last_name, email, password, role, status) VALUES (?, ?, ?, ?, ?, ?)');
-            $stmt->execute([$first_name, $last_name, $email, $password, $role, $status]);
-            
-            // Also create a profile entry
-            $user_id = $pdo->lastInsertId();
-            $stmt = $pdo->prepare('INSERT INTO user_profiles (user_id) VALUES (?)');
-            $stmt->execute([$user_id]);
-            
-            $success = 'User created successfully!';
-        } catch (PDOException $e) {
-            $error = 'Error creating user: ' . $e->getMessage();
+        $firstName = trim($_POST['first_name'] ?? '');
+        $lastName = trim($_POST['last_name'] ?? '');
+        $email = trim($_POST['email'] ?? '');
+        $passwordInput = trim($_POST['password'] ?? '');
+        $role = trim($_POST['role'] ?? 'user');
+        $status = trim($_POST['status'] ?? 'active');
+        $profileData = admin_profile_payload();
+
+        if ($firstName === '' || $lastName === '' || $email === '' || $passwordInput === '') {
+            $error = 'First name, last name, email, and password are required.';
+        } else {
+            try {
+                $pdo->beginTransaction();
+
+                $passwordHash = password_hash($passwordInput, PASSWORD_BCRYPT);
+                $stmt = $pdo->prepare('
+                    INSERT INTO users (first_name, last_name, email, password, role, status)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                ');
+                $stmt->execute([$firstName, $lastName, $email, $passwordHash, $role, $status]);
+
+                $userId = (int)$pdo->lastInsertId();
+                admin_save_user_profile($pdo, $userId, $profileData);
+
+                $pdo->commit();
+                $success = 'User created successfully!';
+            } catch (PDOException $e) {
+                if ($pdo->inTransaction()) {
+                    $pdo->rollBack();
+                }
+                $error = 'Error creating user: ' . $e->getMessage();
+            }
         }
     } elseif ($action === 'update') {
-        $user_id = (int)$_POST['user_id'];
-        $first_name = trim($_POST['first_name']);
-        $last_name = trim($_POST['last_name']);
-        $email = trim($_POST['email']);
-        $role = $_POST['role'];
-        $status = $_POST['status'];
-        $new_password = trim($_POST['new_password'] ?? '');
-        
-        try {
-            if (!empty($new_password)) {
-                $password = password_hash($new_password, PASSWORD_BCRYPT);
-                $stmt = $pdo->prepare('UPDATE users SET first_name = ?, last_name = ?, email = ?, password = ?, role = ?, status = ? WHERE user_id = ?');
-                $stmt->execute([$first_name, $last_name, $email, $password, $role, $status, $user_id]);
-            } else {
-                $stmt = $pdo->prepare('UPDATE users SET first_name = ?, last_name = ?, email = ?, role = ?, status = ? WHERE user_id = ?');
-                $stmt->execute([$first_name, $last_name, $email, $role, $status, $user_id]);
+        $userId = (int)($_POST['user_id'] ?? 0);
+        $firstName = trim($_POST['first_name'] ?? '');
+        $lastName = trim($_POST['last_name'] ?? '');
+        $email = trim($_POST['email'] ?? '');
+        $role = trim($_POST['role'] ?? 'user');
+        $status = trim($_POST['status'] ?? 'active');
+        $newPassword = trim($_POST['new_password'] ?? '');
+        $profileData = admin_profile_payload();
+
+        if ($userId <= 0 || $firstName === '' || $lastName === '' || $email === '') {
+            $error = 'User, first name, last name, and email are required.';
+        } else {
+            try {
+                $pdo->beginTransaction();
+
+                if ($newPassword !== '') {
+                    $passwordHash = password_hash($newPassword, PASSWORD_BCRYPT);
+                    $stmt = $pdo->prepare('
+                        UPDATE users
+                        SET first_name = ?, last_name = ?, email = ?, password = ?, role = ?, status = ?
+                        WHERE user_id = ?
+                    ');
+                    $stmt->execute([$firstName, $lastName, $email, $passwordHash, $role, $status, $userId]);
+                } else {
+                    $stmt = $pdo->prepare('
+                        UPDATE users
+                        SET first_name = ?, last_name = ?, email = ?, role = ?, status = ?
+                        WHERE user_id = ?
+                    ');
+                    $stmt->execute([$firstName, $lastName, $email, $role, $status, $userId]);
+                }
+
+                admin_save_user_profile($pdo, $userId, $profileData);
+
+                $pdo->commit();
+                $success = 'User updated successfully!';
+            } catch (PDOException $e) {
+                if ($pdo->inTransaction()) {
+                    $pdo->rollBack();
+                }
+                $error = 'Error updating user: ' . $e->getMessage();
             }
-            $success = 'User updated successfully!';
-        } catch (PDOException $e) {
-            $error = 'Error updating user: ' . $e->getMessage();
         }
     } elseif ($action === 'delete' && isset($_POST['user_id'])) {
-        $user_id = (int)$_POST['user_id'];
+        $userId = (int)$_POST['user_id'];
+
         try {
             $stmt = $pdo->prepare('DELETE FROM users WHERE user_id = ?');
-            $stmt->execute([$user_id]);
+            $stmt->execute([$userId]);
             $success = 'User deleted successfully!';
         } catch (PDOException $e) {
             $error = 'Error deleting user: ' . $e->getMessage();
@@ -68,8 +138,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Fetch all users with their profiles
-$users = $pdo->query('SELECT u.*, p.profile_pic, p.bio, p.location FROM users u LEFT JOIN user_profiles p ON u.user_id = p.user_id ORDER BY u.created_at DESC')->fetchAll();
+$users = $pdo->query('
+    SELECT
+        u.*,
+        p.profile_pic,
+        p.cover_pic,
+        p.bio,
+        p.location,
+        p.website,
+        p.phone
+    FROM users u
+    LEFT JOIN user_profiles p ON u.user_id = p.user_id
+    ORDER BY u.created_at DESC
+')->fetchAll();
 ?>
 
 <?php include __DIR__ . '/partials/top.php'; ?>
@@ -221,6 +302,34 @@ $users = $pdo->query('SELECT u.*, p.profile_pic, p.bio, p.location FROM users u 
                     </select>
                 </div>
             </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-1">Phone</label>
+                    <input type="text" name="phone" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-1">Location</label>
+                    <input type="text" name="location" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                </div>
+            </div>
+            <div>
+                <label class="block text-sm font-semibold text-slate-700 mb-1">Website</label>
+                <input type="url" name="website" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-1">Profile Picture Path or URL</label>
+                    <input type="text" name="profile_pic" placeholder="uploads/profile.jpg or https://example.com/profile.jpg" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-1">Cover Picture Path or URL</label>
+                    <input type="text" name="cover_pic" placeholder="uploads/cover.jpg or https://example.com/cover.jpg" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                </div>
+            </div>
+            <div>
+                <label class="block text-sm font-semibold text-slate-700 mb-1">Bio</label>
+                <textarea name="bio" rows="3" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"></textarea>
+            </div>
             <div class="pt-4 flex gap-3 justify-end">
                 <button type="button" onclick="closeCreateModal()" class="px-4 py-2 bg-slate-200 text-slate-700 rounded-lg font-semibold hover:bg-slate-300">Cancel</button>
                 <button type="submit" class="px-4 py-2 bg-blue-900 text-white rounded-lg font-semibold hover:bg-blue-800">Create</button>
@@ -296,6 +405,34 @@ $users = $pdo->query('SELECT u.*, p.profile_pic, p.bio, p.location FROM users u 
                     </select>
                 </div>
             </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-1">Phone</label>
+                    <input type="text" name="phone" id="edit_phone" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-1">Location</label>
+                    <input type="text" name="location" id="edit_location" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                </div>
+            </div>
+            <div>
+                <label class="block text-sm font-semibold text-slate-700 mb-1">Website</label>
+                <input type="url" name="website" id="edit_website" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-1">Profile Picture Path or URL</label>
+                    <input type="text" name="profile_pic" id="edit_profile_pic" placeholder="uploads/profile.jpg or https://example.com/profile.jpg" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-1">Cover Picture Path or URL</label>
+                    <input type="text" name="cover_pic" id="edit_cover_pic" placeholder="uploads/cover.jpg or https://example.com/cover.jpg" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                </div>
+            </div>
+            <div>
+                <label class="block text-sm font-semibold text-slate-700 mb-1">Bio</label>
+                <textarea name="bio" id="edit_bio" rows="3" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"></textarea>
+            </div>
             <div class="pt-4 flex gap-3 justify-end">
                 <button type="button" onclick="closeEditModal()" class="px-4 py-2 bg-slate-200 text-slate-700 rounded-lg font-semibold hover:bg-slate-300">Cancel</button>
                 <button type="submit" class="px-4 py-2 bg-blue-900 text-white rounded-lg font-semibold hover:bg-blue-800">Update</button>
@@ -337,10 +474,6 @@ function openViewModal(user) {
                 <span class="text-slate-500 font-semibold">Email:</span>
                 <p class="text-slate-900">${user.email}</p>
             </div>
-            <div class="col-span-2">
-                <span class="text-slate-500 font-semibold">Password Hash:</span>
-                <p class="text-slate-900 font-mono text-xs break-all bg-slate-50 p-2 rounded">${user.password}</p>
-            </div>
             <div>
                 <span class="text-slate-500 font-semibold">Status:</span>
                 <p class="text-slate-900 capitalize">${user.status}</p>
@@ -349,6 +482,11 @@ function openViewModal(user) {
                 <span class="text-slate-500 font-semibold">Created:</span>
                 <p class="text-slate-900">${user.created_at}</p>
             </div>
+            ${user.phone ? `
+            <div>
+                <span class="text-slate-500 font-semibold">Phone:</span>
+                <p class="text-slate-900">${user.phone}</p>
+            </div>` : ''}
             ${user.bio ? `
             <div class="col-span-2">
                 <span class="text-slate-500 font-semibold">Bio:</span>
@@ -358,6 +496,21 @@ function openViewModal(user) {
             <div class="col-span-2">
                 <span class="text-slate-500 font-semibold">Location:</span>
                 <p class="text-slate-900">${user.location}</p>
+            </div>` : ''}
+            ${user.website ? `
+            <div class="col-span-2">
+                <span class="text-slate-500 font-semibold">Website:</span>
+                <a href="${user.website}" target="_blank" class="text-blue-700 hover:underline">${user.website}</a>
+            </div>` : ''}
+            ${user.profile_pic ? `
+            <div class="col-span-2">
+                <span class="text-slate-500 font-semibold">Profile Picture:</span>
+                <a href="${user.profile_pic}" target="_blank" class="text-blue-700 hover:underline">${user.profile_pic}</a>
+            </div>` : ''}
+            ${user.cover_pic ? `
+            <div class="col-span-2">
+                <span class="text-slate-500 font-semibold">Cover Picture:</span>
+                <a href="${user.cover_pic}" target="_blank" class="text-blue-700 hover:underline">${user.cover_pic}</a>
             </div>` : ''}
         </div>
     `;
@@ -375,6 +528,12 @@ function openEditModal(user) {
     document.getElementById('edit_email').value = user.email;
     document.getElementById('edit_role').value = user.role;
     document.getElementById('edit_status').value = user.status;
+    document.getElementById('edit_phone').value = user.phone || '';
+    document.getElementById('edit_location').value = user.location || '';
+    document.getElementById('edit_website').value = user.website || '';
+    document.getElementById('edit_profile_pic').value = user.profile_pic || '';
+    document.getElementById('edit_cover_pic').value = user.cover_pic || '';
+    document.getElementById('edit_bio').value = user.bio || '';
     document.getElementById('editModal').classList.remove('hidden');
 }
 

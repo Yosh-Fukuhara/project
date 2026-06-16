@@ -209,18 +209,25 @@ function ensure_tables_exist() {
 
             // Seed products
             foreach ($productData as $product) {
-                $stmt = $pdo->prepare("SELECT product_id FROM products WHERE product_id = ?");
-                $stmt->execute([$product['id']]);
+                $stmt = $pdo->prepare("
+                    SELECT product_id
+                    FROM products
+                    WHERE category_id = ? AND name = ?
+                    LIMIT 1
+                ");
+                $stmt->execute([
+                    $categoryMap[$product['category']] ?? 1,
+                    $product['name']
+                ]);
                 $exists = $stmt->fetchColumn();
 
                 $catId = $categoryMap[$product['category']] ?? 1;
                 if (!$exists) {
                     $stmt = $pdo->prepare("
-                        INSERT INTO products (product_id, category_id, name, description, price, image_url, badge, stock, discount_pct)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, 100, 0.00)
+                        INSERT INTO products (category_id, name, description, price, image_url, badge, stock, discount_pct)
+                        VALUES (?, ?, ?, ?, ?, ?, 100, 0.00)
                     ");
                     $stmt->execute([
-                        $product['id'],
                         $catId,
                         $product['name'],
                         $product['description'],

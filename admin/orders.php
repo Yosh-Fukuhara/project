@@ -48,6 +48,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // Fetch all orders with user info
 $orders = $pdo->query('SELECT o.*, u.first_name, u.last_name, u.email FROM orders o JOIN users u ON o.user_id = u.user_id ORDER BY o.created_at DESC')->fetchAll();
+$orderItems = [];
+$itemsStmt = $pdo->query('SELECT order_id, product_name, unit_price, quantity FROM order_items ORDER BY item_id ASC');
+foreach ($itemsStmt as $item) {
+    $orderItems[$item['order_id']][] = $item;
+}
 ?>
 
 <?php include __DIR__ . '/partials/top.php'; ?>
@@ -135,7 +140,7 @@ $orders = $pdo->query('SELECT o.*, u.first_name, u.last_name, u.email FROM order
                                 </td>
                                 <td class="px-5 py-4 text-xs text-slate-500"><?php echo htmlspecialchars(date('M j, Y', strtotime($order['created_at']))) ?></td>
                                 <td class="px-5 py-4 text-center">
-                                    <button onclick="openViewModal(<?php echo htmlspecialchars(json_encode($order)); ?>)" class="text-blue-700 hover:text-blue-900 font-semibold mr-2">View</button>
+                                    <button onclick="openViewModal(<?php echo htmlspecialchars(json_encode($order)); ?>, <?php echo htmlspecialchars(json_encode($orderItems[$order['order_id']] ?? [])); ?>)" class="text-blue-700 hover:text-blue-900 font-semibold mr-2">View</button>
                                     <button onclick="openStatusModal(<?php echo htmlspecialchars(json_encode($order)); ?>)" class="text-slate-700 hover:text-slate-900 font-semibold mr-2">Update Status</button>
                                     <form method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete this order?');">
                                         <input type="hidden" name="action" value="delete">
@@ -203,7 +208,19 @@ $orders = $pdo->query('SELECT o.*, u.first_name, u.last_name, u.email FROM order
 </div>
 
 <script>
-function openViewModal(order) {
+function openViewModal(order, items) {
+    const itemsMarkup = (items && items.length)
+        ? items.map((item) => `
+            <div class="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2">
+                <div>
+                    <p class="font-semibold text-slate-900">${item.product_name}</p>
+                    <p class="text-xs text-slate-500">Qty: ${item.quantity}</p>
+                </div>
+                <p class="font-semibold text-slate-900">$${parseFloat(item.unit_price).toFixed(2)}</p>
+            </div>
+        `).join('')
+        : '<p class="text-slate-500">No order items found.</p>';
+
     const content = document.getElementById('viewModalContent');
     content.innerHTML = `
         <div class="grid grid-cols-2 gap-3 text-sm">
@@ -238,6 +255,14 @@ function openViewModal(order) {
             <div class="col-span-2">
                 <span class="text-slate-500 font-semibold">Created:</span>
                 <p class="text-slate-900">${order.created_at}</p>
+            </div>
+            <div class="col-span-2">
+                <span class="text-slate-500 font-semibold">Payment Details:</span>
+                <p class="text-slate-900 mt-1 break-words">${order.payment_details || 'N/A'}</p>
+            </div>
+            <div class="col-span-2">
+                <span class="text-slate-500 font-semibold">Items:</span>
+                <div class="mt-2 space-y-2">${itemsMarkup}</div>
             </div>
         </div>
     `;

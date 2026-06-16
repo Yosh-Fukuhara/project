@@ -5,66 +5,103 @@ admin_require_login();
 $active = 'products';
 $pageTitle = 'Manage Products - Admin';
 
-// Use the original marketplace products from data/products.php
-require_once __DIR__ . '/../data/products.php';
-
+$pdo = get_db_connection();
 $success = '';
 $error = '';
 
-// Note: For simplicity, we're using session to store edits (since marketplace uses array data)
-if (!isset($_SESSION['admin_products'])) {
-    $_SESSION['admin_products'] = $products;
-}
-$currentProducts = $_SESSION['admin_products'];
-
-// Handle actions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
-    
-    if ($action === 'create') {
-        // Simple create, but since marketplace uses fixed IDs, we'll just add with next ID
-        $newId = max(array_column($currentProducts, 'id')) + 1;
-        $newProduct = [
-            'id' => $newId,
-            'name' => trim($_POST['name']),
-            'description' => trim($_POST['description']),
-            'price' => (float)$_POST['price'],
-            'category' => trim($_POST['category']),
-            'image' => trim($_POST['image_url']),
-            'badge' => trim($_POST['badge']) ?: null
-        ];
-        $currentProducts[] = $newProduct;
-        $_SESSION['admin_products'] = $currentProducts;
-        $success = 'Product created successfully!';
-    } elseif ($action === 'update') {
-        $prodId = (int)$_POST['product_id'];
-        foreach ($currentProducts as $idx => $p) {
-            if ($p['id'] === $prodId) {
-                $currentProducts[$idx]['name'] = trim($_POST['name']);
-                $currentProducts[$idx]['description'] = trim($_POST['description']);
-                $currentProducts[$idx]['price'] = (float)$_POST['price'];
-                $currentProducts[$idx]['category'] = trim($_POST['category']);
-                $currentProducts[$idx]['image'] = trim($_POST['image_url']);
-                $currentProducts[$idx]['badge'] = trim($_POST['badge']) ?: null;
-                $_SESSION['admin_products'] = $currentProducts;
-                $success = 'Product updated successfully!';
-                break;
+
+    if ($action === 'create' || $action === 'update') {
+        $productId = (int)($_POST['product_id'] ?? 0);
+        $categoryId = (int)($_POST['category_id'] ?? 0);
+        $name = trim($_POST['name'] ?? '');
+        $description = trim($_POST['description'] ?? '');
+        $price = max(0, (float)($_POST['price'] ?? 0));
+        $imageUrl = trim($_POST['image_url'] ?? '');
+        $badge = trim($_POST['badge'] ?? '');
+        $stock = max(0, (int)($_POST['stock'] ?? 0));
+        $discountPct = max(0, (float)($_POST['discount_pct'] ?? 0));
+
+        if ($categoryId <= 0 || $name === '') {
+            $error = 'Category and product name are required.';
+        } else {
+            try {
+                if ($action === 'create') {
+                    $stmt = $pdo->prepare('
+                        INSERT INTO products (category_id, name, description, price, image_url, badge, stock, discount_pct)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    ');
+                    $stmt->execute([
+                        $categoryId,
+                        $name,
+                        $description !== '' ? $description : null,
+                        $price,
+                        $imageUrl !== '' ? $imageUrl : null,
+                        $badge !== '' ? $badge : null,
+                        $stock,
+                        $discountPct,
+                    ]);
+                    $success = 'Product created successfully!';
+                } else {
+                    $stmt = $pdo->prepare('
+                        UPDATE products
+                        SET category_id = ?, name = ?, description = ?, price = ?, image_url = ?, badge = ?, stock = ?, discount_pct = ?
+                        WHERE product_id = ?
+                    ');
+                    $stmt->execute([
+                        $categoryId,
+                        $name,
+                        $description !== '' ? $description : null,
+                        $price,
+                        $imageUrl !== '' ? $imageUrl : null,
+                        $badge !== '' ? $badge : null,
+                        $stock,
+                        $discountPct,
+                        $productId,
+                    ]);
+                    $success = 'Product updated successfully!';
+                }
+            } catch (PDOException $e) {
+                $error = 'Error saving product: ' . $e->getMessage();
             }
         }
     } elseif ($action === 'delete' && isset($_POST['product_id'])) {
-        $prodId = (int)$_POST['product_id'];
-        $currentProducts = array_filter($currentProducts, function($p) use ($prodId) {
-            return $p['id'] !== $prodId;
-        });
-        $_SESSION['admin_products'] = array_values($currentProducts); // Reindex
-        $success = 'Product deleted successfully!';
+        $productId = (int)$_POST['product_id'];
+
+        try {
+            $stmt = $pdo->prepare('DELETE FROM products WHERE product_id = ?');
+            $stmt->execute([$productId]);
+            $success = 'Product deleted successfully!';
+        } catch (PDOException $e) {
+            $error = 'Error deleting product: ' . $e->getMessage();
+        }
     }
 }
 
-// Use the current products (possibly edited)
-$displayProducts = $_SESSION['admin_products'];
-
-$categories = ['Courses', 'Books', 'Resources'];
+$categories = $pdo->query('SELECT category_id, name FROM product_categories ORDER BY name ASC')->fetchAll();
+$displayProducts = $pdo->query('
+    SELECT
+        p.product_id,
+        p.category_id,
+        p.name,
+        p.description,
+        p.price,
+        p.image_url,
+        p.badge,
+        p.stock,
+        p.discount_pct,
+        p.created_at,
+        pc.name AS category_name
+    FROM products p
+    JOIN product_categories pc ON pc.category_id = p.category_id
+    INNER JOIN (
+        SELECT MAX(product_id) AS product_id
+        FROM products
+        GROUP BY category_id, name, description, price, image_url, badge, stock, discount_pct
+    ) latest ON latest.product_id = p.product_id
+    ORDER BY p.created_at DESC, p.product_id DESC
+')->fetchAll();
 
 include __DIR__ . '/partials/top.php';
 include __DIR__ . '/partials/sidebar.php';
@@ -122,6 +159,11 @@ include __DIR__ . '/partials/sidebar.php';
                 <h2 class="font-extrabold text-slate-900">All Products</h2>
             </div>
             <div class="p-5 overflow-x-auto">
+                <?php if (empty($categories)): ?>
+                    <div class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-800">
+                        Create at least one product category before adding products.
+                    </div>
+                <?php endif; ?>
                 <table class="min-w-full text-sm">
                     <thead class="bg-slate-50 text-xs uppercase text-slate-500 tracking-wide">
                         <tr>
@@ -129,22 +171,26 @@ include __DIR__ . '/partials/sidebar.php';
                             <th class="text-left px-5 py-3">Name</th>
                             <th class="text-left px-5 py-3">Category</th>
                             <th class="text-left px-5 py-3">Price</th>
+                            <th class="text-left px-5 py-3">Stock</th>
+                            <th class="text-left px-5 py-3">Discount</th>
                             <th class="text-center px-5 py-3">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
                         <?php foreach ($displayProducts as $product): ?>
                             <tr class="hover:bg-slate-50">
-                                <td class="px-5 py-4 font-mono text-xs"><?php echo htmlspecialchars($product['id']); ?></td>
+                                <td class="px-5 py-4 font-mono text-xs"><?php echo htmlspecialchars($product['product_id']); ?></td>
                                 <td class="px-5 py-4 font-semibold text-slate-900"><?php echo htmlspecialchars($product['name']); ?></td>
-                                <td class="px-5 py-4 text-slate-600"><?php echo htmlspecialchars($product['category']); ?></td>
+                                <td class="px-5 py-4 text-slate-600"><?php echo htmlspecialchars($product['category_name']); ?></td>
                                 <td class="px-5 py-4 font-semibold text-slate-900">$<?php echo number_format($product['price'], 2); ?></td>
+                                <td class="px-5 py-4 text-slate-600"><?php echo htmlspecialchars($product['stock']); ?></td>
+                                <td class="px-5 py-4 text-slate-600"><?php echo htmlspecialchars(number_format((float)$product['discount_pct'], 2)); ?>%</td>
                                 <td class="px-5 py-4 text-center">
                                     <button onclick="openViewModal(<?php echo htmlspecialchars(json_encode($product)); ?>)" class="text-blue-700 hover:text-blue-900 font-semibold mr-2">View</button>
                                     <button onclick="openEditModal(<?php echo htmlspecialchars(json_encode($product)); ?>)" class="text-slate-700 hover:text-slate-900 font-semibold mr-2">Edit</button>
                                     <form method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete this product?');">
                                         <input type="hidden" name="action" value="delete">
-                                        <input type="hidden" name="product_id" value="<?php echo $product['id']; ?>">
+                                        <input type="hidden" name="product_id" value="<?php echo $product['product_id']; ?>">
                                         <button type="submit" class="text-red-600 hover:text-red-800 font-semibold">Delete</button>
                                     </form>
                                 </td>
@@ -181,15 +227,23 @@ include __DIR__ . '/partials/sidebar.php';
                 </div>
                 <div>
                     <label class="block text-sm font-semibold text-slate-700 mb-1">Category</label>
-                    <select name="category" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    <select name="category_id" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                         <?php foreach ($categories as $cat): ?>
-                            <option value="<?php echo $cat; ?>"><?php echo $cat; ?></option>
+                            <option value="<?php echo $cat['category_id']; ?>"><?php echo htmlspecialchars($cat['name']); ?></option>
                         <?php endforeach; ?>
                     </select>
                 </div>
                 <div>
                     <label class="block text-sm font-semibold text-slate-700 mb-1">Price</label>
                     <input type="number" name="price" step="0.01" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-1">Stock</label>
+                    <input type="number" name="stock" min="0" value="0" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-1">Discount %</label>
+                    <input type="number" name="discount_pct" min="0" step="0.01" value="0" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                 </div>
                 <div class="col-span-2">
                     <label class="block text-sm font-semibold text-slate-700 mb-1">Image URL</label>
@@ -251,15 +305,23 @@ include __DIR__ . '/partials/sidebar.php';
                 </div>
                 <div>
                     <label class="block text-sm font-semibold text-slate-700 mb-1">Category</label>
-                    <select name="category" id="edit_category" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    <select name="category_id" id="edit_category_id" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                         <?php foreach ($categories as $cat): ?>
-                            <option value="<?php echo $cat; ?>"><?php echo $cat; ?></option>
+                            <option value="<?php echo $cat['category_id']; ?>"><?php echo htmlspecialchars($cat['name']); ?></option>
                         <?php endforeach; ?>
                     </select>
                 </div>
                 <div>
                     <label class="block text-sm font-semibold text-slate-700 mb-1">Price</label>
                     <input type="number" name="price" step="0.01" id="edit_price" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-1">Stock</label>
+                    <input type="number" name="stock" min="0" id="edit_stock" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-1">Discount %</label>
+                    <input type="number" name="discount_pct" min="0" step="0.01" id="edit_discount_pct" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                 </div>
                 <div class="col-span-2">
                     <label class="block text-sm font-semibold text-slate-700 mb-1">Image URL</label>
@@ -294,11 +356,11 @@ function openViewModal(product) {
             <div class="grid grid-cols-2 gap-3">
                 <div>
                     <span class="text-slate-500 font-semibold">ID:</span>
-                    <p class="text-slate-900 font-bold">${product.id}</p>
+                        <p class="text-slate-900 font-bold">${product.product_id}</p>
                 </div>
                 <div>
                     <span class="text-slate-500 font-semibold">Category:</span>
-                    <p class="text-slate-900">${product.category}</p>
+                        <p class="text-slate-900">${product.category_name}</p>
                 </div>
             </div>
             <div>
@@ -312,8 +374,16 @@ function openViewModal(product) {
             <div class="grid grid-cols-2 gap-3">
                 <div>
                     <span class="text-slate-500 font-semibold">Price:</span>
-                    <p class="text-slate-900 font-bold">$${product.price.toFixed(2)}</p>
+                    <p class="text-slate-900 font-bold">$${parseFloat(product.price).toFixed(2)}</p>
                 </div>
+                    <div>
+                        <span class="text-slate-500 font-semibold">Stock:</span>
+                        <p class="text-slate-900">${product.stock}</p>
+                    </div>
+                    <div>
+                        <span class="text-slate-500 font-semibold">Discount:</span>
+                        <p class="text-slate-900">${parseFloat(product.discount_pct || 0).toFixed(2)}%</p>
+                    </div>
                 ${product.badge ? `
                 <div>
                     <span class="text-slate-500 font-semibold">Badge:</span>
@@ -323,7 +393,7 @@ function openViewModal(product) {
             <div>
                 <span class="text-slate-500 font-semibold">Image:</span>
                 <div class="mt-2">
-                    <img src="${product.image}" alt="${product.name}" class="w-full h-40 object-cover rounded-lg border border-slate-200">
+                    <img src="${product.image_url || ''}" alt="${product.name}" class="w-full h-40 object-cover rounded-lg border border-slate-200">
                 </div>
             </div>
         </div>
@@ -336,12 +406,14 @@ function closeViewModal() {
 }
 
 function openEditModal(product) {
-    document.getElementById('edit_product_id').value = product.id;
+    document.getElementById('edit_product_id').value = product.product_id;
     document.getElementById('edit_name').value = product.name;
     document.getElementById('edit_description').value = product.description;
     document.getElementById('edit_price').value = product.price;
-    document.getElementById('edit_category').value = product.category;
-    document.getElementById('edit_image_url').value = product.image;
+    document.getElementById('edit_category_id').value = product.category_id;
+    document.getElementById('edit_stock').value = product.stock || 0;
+    document.getElementById('edit_discount_pct').value = product.discount_pct || 0;
+    document.getElementById('edit_image_url').value = product.image_url || '';
     document.getElementById('edit_badge').value = product.badge || '';
     document.getElementById('editModal').classList.remove('hidden');
 }

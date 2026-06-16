@@ -33,6 +33,9 @@ $active = $active ?? '';
         <a href="community_posts.php" class="<?php echo $active === 'community_posts' ? 'bg-blue-50 text-blue-900' : 'text-slate-700 hover:bg-slate-50'; ?> flex items-center gap-2 px-3 py-2 rounded-lg font-semibold">
             <span>Community Posts</span>
         </a>
+        <a href="announcements.php" class="<?php echo $active === 'announcements' ? 'bg-blue-50 text-blue-900' : 'text-slate-700 hover:bg-slate-50'; ?> flex items-center gap-2 px-3 py-2 rounded-lg font-semibold">
+            <span>Announcements</span>
+        </a>
         <a href="product_categories.php" class="<?php echo $active === 'product_categories' ? 'bg-blue-50 text-blue-900' : 'text-slate-700 hover:bg-slate-50'; ?> flex items-center gap-2 px-3 py-2 rounded-lg font-semibold">
             <span>Product Categories</span>
         </a>

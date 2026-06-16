@@ -33,6 +33,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     } elseif ($action === 'update') {
         $employer_id = (int)$_POST['employer_id'];
+        $owner_user_id = (int)$_POST['owner_user_id'];
         $company_name = trim($_POST['company_name']);
         $industry = trim($_POST['industry'] ?? '');
         $company_size = trim($_POST['company_size'] ?? '');
@@ -43,8 +44,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $logo_url = trim($_POST['logo_url'] ?? '');
         
         try {
-            $stmt = $pdo->prepare('UPDATE EMPLOYERS SET company_name = ?, industry = ?, company_size = ?, website = ?, description = ?, contact_name = ?, contact_phone = ?, logo_url = ? WHERE employer_id = ?');
-            $stmt->execute([$company_name, $industry, $company_size, $website, $description, $contact_name, $contact_phone, $logo_url, $employer_id]);
+            $stmt = $pdo->prepare('
+                UPDATE EMPLOYERS
+                SET owner_user_id = ?, company_name = ?, industry = ?, company_size = ?, website = ?, description = ?, contact_name = ?, contact_phone = ?, logo_url = ?
+                WHERE employer_id = ?
+            ');
+            $stmt->execute([$owner_user_id, $company_name, $industry, $company_size, $website, $description, $contact_name, $contact_phone, $logo_url, $employer_id]);
             $success = 'Employer updated successfully!';
         } catch (PDOException $e) {
             $error = 'Error updating employer: ' . $e->getMessage();
@@ -268,6 +273,16 @@ $all_users = $pdo->query('SELECT user_id, first_name, last_name, email FROM user
             <input type="hidden" name="action" value="update">
             <input type="hidden" name="employer_id" id="edit_employer_id">
             <div>
+                <label class="block text-sm font-semibold text-slate-700 mb-1">Owner User</label>
+                <select name="owner_user_id" id="edit_owner_user_id" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    <?php foreach ($all_users as $user): ?>
+                        <option value="<?php echo $user['user_id']; ?>">
+                            <?php echo htmlspecialchars($user['first_name'] . ' ' . $user['last_name'] . ' (' . $user['email'] . ')'); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div>
                 <label class="block text-sm font-semibold text-slate-700 mb-1">Company Name</label>
                 <input type="text" name="company_name" id="edit_company_name" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
             </div>
@@ -368,6 +383,11 @@ function openViewModal(emp) {
                 <span class="text-slate-500 font-semibold">Contact Phone:</span>
                 <p class="text-slate-900">${emp.contact_phone}</p>
             </div>` : ''}
+            ${emp.logo_url ? `
+            <div class="col-span-2">
+                <span class="text-slate-500 font-semibold">Logo URL:</span>
+                <a href="${emp.logo_url}" target="_blank" class="text-blue-700 hover:underline">${emp.logo_url}</a>
+            </div>` : ''}
         </div>
     `;
     document.getElementById('viewModal').classList.remove('hidden');
@@ -379,6 +399,7 @@ function closeViewModal() {
 
 function openEditModal(emp) {
     document.getElementById('edit_employer_id').value = emp.employer_id;
+    document.getElementById('edit_owner_user_id').value = emp.owner_user_id;
     document.getElementById('edit_company_name').value = emp.company_name;
     document.getElementById('edit_industry').value = emp.industry || '';
     document.getElementById('edit_company_size').value = emp.company_size || '';
