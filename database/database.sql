@@ -394,3 +394,43 @@ CREATE TABLE IF NOT EXISTS user_challenge_answers (
 
 -- Re-enable foreign key checks
 SET FOREIGN_KEY_CHECKS = 1;
+
+-- ============================================================
+-- Seed default accounts (Admin, NetSentinel Solutions, Marcus Vane, SecureBank Hiring)
+-- ============================================================
+-- Admin User
+INSERT IGNORE INTO users (first_name, last_name, email, password, role, status)
+VALUES ('Admin', 'User', 'admin@admin.com', '$2y$12$IGq4AFOHCXwFlnDa.dUKOuepoP6yggvMjds319S7yeOOINc.LxMrK', 'admin', 'active');
+SELECT user_id INTO @admin_id FROM users WHERE email = 'admin@admin.com' LIMIT 1;
+INSERT IGNORE INTO user_profiles (user_id, bio, location)
+VALUES (@admin_id, 'Administrator of CyberSphere', '');
+
+-- NetSentinel Solutions (employer)
+INSERT IGNORE INTO users (first_name, last_name, email, password, role, status)
+VALUES ('NetSentinel', 'Solutions', 'hr@netsentinel.com', '$2y$12$EJ63nNC4e/DCLneGqieoe.FVwUqtoptsYJYpV57oMaP01oA0ewlkm', 'employer', 'active');
+-- Get user ID (either newly inserted or existing)
+SELECT user_id INTO @netsentinel_id FROM users WHERE email = 'hr@netsentinel.com' LIMIT 1;
+INSERT IGNORE INTO user_profiles (user_id, bio, location, website)
+VALUES (@netsentinel_id, 'Leading cybersecurity firm specializing in penetration testing, SOC operations, and enterprise threat intelligence. We are actively hiring!', 'Manila, Philippines', 'https://netsentinel.example.com');
+INSERT IGNORE INTO EMPLOYERS (owner_user_id, company_name, industry, website, description)
+VALUES (@netsentinel_id, 'NetSentinel Solutions', 'Cybersecurity', 'https://netsentinel.example.com', 'Leading cybersecurity firm specializing in penetration testing, SOC operations, and enterprise threat intelligence.');
+
+-- Marcus Vane (applicant)
+INSERT IGNORE INTO users (first_name, last_name, email, password, role, status)
+VALUES ('Marcus', 'Vane', 'marcus.vane@example.com', '$2y$12$qbwvfSXB9NycIkH7OzblMearX/XfgE8T4qqfGWpnT02rjFag2ZFBy', 'user', 'active');
+SELECT user_id INTO @marcus_id FROM users WHERE email = 'marcus.vane@example.com' LIMIT 1;
+INSERT IGNORE INTO user_profiles (user_id, bio, location)
+VALUES (@marcus_id, 'CISSP Certified Threat Hunter with 8+ years in enterprise defense. Seeking DFIR roles. Open to hybrid roles in London. Skilled in Malware Analysis and Splunk.', 'London, UK');
+INSERT IGNORE INTO user_work (user_id, company, title)
+VALUES (@marcus_id, 'Independent Consultant', 'Threat Intelligence Consultant');
+INSERT IGNORE INTO user_education (user_id, school, degree)
+VALUES (@marcus_id, 'University of London', 'BS Computer Science');
+
+-- SecureBank Hiring (employer)
+INSERT IGNORE INTO users (first_name, last_name, email, password, role, status)
+VALUES ('SecureBank', 'Hiring', 'securebank@example.com', '$2y$12$xcZ72z./T7WI6lUZ1gkAEu.kbWJECxLWjK79COAnNxDMwcGi.fBXK', 'employer', 'active');
+SELECT user_id INTO @securebank_id FROM users WHERE email = 'securebank@example.com' LIMIT 1;
+INSERT IGNORE INTO user_profiles (user_id, bio, location)
+VALUES (@securebank_id, 'SecureBank is a leading financial institution actively hiring cybersecurity professionals across GRC, SOC, and DevSecOps roles.', 'Makati, Philippines');
+INSERT IGNORE INTO EMPLOYERS (owner_user_id, company_name, industry, description)
+VALUES (@securebank_id, 'SecureBank', 'Financial Services', 'SecureBank is a leading financial institution actively hiring cybersecurity professionals.');

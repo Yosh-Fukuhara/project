@@ -95,7 +95,7 @@ if (!cs_is_employer() && !cs_is_admin()) {
 }
 
 $pageTitle   = 'Employer Dashboard - CyberSphere';
-$currentPage = 'employer_dashboard';
+$currentPage = 'employer';
 $tab         = $_GET['tab'] ?? 'applicants';
 $flash       = '';
 $flashType   = 'green';

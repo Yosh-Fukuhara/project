@@ -83,6 +83,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'mark_
                         <a href="index.php" class="text-lg font-medium <?php echo (isset($currentPage) && $currentPage === 'home') ? 'text-blue-900 border-b-2 border-blue-900 pb-1' : 'text-gray-700 hover:text-blue-900'; ?>">Jobs</a>
                         <a href="communities.php" class="text-lg font-medium <?php echo (isset($currentPage) && $currentPage === 'communities') ? 'text-blue-900 border-b-2 border-blue-900 pb-1' : 'text-gray-700 hover:text-blue-900'; ?>">Communities</a>
                         <a href="market.php" class="text-lg font-medium <?php echo (isset($currentPage) && $currentPage === 'market') ? 'text-blue-900 border-b-2 border-blue-900 pb-1' : 'text-gray-700 hover:text-blue-900'; ?>">Marketplace</a>
+                        <?php if (cs_is_employer() || cs_is_admin()): ?>
+                            <a href="employer_dashboard.php" class="text-lg font-medium <?php echo (isset($currentPage) && $currentPage === 'employer') ? 'text-blue-900 border-b-2 border-blue-900 pb-1' : 'text-gray-700 hover:text-blue-900'; ?>">Employer Dashboard</a>
+                        <?php endif; ?>
                     </div>
                 </div>
                 <div class="flex items-center gap-2 sm:gap-3 md:gap-4 flex-1 justify-end">
@@ -191,6 +194,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'mark_
                     <a href="index.php" class="px-2 py-2 rounded-lg text-gray-700 hover:bg-gray-100 <?php echo (isset($currentPage) && $currentPage === 'home') ? 'font-semibold text-blue-900 bg-blue-50' : ''; ?>">Jobs</a>
                     <a href="communities.php" class="px-2 py-2 rounded-lg text-gray-700 hover:bg-gray-100 <?php echo (isset($currentPage) && $currentPage === 'communities') ? 'font-semibold text-blue-900 bg-blue-50' : ''; ?>">Communities</a>
                     <a href="market.php" class="px-2 py-2 rounded-lg text-gray-700 hover:bg-gray-100 <?php echo (isset($currentPage) && $currentPage === 'market') ? 'font-semibold text-blue-900 bg-blue-50' : ''; ?>">Marketplace</a>
+                    <?php if (cs_is_employer() || cs_is_admin()): ?>
+                        <a href="employer_dashboard.php" class="px-2 py-2 rounded-lg text-gray-700 hover:bg-gray-100 <?php echo (isset($currentPage) && $currentPage === 'employer') ? 'font-semibold text-blue-900 bg-blue-50' : ''; ?>">Employer Dashboard</a>
+                    <?php endif; ?>
                 </div>
 
                 <!-- Mobile: Jobs for You -->
