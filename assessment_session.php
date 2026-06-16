@@ -119,7 +119,8 @@ if ($dynamicAssessment) {
     // Build CORRECT map from correct_flag fields OR for MCQ, store the correct option(s)
     $correctMap = [];
     foreach ($challenges as $ch) {
-        if ($ch['type'] === 'multiple_choice' || $ch['type'] === 'mcq') {
+        $typeLower = strtolower(trim($ch['type'] ?? ''));
+        if (in_array($typeLower, ['multiple_choice', 'mcq', 'multiple choice'])) {
             // For MCQ, we don't need correct_flag in JS (we use data-is-correct)
             $correctMap[$ch['id']] = null;
         } else {
@@ -722,7 +723,7 @@ echo "</pre>";
                     fb.className   = 'text-xs font-semibold text-red-500';
                     fb.classList.remove('hidden');
 
-                    if (type === 'multiple_choice' || type === 'mcq') {
+                    if (isMcq) {
                         const container = document.getElementById('answer-' + cid + '-container');
                         if (container) {
                             container.classList.add('border-red-300', 'bg-red-50', 'rounded-xl', 'p-3');
