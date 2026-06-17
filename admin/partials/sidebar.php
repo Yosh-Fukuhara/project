@@ -24,6 +24,9 @@ $active = $active ?? '';
         <a href="employers.php" class="<?php echo $active === 'employers' ? 'bg-blue-50 text-blue-900' : 'text-slate-700 hover:bg-slate-50'; ?> flex items-center gap-2 px-3 py-2 rounded-lg font-semibold">
             <span>Employers</span>
         </a>
+        <a href="posts.php" class="<?php echo $active === 'posts' ? 'bg-blue-50 text-blue-900' : 'text-slate-700 hover:bg-slate-50'; ?> flex items-center gap-2 px-3 py-2 rounded-lg font-semibold">
+            <span>Posts</span>
+        </a>
         <a href="job_posts.php" class="<?php echo $active === 'job_posts' ? 'bg-blue-50 text-blue-900' : 'text-slate-700 hover:bg-slate-50'; ?> flex items-center gap-2 px-3 py-2 rounded-lg font-semibold">
             <span>Job Posts</span>
         </a>
