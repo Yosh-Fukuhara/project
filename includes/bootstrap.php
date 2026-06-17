@@ -14,6 +14,61 @@ function ensure_tables_exist() {
     try {
         $pdo = get_db_connection();
         
+        // Check/create employer_applications table
+        $stmt = $pdo->query("SHOW TABLES LIKE 'employer_applications'");
+        if (!$stmt->fetch()) {
+            $pdo->exec("CREATE TABLE employer_applications (
+                eapp_id INT AUTO_INCREMENT PRIMARY KEY,
+                user_id INT NOT NULL,
+                company_name VARCHAR(255) NOT NULL,
+                industry VARCHAR(100),
+                company_size VARCHAR(50),
+                website VARCHAR(255),
+                description TEXT,
+                contact_name VARCHAR(255),
+                contact_phone VARCHAR(50),
+                logo_url VARCHAR(255),
+                status VARCHAR(50) DEFAULT 'pending',
+                submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                reviewed_at TIMESTAMP NULL DEFAULT NULL,
+                FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+        } else {
+            // Ensure all columns exist
+            $columns = ['logo_url'];
+            foreach ($columns as $col) {
+                $checkCol = $pdo->query("SHOW COLUMNS FROM employer_applications LIKE '$col'");
+                if (!$checkCol->fetch()) {
+                    $pdo->exec("ALTER TABLE employer_applications ADD COLUMN $col VARCHAR(255) NULL");
+                }
+            }
+        }
+        
+        // Check/create employer_application_documents table (case-insensitive check)
+        $tableExists = false;
+        $stmt = $pdo->query("SHOW TABLES LIKE 'employer_application_documents'");
+        if ($stmt->fetch()) {
+            $tableExists = true;
+        } else {
+            $stmt = $pdo->query("SHOW TABLES LIKE 'EMPLOYER_APPLICATION_DOCUMENTS'");
+            if ($stmt->fetch()) {
+                $tableExists = true;
+                // Rename to lowercase for consistency
+                $pdo->exec("RENAME TABLE EMPLOYER_APPLICATION_DOCUMENTS TO employer_application_documents");
+            }
+        }
+        
+        if (!$tableExists) {
+            $pdo->exec("CREATE TABLE employer_application_documents (
+                doc_id INT AUTO_INCREMENT PRIMARY KEY,
+                eapp_id INT NOT NULL,
+                file_name VARCHAR(255) NOT NULL,
+                file_url VARCHAR(255) NOT NULL,
+                uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (eapp_id) REFERENCES employer_applications(eapp_id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+        }
+        
         // Check if conversations table exists
         $stmt = $pdo->query("SHOW TABLES LIKE 'conversations'");
         if (!$stmt->fetch()) {

@@ -97,7 +97,7 @@ function cs_read_employer_apps(): array {
         $apps = [];
         foreach ($rows as $row) {
             // Get documents from the new table
-            $stmtDocs = $pdo->prepare('SELECT doc_id, file_name, file_url FROM EMPLOYER_APPLICATION_DOCUMENTS WHERE eapp_id = ?');
+            $stmtDocs = $pdo->prepare('SELECT doc_id, file_name, file_url FROM employer_application_documents WHERE eapp_id = ?');
             $stmtDocs->execute([$row['eapp_id']]);
             $docs = $stmtDocs->fetchAll(PDO::FETCH_ASSOC);
             $documents = [];
@@ -120,6 +120,7 @@ function cs_read_employer_apps(): array {
                 'description' => $row['description'],
                 'contact_name' => $row['contact_name'],
                 'contact_phone' => $row['contact_phone'],
+                'logo_url' => $row['logo_url'],
                 'documents' => $documents,
                 'status' => $row['status'],
                 'submitted_at' => $row['submitted_at'],
@@ -168,7 +169,7 @@ function cs_get_employer_application_by_id(string $id): ?array {
         if (!$row) return null;
         
         // Get documents from new table
-        $stmtDocs = $pdo->prepare('SELECT doc_id, file_name, file_url FROM EMPLOYER_APPLICATION_DOCUMENTS WHERE eapp_id = ?');
+        $stmtDocs = $pdo->prepare('SELECT doc_id, file_name, file_url FROM employer_application_documents WHERE eapp_id = ?');
         $stmtDocs->execute([$row['eapp_id']]);
         $docs = $stmtDocs->fetchAll(PDO::FETCH_ASSOC);
         $documents = [];
@@ -191,6 +192,7 @@ function cs_get_employer_application_by_id(string $id): ?array {
             'description' => $row['description'],
             'contact_name' => $row['contact_name'],
             'contact_phone' => $row['contact_phone'],
+            'logo_url' => $row['logo_url'],
             'documents' => $documents,
             'status' => $row['status'],
             'submitted_at' => $row['submitted_at'],
@@ -228,6 +230,7 @@ function cs_get_employer_application_by_email(string $email): ?array {
             description,
             contact_name,
             contact_phone,
+            logo_url,
             status,
             DATE_FORMAT(submitted_at, "%M %e, %Y %l:%i %p") AS submitted_at,
             DATE_FORMAT(reviewed_at, "%M %e, %Y %l:%i %p") AS reviewed_at
@@ -237,7 +240,7 @@ function cs_get_employer_application_by_email(string $email): ?array {
         if (!$row) return null;
         
         // Get documents from new table
-        $stmtDocs = $pdo->prepare('SELECT doc_id, file_name, file_url FROM EMPLOYER_APPLICATION_DOCUMENTS WHERE eapp_id = ?');
+        $stmtDocs = $pdo->prepare('SELECT doc_id, file_name, file_url FROM employer_application_documents WHERE eapp_id = ?');
         $stmtDocs->execute([$row['eapp_id']]);
         $docs = $stmtDocs->fetchAll(PDO::FETCH_ASSOC);
         $documents = [];
@@ -266,6 +269,7 @@ function cs_get_employer_application_by_email(string $email): ?array {
             'description' => $row['description'],
             'contact_name' => $row['contact_name'],
             'contact_phone' => $row['contact_phone'],
+            'logo_url' => $row['logo_url'],
             'documents' => $documents,
             'status' => $row['status'],
             'submitted_at' => $row['submitted_at'],
@@ -311,12 +315,12 @@ function cs_save_employer_application(array $app): ?array {
             // Update documents in the new table
             if (isset($app['documents']) && is_array($app['documents'])) {
                 // First delete existing documents for this application
-                $stmtDelete = $pdo->prepare('DELETE FROM EMPLOYER_APPLICATION_DOCUMENTS WHERE eapp_id = ?');
+                $stmtDelete = $pdo->prepare('DELETE FROM employer_application_documents WHERE eapp_id = ?');
                 $stmtDelete->execute([$idInt]);
                 
                 // Then insert new documents
                 foreach ($app['documents'] as $doc) {
-                    $stmtDoc = $pdo->prepare('INSERT INTO EMPLOYER_APPLICATION_DOCUMENTS (eapp_id, file_name, file_url) VALUES (?, ?, ?)');
+                    $stmtDoc = $pdo->prepare('INSERT INTO employer_application_documents (eapp_id, file_name, file_url) VALUES (?, ?, ?)');
                     $stmtDoc->execute([
                         $idInt,
                         $doc['name'] ?? 'Document',
@@ -360,7 +364,7 @@ function cs_save_employer_application(array $app): ?array {
                 // Insert documents into new table
                 if (isset($app['documents']) && is_array($app['documents'])) {
                     foreach ($app['documents'] as $doc) {
-                        $stmtDoc = $pdo->prepare('INSERT INTO EMPLOYER_APPLICATION_DOCUMENTS (eapp_id, file_name, file_url) VALUES (?, ?, ?)');
+                        $stmtDoc = $pdo->prepare('INSERT INTO employer_application_documents (eapp_id, file_name, file_url) VALUES (?, ?, ?)');
                         $stmtDoc->execute([
                             $newId,
                             $doc['name'] ?? 'Document',
