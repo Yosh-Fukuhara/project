@@ -43,6 +43,22 @@ function ensure_tables_exist() {
                 }
             }
         }
+
+        // Ensure user_profiles has all columns
+        $stmt = $pdo->query("SHOW TABLES LIKE 'user_profiles'");
+        if ($stmt->fetch()) {
+            $upColumns = ['profile_pic', 'cover_pic', 'bio', 'work', 'location', 'education', 'address', 'website', 'phone'];
+            foreach ($upColumns as $col) {
+                $checkCol = $pdo->query("SHOW COLUMNS FROM user_profiles LIKE '$col'");
+                if (!$checkCol->fetch()) {
+                    if (in_array($col, ['bio'])) {
+                        $pdo->exec("ALTER TABLE user_profiles ADD COLUMN $col TEXT NULL");
+                    } else {
+                        $pdo->exec("ALTER TABLE user_profiles ADD COLUMN $col VARCHAR(255) NULL");
+                    }
+                }
+            }
+        }
         
         // Check/create employer_application_documents table (case-insensitive check)
         $tableExists = false;

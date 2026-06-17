@@ -283,11 +283,14 @@ function cs_get_employer_application_by_email(string $email): ?array {
 }
 
 function cs_save_employer_application(array $app): ?array {
+    error_log("=== cs_save_employer_application called ===");
+    error_log("Input app array: " . print_r($app, true));
     try {
         $pdo = get_db_connection();
         
         if (isset($app['id'])) {
             $idInt = (int)$app['id'];
+            error_log("Updating existing app, idInt: " . $idInt);
             $stmt = $pdo->prepare('UPDATE employer_applications SET 
                 company_name = ?,
                 industry = ?,
@@ -299,6 +302,18 @@ function cs_save_employer_application(array $app): ?array {
                 logo_url = ?,
                 status = ?
             WHERE eapp_id = ?');
+            error_log("Executing UPDATE with params: " . print_r([
+                $app['company_name'],
+                $app['industry'],
+                $app['company_size'] ?? null,
+                $app['website'] ?? null,
+                $app['description'],
+                $app['contact_name'],
+                $app['contact_phone'] ?? null,
+                $app['logo_url'] ?? null,
+                $app['status'],
+                $idInt
+            ], true));
             $stmt->execute([
                 $app['company_name'],
                 $app['industry'],
@@ -311,6 +326,7 @@ function cs_save_employer_application(array $app): ?array {
                 $app['status'],
                 $idInt
             ]);
+            error_log("UPDATE affected rows: " . $stmt->rowCount());
             
             // Update documents in the new table
             if (isset($app['documents']) && is_array($app['documents'])) {
@@ -331,6 +347,7 @@ function cs_save_employer_application(array $app): ?array {
             
             return cs_get_employer_application_by_id((string)$idInt);
         } else {
+            error_log("Inserting new app");
             $stmt = $pdo->prepare('INSERT INTO employer_applications (
                 user_id, company_name, industry, company_size, website, 
                 description, contact_name, contact_phone, logo_url, status
@@ -345,9 +362,10 @@ function cs_save_employer_application(array $app): ?array {
                 $stmtUser->execute([$app['email']]);
                 $userId = $stmtUser->fetchColumn();
             }
+            error_log("Using userId: " . $userId);
             
             if ($userId) {
-                $stmt->execute([
+                $params = [
                     $userId,
                     $app['company_name'],
                     $app['industry'],
@@ -358,8 +376,11 @@ function cs_save_employer_application(array $app): ?array {
                     $app['contact_phone'] ?? null,
                     $app['logo_url'] ?? null,
                     'pending'
-                ]);
+                ];
+                error_log("Executing INSERT with params: " . print_r($params, true));
+                $stmt->execute($params);
                 $newId = $pdo->lastInsertId();
+                error_log("New app inserted, newId: " . $newId);
                 
                 // Insert documents into new table
                 if (isset($app['documents']) && is_array($app['documents'])) {
@@ -378,6 +399,7 @@ function cs_save_employer_application(array $app): ?array {
         }
     } catch (Exception $e) {
         error_log("cs_save_employer_application error: " . $e->getMessage());
+        error_log("Stack trace: " . $e->getTraceAsString());
     }
     return null;
 }

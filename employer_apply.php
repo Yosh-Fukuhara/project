@@ -52,26 +52,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (!$existingApp || $existingApp['sta
         if (mb_strlen($description) < 20) $errors[] = 'Please write at least a short company description (20+ characters).';
 
         // Handle logo upload
+        error_log("=== employer_apply.php: Logo upload check ===");
+        error_log("_FILES: " . print_r($_FILES, true));
         if (!empty($_FILES['logo']['name'])) {
+            error_log("Logo name is not empty: " . $_FILES['logo']['name']);
             $allowedLogoExts = ['jpg','jpeg','png','svg','webp'];
             $uploadDir   = __DIR__ . '/uploads/';
             if (!is_dir($uploadDir)) @mkdir($uploadDir, 0777, true);
             
             if ($_FILES['logo']['error'] === UPLOAD_ERR_OK) {
+                error_log("Logo upload error is OK");
                 $ext = strtolower(pathinfo($_FILES['logo']['name'], PATHINFO_EXTENSION));
+                error_log("Logo ext: " . $ext);
                 if (!in_array($ext, $allowedLogoExts)) {
                     $errors[] = "Unsupported logo type. Please use JPG, PNG, SVG, or WEBP.";
                 } elseif ($_FILES['logo']['size'] > 5 * 1024 * 1024) {
                     $errors[] = "Logo file is too large (max 5MB).";
                 } else {
                     $logoName = 'emp_logo_' . uniqid('', true) . '.' . $ext;
+                    error_log("Logo name: " . $logoName);
+                    error_log("Upload dir: " . $uploadDir);
                     if (move_uploaded_file($_FILES['logo']['tmp_name'], $uploadDir . $logoName)) {
                         $logoUrl = 'uploads/' . $logoName;
+                        error_log("Logo uploaded successfully, logoUrl: " . $logoUrl);
                     } else {
                         $errors[] = "Failed to upload logo.";
+                        error_log("move_uploaded_file failed");
                     }
                 }
+            } else {
+                error_log("Logo upload error: " . $_FILES['logo']['error']);
             }
+        } else {
+            error_log("No logo uploaded");
         }
 
         // Handle document uploads (up to 3)
@@ -109,6 +122,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (!$existingApp || $existingApp['sta
                 'submitted_at'  => date('M j, Y g:i A'),
                 'reviewed_at'   => null,
             ];
+            error_log("=== employer_apply.php: app array before cs_save_employer_application ===");
+            error_log(print_r($app, true));
             
             // If there's an existing rejected application, update it instead of creating new
             if ($existingApp && $existingApp['status'] === 'rejected') {
