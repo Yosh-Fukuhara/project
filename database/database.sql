@@ -22,7 +22,10 @@ CREATE TABLE IF NOT EXISTS user_profiles (
     profile_pic VARCHAR(255),
     cover_pic VARCHAR(255),
     bio TEXT,
+    work VARCHAR(255),
     location VARCHAR(100),
+    education VARCHAR(255),
+    address VARCHAR(255),
     website VARCHAR(255),
     phone VARCHAR(20),
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -34,6 +37,8 @@ CREATE TABLE IF NOT EXISTS user_work (
     user_id INT NOT NULL,
     company VARCHAR(100) NOT NULL,
     title VARCHAR(100) NOT NULL,
+    period VARCHAR(100),
+    description TEXT,
     FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -42,6 +47,7 @@ CREATE TABLE IF NOT EXISTS user_education (
     user_id INT NOT NULL,
     school VARCHAR(100) NOT NULL,
     degree VARCHAR(100) NOT NULL,
+    year VARCHAR(20),
     FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

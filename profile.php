@@ -27,7 +27,7 @@ try {
         ];
 
         // Get profile data
-        $profileStmt = $pdo->prepare('SELECT profile_pic, cover_pic, bio, location, website, phone, updated_at FROM user_profiles WHERE user_id = ? LIMIT 1');
+        $profileStmt = $pdo->prepare('SELECT profile_pic, cover_pic, bio, work, location, education, address, website, phone, updated_at FROM user_profiles WHERE user_id = ? LIMIT 1');
         $profileStmt->execute([$user['user_id']]);
         $profile = $profileStmt->fetch(PDO::FETCH_ASSOC);
         if ($profile) {
@@ -35,7 +35,7 @@ try {
         }
 
         // Get user work experience from user_work table
-        $workStmt = $pdo->prepare('SELECT work_id, company, title FROM user_work WHERE user_id = ?');
+        $workStmt = $pdo->prepare('SELECT work_id, company, title, period, description FROM user_work WHERE user_id = ?');
         $workStmt->execute([$user['user_id']]);
         $workRecords = $workStmt->fetchAll(PDO::FETCH_ASSOC);
         $_SESSION['user']['experience_list'] = [];
@@ -44,13 +44,13 @@ try {
                 'id' => 'exp_' . $work['work_id'],
                 'company' => $work['company'],
                 'role' => $work['title'],
-                'period' => '',
-                'desc' => ''
+                'period' => $work['period'],
+                'desc' => $work['description']
             ];
         }
 
         // Get user education from user_education table
-        $eduStmt = $pdo->prepare('SELECT edu_id, school, degree FROM user_education WHERE user_id = ?');
+        $eduStmt = $pdo->prepare('SELECT edu_id, school, degree, year FROM user_education WHERE user_id = ?');
         $eduStmt->execute([$user['user_id']]);
         $eduRecords = $eduStmt->fetchAll(PDO::FETCH_ASSOC);
         $_SESSION['user']['education_list'] = [];
@@ -59,7 +59,7 @@ try {
                 'id' => 'edu_' . $edu['edu_id'],
                 'school' => $edu['school'],
                 'degree' => $edu['degree'],
-                'year' => ''
+                'year' => $edu['year']
             ];
         }
     }
@@ -222,7 +222,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_details') {
+    $_SESSION['user']['work']      = trim($_POST['work']      ?? '');
     $_SESSION['user']['location']  = trim($_POST['location']  ?? '');
+    $_SESSION['user']['education'] = trim($_POST['education'] ?? '');
+    $_SESSION['user']['address']   = trim($_POST['address']   ?? '');
     $_SESSION['user']['website']   = trim($_POST['website']   ?? '');
     $_SESSION['user']['phone']     = trim($_POST['phone']     ?? '');
     // Save to database
@@ -231,18 +234,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_
     $checkStmt = $pdo->prepare('SELECT profile_id FROM user_profiles WHERE user_id = ? LIMIT 1');
     $checkStmt->execute([$_SESSION['user']['user_id']]);
     if ($checkStmt->fetch()) {
-        $stmt = $pdo->prepare('UPDATE user_profiles SET location = ?, website = ?, phone = ? WHERE user_id = ?');
+        $stmt = $pdo->prepare('UPDATE user_profiles SET work = ?, location = ?, education = ?, address = ?, website = ?, phone = ? WHERE user_id = ?');
         $stmt->execute([
+            $_SESSION['user']['work'],
             $_SESSION['user']['location'],
+            $_SESSION['user']['education'],
+            $_SESSION['user']['address'],
             $_SESSION['user']['website'],
             $_SESSION['user']['phone'],
             $_SESSION['user']['user_id']
         ]);
     } else {
-        $stmt = $pdo->prepare('INSERT INTO user_profiles (user_id, location, website, phone) VALUES (?, ?, ?, ?)');
+        $stmt = $pdo->prepare('INSERT INTO user_profiles (user_id, work, location, education, address, website, phone) VALUES (?, ?, ?, ?, ?, ?, ?)');
         $stmt->execute([
             $_SESSION['user']['user_id'],
+            $_SESSION['user']['work'],
             $_SESSION['user']['location'],
+            $_SESSION['user']['education'],
+            $_SESSION['user']['address'],
             $_SESSION['user']['website'],
             $_SESSION['user']['phone']
         ]);
@@ -260,8 +269,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_
         // Save to user_education database table
         try {
             $pdo = get_db_connection();
-            $stmt = $pdo->prepare('INSERT INTO user_education (user_id, school, degree) VALUES (?, ?, ?)');
-            $stmt->execute([$_SESSION['user']['user_id'], $school, $degree]);
+            $stmt = $pdo->prepare('INSERT INTO user_education (user_id, school, degree, year) VALUES (?, ?, ?, ?)');
+            $stmt->execute([$_SESSION['user']['user_id'], $school, $degree, $year]);
             $eduId = $pdo->lastInsertId();
             
             // Also add to session
@@ -319,8 +328,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_
         // Save to user_work database table
         try {
             $pdo = get_db_connection();
-            $stmt = $pdo->prepare('INSERT INTO user_work (user_id, company, title) VALUES (?, ?, ?)');
-            $stmt->execute([$_SESSION['user']['user_id'], $company, $role]);
+            $stmt = $pdo->prepare('INSERT INTO user_work (user_id, company, title, period, description) VALUES (?, ?, ?, ?, ?)');
+            $stmt->execute([$_SESSION['user']['user_id'], $company, $role, $period, $desc]);
             $workId = $pdo->lastInsertId();
             
             // Also add to session
