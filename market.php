@@ -96,9 +96,6 @@ include 'includes/header.php';
                     <div class="pl-8 md:pl-12">
                         <h1 class="text-4xl md:text-5xl font-bold text-white mb-4">CyberSphere Marketplace</h1>
                         <p class="text-blue-100 text-xl mb-6">Level up your cybersecurity skills</p>
-                        <a href="curriculum.php" class="bg-pink-700 text-white px-8 py-3 rounded-lg font-semibold hover:bg-pink-800 transition inline-block">
-                            Explore Curriculum
-                        </a>
                     </div>
                 </div>
             </div>
@@ -256,7 +253,7 @@ include 'includes/header.php';
                                         <input type="hidden" name="product_id" value="<?php echo $product['id']; ?>">
                                         <button type="submit" class="bg-pink-700 text-white px-4 py-2 rounded-lg font-semibold hover:bg-pink-800 transition flex items-center gap-2">
                                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path>
                                             </svg>
                                             Add
                                         </button>
