@@ -1099,3 +1099,113 @@ Start here: http://localhost/project/assessment_session.php?session=assess_2
 2026-06-17 12:17:23 - Checking send_assessment_msg handler
 2026-06-17 12:17:48 - Checking send_assessment_msg handler
 2026-06-17 12:17:50 - Checking send_assessment_msg handler
+2026-06-17 12:57:41 - Checking send_assessment_msg handler
+2026-06-17 12:57:58 - Checking send_assessment_msg handler
+2026-06-17 12:58:05 - Checking send_assessment_msg handler
+2026-06-17 12:58:27 - Checking send_assessment_msg handler
+2026-06-17 12:58:34 - Checking send_assessment_msg handler
+2026-06-17 12:58:34 - Checking send_assessment_msg handler
+2026-06-17 13:04:05 - Checking send_assessment_msg handler
+2026-06-17 13:08:50 - Checking send_assessment_msg handler
+2026-06-17 13:08:51 - Checking send_assessment_msg handler
+2026-06-17 13:09:10 - Checking send_assessment_msg handler
+2026-06-17 13:09:42 - create_assessment handler ACTIVATED! POST: Array
+(
+    [action] => create_assessment
+    [assess_title] => SOC Analyst Exam
+    [assess_role] => SOC Analyst
+    [assess_time] => 30
+    [assess_instructions] => Answer on time.
+    [challenges] => Array
+        (
+            [0] => Array
+                (
+                    [title] => Networking Basics
+                    [type] => multiple-choice
+                    [points] => 100
+                    [body] => What is a subnet?
+                    [options] => Array
+                        (
+                            [A] => Sample A
+                            [B] => Sample B
+                            [C] => Sample C
+                            [D] => Sample D
+                        )
+
+                    [correct_option] => A
+                    [correct_flag] => 
+                    [hint] => Sample hint
+                    [attachment_notes] => Array
+                        (
+                            [0] => Analyze this.
+                        )
+
+                )
+
+        )
+
+)
+
+2026-06-17 13:09:42 - Starting to process 1 challenges
+2026-06-17 13:09:42 - Processing challenge 0: Array
+(
+    [title] => Networking Basics
+    [type] => multiple-choice
+    [points] => 100
+    [body] => What is a subnet?
+    [options] => Array
+        (
+            [A] => Sample A
+            [B] => Sample B
+            [C] => Sample C
+            [D] => Sample D
+        )
+
+    [correct_option] => A
+    [correct_flag] => 
+    [hint] => Sample hint
+    [attachment_notes] => Array
+        (
+            [0] => Analyze this.
+        )
+
+)
+
+2026-06-17 13:09:42 - Challenge 0: ctitle='Networking Basics', cbody='What is a subnet?', ctype='multiple_choice'
+2026-06-17 13:09:42 - Added challenge 0 to challenges array. Current count: 1
+2026-06-17 13:09:42 - assessErrors: Array
+(
+)
+
+2026-06-17 13:09:42 - Final challenges count: 1
+2026-06-17 13:09:42 - Checking send_assessment_msg handler
+2026-06-17 13:09:46 - Checking send_assessment_msg handler
+2026-06-17 13:10:00 - Checking send_assessment_msg handler
+2026-06-17 13:10:00 - POST RECEIVED: Array
+(
+    [action] => send_assessment_msg
+    [assess_id] => assess_3
+    [post_id] => 9
+    [recipient_email] => yoshinobufukuhara2@gmail.com
+    [deadline] => 2026-06-19T19:09
+    [custom_message] => Hello
+)
+
+2026-06-17 13:10:00 - send_assessment_msg handler ACTIVATED!
+2026-06-17 13:10:00 - assessId: assess_3, recipEmail: yoshinobufukuhara2@gmail.com, assessment exists? YES
+2026-06-17 13:10:00 - senderUserId: 9, myEmail: marck3@gmail.com
+2026-06-17 13:10:00 - recipUserId: 10
+2026-06-17 13:10:00 - msgText: Hello
+
+📋 Skill Assessment: SOC Analyst Exam
+Role: General
+Time Limit: 30 minutes
+Start here: http://localhost/project/assessment_session.php?session=assess_3
+2026-06-17 13:10:00 - convId: 3
+2026-06-17 13:10:00 - message inserted with ID: 5
+2026-06-17 13:10:00 - assessment session created with ID: 3, post_id: 9, deadline: 2026-06-19 19:09:00
+2026-06-17 13:10:00 - Transaction committed successfully!
+2026-06-17 13:10:00 - Notification saved for user ID: 10
+2026-06-17 13:10:00 - Checking send_assessment_msg handler
+2026-06-17 13:11:23 - Checking send_assessment_msg handler
+2026-06-17 13:11:24 - Checking send_assessment_msg handler
