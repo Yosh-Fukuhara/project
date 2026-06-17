@@ -66,7 +66,7 @@ $job_posts = $pdo->query('
     SELECT p.*, u.first_name, u.last_name, u.email, jpd.is_hiring, jpd.enable_apply
     FROM posts p
     JOIN users u ON p.user_id = u.user_id
-    JOIN job_post_details jpd ON p.post_id = jpd.post_id
+    LEFT JOIN job_post_details jpd ON p.post_id = jpd.post_id
     ORDER BY p.created_at DESC
 ')->fetchAll();
 
