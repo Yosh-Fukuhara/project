@@ -9,68 +9,10 @@ if (!isset($_SESSION['user'])) {
 $pageTitle = 'Messages - CyberSphere';
 $currentPage = 'messages';
 
-// Quick check to ensure tables exist
-function ensure_tables_exist() {
-    try {
-        $pdo = get_db_connection();
-        
-        // Check if conversations table exists
-        $stmt = $pdo->query("SHOW TABLES LIKE 'conversations'");
-        if (!$stmt->fetch()) {
-            // Create conversations table
-            $pdo->exec("CREATE TABLE conversations (
-                conversation_id INT PRIMARY KEY AUTO_INCREMENT,
-                user_a INT NOT NULL,
-                user_b INT NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_a) REFERENCES users(user_id) ON DELETE CASCADE,
-                FOREIGN KEY (user_b) REFERENCES users(user_id) ON DELETE CASCADE
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-        }
-        
-        // Check if messages table exists
-        $stmt = $pdo->query("SHOW TABLES LIKE 'messages'");
-        if (!$stmt->fetch()) {
-            $pdo->exec("CREATE TABLE messages (
-                message_id INT PRIMARY KEY AUTO_INCREMENT,
-                conversation_id INT NOT NULL,
-                sender_id INT NOT NULL,
-                body TEXT NOT NULL,
-                is_read TINYINT(1) DEFAULT 0,
-                sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (conversation_id) REFERENCES conversations(conversation_id) ON DELETE CASCADE,
-                FOREIGN KEY (sender_id) REFERENCES users(user_id) ON DELETE CASCADE
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-        } else {
-            // Check if is_read column exists, add if not
-            $checkCol = $pdo->query("SHOW COLUMNS FROM messages LIKE 'is_read'");
-            if (!$checkCol->fetch()) {
-                $pdo->exec("ALTER TABLE messages ADD COLUMN is_read TINYINT(1) DEFAULT 0");
-            }
-            // Check if sent_at column exists, add if not
-            $checkCol = $pdo->query("SHOW COLUMNS FROM messages LIKE 'sent_at'");
-            if (!$checkCol->fetch()) {
-                $pdo->exec("ALTER TABLE messages ADD COLUMN sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
-            }
-        }
-        
-        // Check if message_attachments table exists
-        $stmt = $pdo->query("SHOW TABLES LIKE 'message_attachments'");
-        if (!$stmt->fetch()) {
-            $pdo->exec("CREATE TABLE message_attachments (
-                attachment_id INT PRIMARY KEY AUTO_INCREMENT,
-                message_id INT NOT NULL,
-                file_name VARCHAR(255) NOT NULL,
-                file_url VARCHAR(255) NOT NULL,
-                uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (message_id) REFERENCES messages(message_id) ON DELETE CASCADE
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-        }
-    } catch (Exception $e) {
-        // Silently ignore table errors in production
-    }
+// Quick check to ensure tables exist (handled in bootstrap.php now)
+if (function_exists('ensure_tables_exist')) {
+    ensure_tables_exist();
 }
-ensure_tables_exist();
 
 // Check if we're opening a conversation with a specific user
 if (isset($_GET['user'])) {
@@ -90,44 +32,48 @@ if (isset($_GET['user'])) {
 }
 
 // Helper function to get user info from DB
-function get_user_info($user_id) {
-    static $cache = [];
-    if (isset($cache[$user_id])) return $cache[$user_id];
-    try {
-        $pdo = get_db_connection();
-        $stmt = $pdo->prepare("SELECT user_id, first_name, last_name, email FROM users WHERE user_id = ?");
-        $stmt->execute([$user_id]);
-        $user = $stmt->fetch(PDO::FETCH_ASSOC);
-        if ($user) {
-            $cache[$user_id] = $user;
-            return $user;
+if (!function_exists('get_user_info')) {
+    function get_user_info($user_id) {
+        static $cache = [];
+        if (isset($cache[$user_id])) return $cache[$user_id];
+        try {
+            $pdo = get_db_connection();
+            $stmt = $pdo->prepare("SELECT user_id, first_name, last_name, email FROM users WHERE user_id = ?");
+            $stmt->execute([$user_id]);
+            $user = $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($user) {
+                $cache[$user_id] = $user;
+                return $user;
+            }
+        } catch (Exception $e) {
+            // Fallback
         }
-    } catch (Exception $e) {
-        // Fallback
+        $cache[$user_id] = null;
+        return null;
     }
-    $cache[$user_id] = null;
-    return null;
 }
 
 // Helper function to get or create conversation
-function get_or_create_conversation($my_id, $other_id) {
-    if ($my_id == $other_id) return null;
-    $low = min($my_id, $other_id);
-    $high = max($my_id, $other_id);
-    $pdo = get_db_connection();
-    $stmt = $pdo->prepare("SELECT conversation_id, user_a, user_b, created_at FROM conversations WHERE (user_a = ? AND user_b = ?) OR (user_a = ? AND user_b = ?)");
-    $stmt->execute([$low, $high, $low, $high]);
-    $conv = $stmt->fetch(PDO::FETCH_ASSOC);
-    if ($conv) return $conv;
-    
-    $stmt = $pdo->prepare("INSERT INTO conversations (user_a, user_b) VALUES (?, ?)");
-    $stmt->execute([$low, $high]);
-    return [
-        'conversation_id' => $pdo->lastInsertId(),
-        'user_a' => $low,
-        'user_b' => $high,
-        'created_at' => date('Y-m-d H:i:s')
-    ];
+if (!function_exists('get_or_create_conversation')) {
+    function get_or_create_conversation($my_id, $other_id) {
+        if ($my_id == $other_id) return null;
+        $low = min($my_id, $other_id);
+        $high = max($my_id, $other_id);
+        $pdo = get_db_connection();
+        $stmt = $pdo->prepare("SELECT conversation_id, user_a, user_b, created_at FROM conversations WHERE (user_a = ? AND user_b = ?) OR (user_a = ? AND user_b = ?)");
+        $stmt->execute([$low, $high, $low, $high]);
+        $conv = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($conv) return $conv;
+        
+        $stmt = $pdo->prepare("INSERT INTO conversations (user_a, user_b) VALUES (?, ?)");
+        $stmt->execute([$low, $high]);
+        return [
+            'conversation_id' => $pdo->lastInsertId(),
+            'user_a' => $low,
+            'user_b' => $high,
+            'created_at' => date('Y-m-d H:i:s')
+        ];
+    }
 }
 
 // Helper function to get all conversations for current user
