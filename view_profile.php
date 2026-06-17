@@ -115,7 +115,7 @@ include 'includes/header.php';
             <!-- Cover Photo -->
             <div class="w-full h-48 md:h-64 bg-gradient-to-r from-blue-900 to-cyan-800 overflow-hidden flex items-center justify-center">
                 <?php if (!empty($viewedUser['cover_pic'])): ?>
-                    <img src="<?php echo htmlspecialchars($viewedUser['cover_pic']); ?>"
+                    <img src="<?php echo htmlspecialchars($viewedUser['cover_pic']); ?>?t=<?php echo time(); ?>"
                          alt="Cover photo"
                          class="w-full h-full object-cover cursor-pointer"
                          id="coverPhotoBtn">
@@ -127,7 +127,7 @@ include 'includes/header.php';
                 <div class="flex flex-col sm:flex-row sm:items-end gap-4">
                     <div class="w-20 h-20 bg-gray-200 rounded-full border-4 border-white flex items-center justify-center text-3xl text-blue-800 overflow-hidden shadow-md flex-shrink-0">
                         <?php if (!empty($viewedUser['profile_pic'])): ?>
-                            <img src="<?php echo htmlspecialchars($viewedUser['profile_pic']); ?>"
+                            <img src="<?php echo htmlspecialchars($viewedUser['profile_pic']); ?>?t=<?php echo time(); ?>"
                                  alt="Profile photo"
                                  class="w-full h-full object-cover">
                         <?php else: ?>
@@ -308,7 +308,7 @@ include 'includes/header.php';
                         <div class="flex items-center gap-3 mb-3">
                             <div class="w-9 h-9 rounded-full bg-blue-100 text-blue-900 font-bold flex items-center justify-center overflow-hidden flex-shrink-0">
                                 <?php if (!empty($viewedUser['profile_pic'])): ?>
-                                    <img src="<?php echo htmlspecialchars($viewedUser['profile_pic']); ?>" alt="" class="w-full h-full object-cover">
+                                    <img src="<?php echo htmlspecialchars($viewedUser['profile_pic']); ?>?t=<?php echo time(); ?>" alt="" class="w-full h-full object-cover">
                                 <?php else: ?>
                                     <?php echo strtoupper(substr($viewedUser['username'], 0, 1)); ?>
                                 <?php endif; ?>
@@ -368,7 +368,7 @@ include 'includes/header.php';
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
         </svg>
     </button>
-    <img src="<?php echo htmlspecialchars($viewedUser['cover_pic']); ?>"
+    <img src="<?php echo htmlspecialchars($viewedUser['cover_pic']); ?>?t=<?php echo time(); ?>"
          alt="Cover photo"
          class="max-w-full max-h-full object-contain rounded-xl shadow-2xl">
 </div>

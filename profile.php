@@ -27,7 +27,7 @@ try {
         ];
 
         // Get profile data
-        $profileStmt = $pdo->prepare('SELECT profile_pic, cover_pic, bio, work, location, education, address, website, phone, updated_at FROM user_profiles WHERE user_id = ? LIMIT 1');
+        $profileStmt = $pdo->prepare('SELECT * FROM user_profiles WHERE user_id = ? LIMIT 1');
         $profileStmt->execute([$user['user_id']]);
         $profile = $profileStmt->fetch(PDO::FETCH_ASSOC);
         if ($profile) {
@@ -64,6 +64,7 @@ try {
         }
     }
 } catch (Exception $e) {
+    error_log("Session refresh error: " . $e->getMessage());
     // Ignore errors, just use existing session data
 }
 
@@ -448,7 +449,7 @@ include 'includes/header.php';
             <div class="relative">
                 <div id="coverBox" class="w-full h-56 md:h-72 bg-gradient-to-r from-blue-900 to-cyan-800 overflow-hidden flex items-center justify-center">
                     <?php if (isset($_SESSION['user']) && !empty($_SESSION['user']['cover_pic'])): ?>
-                        <img id="coverImg" src="<?php echo htmlspecialchars($_SESSION['user']['cover_pic']); ?>" alt="Cover photo" class="w-full h-full object-contain cursor-pointer" title="Click to view">
+                        <img id="coverImg" src="<?php echo htmlspecialchars($_SESSION['user']['cover_pic']); ?>?t=<?php echo time(); ?>" alt="Cover photo" class="w-full h-full object-contain cursor-pointer" title="Click to view">
                     <?php endif; ?>
                 </div>
                 <!-- Cover Photo Viewer (Modal) -->
@@ -608,6 +609,60 @@ include 'includes/header.php';
                     if (e.key === 'Escape') closeCoverModal();
                 });
             })();
+            
+            // Profile Photo Upload
+            (function() {
+                const profileInput = document.getElementById('profilePhotoInput');
+                const profileBtn = document.getElementById('profileUploadBtn');
+                
+                if (profileBtn && profileInput) {
+                    profileBtn.addEventListener('click', function() {
+                        profileInput.click();
+                    });
+                    
+                    profileInput.addEventListener('change', function() {
+                        const file = this.files[0];
+                        const maxSize = 5 * 1024 * 1024;
+                        
+                        if (!file) return;
+                        
+                        if (file.size > maxSize) {
+                            alert("Image is too large. Maximum size is 5MB.");
+                            return;
+                        }
+                        
+                        // Validate it's an image
+                        const objUrl = URL.createObjectURL(file);
+                        const probe = new Image();
+                        probe.onload = function() {
+                            URL.revokeObjectURL(objUrl);
+                            // Preview the image
+                            let previewImg = document.getElementById('profilePhotoPreview');
+                            let initialSpan = document.getElementById('profileInitial');
+                            
+                            if (!previewImg) {
+                                previewImg = document.createElement('img');
+                                previewImg.id = 'profilePhotoPreview';
+                                previewImg.className = 'w-full h-full object-cover';
+                                if (initialSpan) initialSpan.remove();
+                                profileBtn.prepend(previewImg);
+                            }
+                            
+                            previewImg.src = URL.createObjectURL(file);
+                            
+                            // Submit the form
+                            setTimeout(() => {
+                                document.getElementById('profileUploadForm').submit();
+                            }, 100);
+                        };
+                        probe.onerror = function() {
+                            URL.revokeObjectURL(objUrl);
+                            alert('Invalid image file.');
+                        };
+                        probe.src = objUrl;
+                    });
+                }
+            })();
             </script>
             <div class="px-4 pb-4 -mt-10 relative z-10">
                 <div class="flex items-center gap-4">
@@ -616,7 +671,7 @@ include 'includes/header.php';
                         <input id="profilePhotoInput" type="file" name="profile_photo" accept="image/*" class="hidden">
                         <button type="button" id="profileUploadBtn" class="w-20 h-20 bg-gray-200 rounded-full border-4 border-white flex items-center justify-center text-3xl text-blue-800 overflow-hidden shadow-md relative cursor-pointer group">
                             <?php if (isset($_SESSION['user']) && !empty($_SESSION['user']['profile_pic'])): ?>
-                                <img id="profilePhotoPreview" src="<?php echo htmlspecialchars($_SESSION['user']['profile_pic']); ?>" alt="Profile photo" class="w-full h-full object-cover">
+                                <img id="profilePhotoPreview" src="<?php echo htmlspecialchars($_SESSION['user']['profile_pic']); ?>?t=<?php echo time(); ?>" alt="Profile photo" class="w-full h-full object-cover">
                             <?php else: ?>
                                 <span id="profileInitial"><?php echo isset($_SESSION['user']) ? strtoupper(substr($_SESSION['user']['first_name'], 0, 1)) : 'G'; ?></span>
                             <?php endif; ?>

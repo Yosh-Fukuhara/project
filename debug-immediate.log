@@ -629,3 +629,215 @@ Start here: http://localhost/project/assessment_session.php?session=assess_2
 2026-06-17 08:33:41 - Checking send_assessment_msg handler
 2026-06-17 08:33:43 - Checking send_assessment_msg handler
 2026-06-17 08:33:48 - Checking send_assessment_msg handler
+2026-06-17 10:00:31 - Checking send_assessment_msg handler
+2026-06-17 10:00:34 - Checking send_assessment_msg handler
+2026-06-17 10:00:35 - Checking send_assessment_msg handler
+2026-06-17 10:00:36 - Checking send_assessment_msg handler
+2026-06-17 10:00:51 - create_assessment handler ACTIVATED! POST: Array
+(
+    [action] => create_assessment
+    [assess_title] => 21321312
+    [assess_role] => 2313213
+    [assess_time] => 30
+    [assess_instructions] => 3213213
+    [challenges] => Array
+        (
+            [0] => Array
+                (
+                    [title] => a
+                    [type] => multiple-choice
+                    [points] => 100
+                    [body] => aaaaaaaaaaaa
+                    [options] => Array
+                        (
+                            [A] => aaa
+                            [B] => aa
+                            [C] => aa
+                            [D] => aa
+                        )
+
+                    [correct_option] => A
+                    [correct_flag] => aa
+                    [hint] => a
+                    [attachment_notes] => Array
+                        (
+                            [0] => aaa
+                        )
+
+                )
+
+        )
+
+)
+
+2026-06-17 10:00:51 - Starting to process 1 challenges
+2026-06-17 10:00:51 - Processing challenge 0: Array
+(
+    [title] => a
+    [type] => multiple-choice
+    [points] => 100
+    [body] => aaaaaaaaaaaa
+    [options] => Array
+        (
+            [A] => aaa
+            [B] => aa
+            [C] => aa
+            [D] => aa
+        )
+
+    [correct_option] => A
+    [correct_flag] => aa
+    [hint] => a
+    [attachment_notes] => Array
+        (
+            [0] => aaa
+        )
+
+)
+
+2026-06-17 10:00:51 - Challenge 0: ctitle='a', cbody='aaaaaaaaaaaa', ctype='multiple_choice'
+2026-06-17 10:00:51 - Added challenge 0 to challenges array. Current count: 1
+2026-06-17 10:00:51 - assessErrors: Array
+(
+)
+
+2026-06-17 10:00:51 - Final challenges count: 1
+2026-06-17 10:00:51 - Checking send_assessment_msg handler
+2026-06-17 10:00:54 - Checking send_assessment_msg handler
+2026-06-17 10:00:55 - Checking send_assessment_msg handler
+2026-06-17 10:00:59 - Checking send_assessment_msg handler
+2026-06-17 10:01:04 - Checking send_assessment_msg handler
+2026-06-17 10:02:23 - Checking send_assessment_msg handler
+2026-06-17 10:03:23 - Checking send_assessment_msg handler
+2026-06-17 10:03:29 - Checking send_assessment_msg handler
+2026-06-17 10:03:30 - Checking send_assessment_msg handler
+2026-06-17 10:03:32 - Checking send_assessment_msg handler
+2026-06-17 10:03:45 - create_assessment handler ACTIVATED! POST: Array
+(
+    [action] => create_assessment
+    [assess_title] => 21321312
+    [assess_role] => 2313213
+    [assess_time] => 30
+    [assess_instructions] => 3213213
+    [challenges] => Array
+        (
+            [0] => Array
+                (
+                    [title] => a
+                    [type] => multiple-choice
+                    [points] => 100
+                    [body] => aa
+                    [options] => Array
+                        (
+                            [A] => aa
+                            [B] => aa
+                            [C] => aa
+                            [D] => aa
+                        )
+
+                    [correct_option] => A
+                    [correct_flag] => aa
+                    [hint] => a
+                    [attachment_notes] => Array
+                        (
+                            [0] => aa
+                        )
+
+                )
+
+        )
+
+)
+
+2026-06-17 10:03:45 - Starting to process 1 challenges
+2026-06-17 10:03:45 - Processing challenge 0: Array
+(
+    [title] => a
+    [type] => multiple-choice
+    [points] => 100
+    [body] => aa
+    [options] => Array
+        (
+            [A] => aa
+            [B] => aa
+            [C] => aa
+            [D] => aa
+        )
+
+    [correct_option] => A
+    [correct_flag] => aa
+    [hint] => a
+    [attachment_notes] => Array
+        (
+            [0] => aa
+        )
+
+)
+
+2026-06-17 10:03:45 - Challenge 0: ctitle='a', cbody='aa', ctype='multiple_choice'
+2026-06-17 10:03:45 - Added challenge 0 to challenges array. Current count: 1
+2026-06-17 10:03:45 - assessErrors: Array
+(
+)
+
+2026-06-17 10:03:45 - Final challenges count: 1
+2026-06-17 10:03:45 - Checking send_assessment_msg handler
+2026-06-17 10:03:46 - Checking send_assessment_msg handler
+2026-06-17 10:03:52 - Checking send_assessment_msg handler
+2026-06-17 10:03:52 - POST RECEIVED: Array
+(
+    [action] => send_assessment_msg
+    [assess_id] => assess_2
+    [post_id] => 6
+    [recipient_email] => ako@ako.com
+    [deadline] => 2026-06-18T16:03
+    [custom_message] => gey
+)
+
+2026-06-17 10:03:52 - send_assessment_msg handler ACTIVATED!
+2026-06-17 10:03:52 - assessId: assess_2, recipEmail: ako@ako.com, assessment exists? YES
+2026-06-17 10:03:52 - senderUserId: 11, myEmail: test@test.com
+2026-06-17 10:03:52 - recipUserId: 9
+2026-06-17 10:03:52 - msgText: gey
+
+📋 Skill Assessment: 21321312
+Role: General
+Time Limit: 30 minutes
+Start here: http://localhost/project/assessment_session.php?session=assess_2
+2026-06-17 10:03:52 - convId: 1
+2026-06-17 10:03:52 - message inserted with ID: 1
+2026-06-17 10:03:52 - assessment session created with ID: 1, post_id: 6, deadline: 2026-06-18 16:03:00
+2026-06-17 10:03:52 - Transaction committed successfully!
+2026-06-17 10:03:52 - Notification saved for user ID: 9
+2026-06-17 10:03:52 - Checking send_assessment_msg handler
+2026-06-17 10:04:17 - Checking send_assessment_msg handler
+2026-06-17 10:04:19 - Checking send_assessment_msg handler
+2026-06-17 10:04:20 - Checking send_assessment_msg handler
+2026-06-17 10:05:07 - Checking send_assessment_msg handler
+2026-06-17 10:05:18 - Checking send_assessment_msg handler
+2026-06-17 10:05:18 - POST RECEIVED: Array
+(
+    [action] => send_assessment_msg
+    [assess_id] => assess_2
+    [post_id] => 7
+    [recipient_email] => test3@test.com
+    [deadline] => 2026-06-19T16:05
+    [custom_message] => heyyy
+)
+
+2026-06-17 10:05:18 - send_assessment_msg handler ACTIVATED!
+2026-06-17 10:05:18 - assessId: assess_2, recipEmail: test3@test.com, assessment exists? YES
+2026-06-17 10:05:18 - senderUserId: 11, myEmail: test@test.com
+2026-06-17 10:05:18 - recipUserId: 13
+2026-06-17 10:05:18 - msgText: heyyy
+
+📋 Skill Assessment: 21321312
+Role: General
+Time Limit: 30 minutes
+Start here: http://localhost/project/assessment_session.php?session=assess_2
+2026-06-17 10:05:18 - convId: 2
+2026-06-17 10:05:18 - message inserted with ID: 2
+2026-06-17 10:05:18 - assessment session created with ID: 2, post_id: 7, deadline: 2026-06-19 16:05:00
+2026-06-17 10:05:18 - Transaction committed successfully!
+2026-06-17 10:05:18 - Notification saved for user ID: 13
+2026-06-17 10:05:18 - Checking send_assessment_msg handler
