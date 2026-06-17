@@ -42,7 +42,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creat
         // We'll collect attachments per challenge index
         $challengeAttachments = [];
         $challengeOptions = [];
+        file_put_contents($immediateLog, date('Y-m-d H:i:s') . " - Starting to process " . count($challengesRaw) . " challenges\n", FILE_APPEND);
         foreach ($challengesRaw as $index => $c) {
+            file_put_contents($immediateLog, date('Y-m-d H:i:s') . " - Processing challenge $index: " . print_r($c, true) . "\n", FILE_APPEND);
             $ctype  = trim($c['type'] ?? 'flag');
             // Normalize the type name
             if (in_array($ctype, ['multiple-choice', 'multiple_choice', 'mcq'])) {
@@ -53,7 +55,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creat
             $cpts   = max(10, min(500, (int)($c['points'] ?? 100)));
             $chint  = trim($c['hint'] ?? '');
             $cflag  = trim($c['correct_flag'] ?? '');
-            if (!$ctitle || !$cbody) continue;
+            file_put_contents($immediateLog, date('Y-m-d H:i:s') . " - Challenge $index: ctitle='$ctitle', cbody='$cbody', ctype='$ctype'\n", FILE_APPEND);
+            if (!$ctitle || !$cbody) {
+                file_put_contents($immediateLog, date('Y-m-d H:i:s') . " - SKIPPING challenge $index: missing title or body\n", FILE_APPEND);
+                continue;
+            }
             
             // Get options for multiple choice
             $options = $c['options'] ?? [];
@@ -126,12 +132,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creat
                 'options'      => $options,
                 'correct_option' => $correctOption
             ];
+            file_put_contents($immediateLog, date('Y-m-d H:i:s') . " - Added challenge $index to challenges array. Current count: " . count($challenges) . "\n", FILE_APPEND);
         }
 
     $assessErrors = [];
     if (!$title) $assessErrors[] = 'Assessment title is required.';
     if (empty($challenges)) $assessErrors[] = 'Add at least one challenge.';
     file_put_contents($immediateLog, date('Y-m-d H:i:s') . " - assessErrors: " . print_r($assessErrors, true) . "\n", FILE_APPEND);
+    file_put_contents($immediateLog, date('Y-m-d H:i:s') . " - Final challenges count: " . count($challenges) . "\n", FILE_APPEND);
 
     if (empty($assessErrors)) {
         $pdo = get_db_connection();
@@ -951,12 +959,15 @@ function addChallenge() {
     const mcOptions = card.querySelector(`#mc-options-${i}`);
     
     function updateTypeFields() {
+        const mcInputs = mcOptions.querySelectorAll('input[name*="options"]');
         if (sel.value === 'multiple-choice') {
             flagWrap.style.opacity = '0.4';
             mcOptions.classList.remove('hidden');
+            mcInputs.forEach(input => input.required = true);
         } else {
             flagWrap.style.opacity = (sel.value === 'flag') ? '1' : '0.4';
             mcOptions.classList.add('hidden');
+            mcInputs.forEach(input => input.required = false);
         }
     }
     
