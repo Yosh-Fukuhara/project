@@ -1,5 +1,6 @@
 <?php
 require_once 'includes/bootstrap.php';
+require_once 'role_helpers.php';
 
 if (!isset($_SESSION['user'])) {
     header('Location: login.php');
@@ -20,7 +21,7 @@ if (isset($_GET['user'])) {
     $my_id = $_SESSION['user']['user_id'];
     if ($other_user_id && $other_user_id != $my_id) {
         try {
-            $conv = get_or_create_conversation($my_id, $other_user_id);
+            $conv = cs_get_or_create_conversation($my_id, $other_user_id);
             if ($conv) {
                 header('Location: messages.php?conv=' . urlencode($conv['conversation_id']));
                 exit;
@@ -28,51 +29,6 @@ if (isset($_GET['user'])) {
         } catch (Exception $e) {
             // Silently ignore
         }
-    }
-}
-
-// Helper function to get user info from DB
-if (!function_exists('get_user_info')) {
-    function get_user_info($user_id) {
-        static $cache = [];
-        if (isset($cache[$user_id])) return $cache[$user_id];
-        try {
-            $pdo = get_db_connection();
-            $stmt = $pdo->prepare("SELECT user_id, first_name, last_name, email FROM users WHERE user_id = ?");
-            $stmt->execute([$user_id]);
-            $user = $stmt->fetch(PDO::FETCH_ASSOC);
-            if ($user) {
-                $cache[$user_id] = $user;
-                return $user;
-            }
-        } catch (Exception $e) {
-            // Fallback
-        }
-        $cache[$user_id] = null;
-        return null;
-    }
-}
-
-// Helper function to get or create conversation
-if (!function_exists('get_or_create_conversation')) {
-    function get_or_create_conversation($my_id, $other_id) {
-        if ($my_id == $other_id) return null;
-        $low = min($my_id, $other_id);
-        $high = max($my_id, $other_id);
-        $pdo = get_db_connection();
-        $stmt = $pdo->prepare("SELECT conversation_id, user_a, user_b, created_at FROM conversations WHERE (user_a = ? AND user_b = ?) OR (user_a = ? AND user_b = ?)");
-        $stmt->execute([$low, $high, $low, $high]);
-        $conv = $stmt->fetch(PDO::FETCH_ASSOC);
-        if ($conv) return $conv;
-        
-        $stmt = $pdo->prepare("INSERT INTO conversations (user_a, user_b) VALUES (?, ?)");
-        $stmt->execute([$low, $high]);
-        return [
-            'conversation_id' => $pdo->lastInsertId(),
-            'user_a' => $low,
-            'user_b' => $high,
-            'created_at' => date('Y-m-d H:i:s')
-        ];
     }
 }
 
@@ -546,7 +502,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $messages = get_conversation_messages($convId);
         $html = '';
         foreach ($messages as $m) {
-            $sender = get_user_info($m['sender_id']);
+            $sender = cs_get_user_info($m['sender_id']);
             $from = $sender['email'] ?? '';
             $msg = [
                 'id' => $m['message_id'],
@@ -652,7 +608,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $stmt = $pdo->prepare("UPDATE messages SET body = ? WHERE message_id = ?");
         $stmt->execute([$newText, $messageId]);
         
-        $sender = get_user_info($msg['sender_id']);
+        $sender = cs_get_user_info($msg['sender_id']);
         $msg_obj = [
             'id' => $messageId,
             'from' => $sender['email'] ?? '',
@@ -683,7 +639,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $messages = get_conversation_messages($convId);
         $html = '';
         foreach ($messages as $m) {
-            $sender = get_user_info($m['sender_id']);
+            $sender = cs_get_user_info($m['sender_id']);
             $from = $sender['email'] ?? '';
             $msg_obj = [
                 'id' => $m['message_id'],
@@ -764,7 +720,7 @@ foreach ($conversations as $c) {
 // Prepare $currentConv for template
 if ($currentConv) {
     $other_id = $currentConv['user_a'] == $my_id ? $currentConv['user_b'] : $currentConv['user_a'];
-    $other_user = get_user_info($other_id);
+    $other_user = cs_get_user_info($other_id);
     $currentConv['otherUser'] = [
         'id' => $other_id,
         'email' => $other_user['email'] ?? '',
@@ -777,7 +733,7 @@ if ($currentConv) {
     $messages = get_conversation_messages($currentConv['conversation_id']);
     $currentConv['messages'] = [];
     foreach ($messages as $m) {
-        $sender = get_user_info($m['sender_id']);
+        $sender = cs_get_user_info($m['sender_id']);
         $currentConv['messages'][] = [
             'id' => $m['message_id'],
             'from' => $sender['email'] ?? '',
@@ -810,7 +766,7 @@ if ($currentConv) {
                     <?php foreach ($conversations as $conv): ?>
                         <?php 
                         $other_id = $conv['user_a'] == $my_id ? $conv['user_b'] : $conv['user_a'];
-                        $other_user = get_user_info($other_id);
+                        $other_user = cs_get_user_info($other_id);
                         $other_username = ($other_user['first_name'] ?? 'User') . ' ' . ($other_user['last_name'] ?? '');
                         $other_avatar = strtoupper(substr($other_user['first_name'] ?? 'U', 0, 1));
                         $last_msg = $conv['body'] ?? '';

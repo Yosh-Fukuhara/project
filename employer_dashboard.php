@@ -234,47 +234,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creat
     }
 }
 
-// Helper function to get user info from DB
-function get_user_info($user_id) {
-    static $cache = [];
-    if (isset($cache[$user_id])) return $cache[$user_id];
-    try {
-        $pdo = get_db_connection();
-        $stmt = $pdo->prepare("SELECT user_id, first_name, last_name, email FROM users WHERE user_id = ?");
-        $stmt->execute([$user_id]);
-        $user = $stmt->fetch(PDO::FETCH_ASSOC);
-        if ($user) {
-            $cache[$user_id] = $user;
-            return $user;
-        }
-    } catch (Exception $e) {
-        // Fallback
-    }
-    $cache[$user_id] = null;
-    return null;
-}
-
-// Helper function to get or create conversation
-function get_or_create_conversation($my_id, $other_id) {
-    if ($my_id == $other_id) return null;
-    $low = min($my_id, $other_id);
-    $high = max($my_id, $other_id);
-    $pdo = get_db_connection();
-    $stmt = $pdo->prepare("SELECT conversation_id, user_a, user_b, created_at FROM conversations WHERE (user_a = ? AND user_b = ?) OR (user_a = ? AND user_b = ?)");
-    $stmt->execute([$low, $high, $low, $high]);
-    $conv = $stmt->fetch(PDO::FETCH_ASSOC);
-    if ($conv) return $conv;
-    
-    $stmt = $pdo->prepare("INSERT INTO conversations (user_a, user_b) VALUES (?, ?)");
-    $stmt->execute([$low, $high]);
-    return [
-        'conversation_id' => $pdo->lastInsertId(),
-        'user_a' => $low,
-        'user_b' => $high,
-        'created_at' => date('Y-m-d H:i:s')
-    ];
-}
-
 // ── Handle Send Assessment via message ────────────────────────────────────
 file_put_contents($immediateLog, date('Y-m-d H:i:s') . " - Checking send_assessment_msg handler\n", FILE_APPEND);
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -327,7 +286,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'send_
             // 1. Find or create conversation in database
             $convId = null;
             if ($senderUserId && $recipUserId) {
-                $conv = get_or_create_conversation($senderUserId, $recipUserId);
+                $conv = cs_get_or_create_conversation($senderUserId, $recipUserId);
                 $convId = $conv['conversation_id'] ?? null;
                 file_put_contents($immediateLog, date('Y-m-d H:i:s') . " - convId: " . ($convId ?? 'NULL') . "\n", FILE_APPEND);
 

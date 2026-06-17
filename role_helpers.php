@@ -3,6 +3,26 @@ require_once __DIR__ . '/includes/bootstrap.php';
 // ── Role helpers ──────────────────────────────────────────────────────────
 // Roles: 'applicant', 'employer', 'admin'
 
+// Helper function to get user info from DB
+function cs_get_user_info(int $user_id): ?array {
+    static $cache = [];
+    if (isset($cache[$user_id])) return $cache[$user_id];
+    try {
+        $pdo = get_db_connection();
+        $stmt = $pdo->prepare("SELECT user_id, first_name, last_name, email FROM users WHERE user_id = ?");
+        $stmt->execute([$user_id]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($user) {
+            $cache[$user_id] = $user;
+            return $user;
+        }
+    } catch (Exception $e) {
+        // Fallback
+    }
+    $cache[$user_id] = null;
+    return null;
+}
+
 // Helper function to get user by email
 function cs_get_user_by_email(string $email): ?array {
     try {

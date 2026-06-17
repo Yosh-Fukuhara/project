@@ -1209,3 +1209,107 @@ Start here: http://localhost/project/assessment_session.php?session=assess_3
 2026-06-17 13:10:00 - Checking send_assessment_msg handler
 2026-06-17 13:11:23 - Checking send_assessment_msg handler
 2026-06-17 13:11:24 - Checking send_assessment_msg handler
+2026-06-17 13:58:54 - Checking send_assessment_msg handler
+2026-06-17 14:02:20 - Checking send_assessment_msg handler
+2026-06-17 14:02:35 - Checking send_assessment_msg handler
+2026-06-17 14:02:37 - Checking send_assessment_msg handler
+2026-06-17 14:03:11 - create_assessment handler ACTIVATED! POST: Array
+(
+    [action] => create_assessment
+    [assess_title] => SOC Analyst Exam
+    [assess_role] => SOC Analyst
+    [assess_time] => 30
+    [assess_instructions] => Answer on time.
+    [challenges] => Array
+        (
+            [0] => Array
+                (
+                    [title] => Networking Basics
+                    [type] => multiple-choice
+                    [points] => 100
+                    [body] => What is a subnet?
+                    [options] => Array
+                        (
+                            [A] => Sample A
+                            [B] => Sample B
+                            [C] => Sample C
+                            [D] => Sample D
+                        )
+
+                    [correct_option] => A
+                    [correct_flag] => 
+                    [hint] => Sample hint
+                    [attachment_notes] => Array
+                        (
+                            [0] => Analyze this file.
+                        )
+
+                )
+
+        )
+
+)
+
+2026-06-17 14:03:11 - Starting to process 1 challenges
+2026-06-17 14:03:11 - Processing challenge 0: Array
+(
+    [title] => Networking Basics
+    [type] => multiple-choice
+    [points] => 100
+    [body] => What is a subnet?
+    [options] => Array
+        (
+            [A] => Sample A
+            [B] => Sample B
+            [C] => Sample C
+            [D] => Sample D
+        )
+
+    [correct_option] => A
+    [correct_flag] => 
+    [hint] => Sample hint
+    [attachment_notes] => Array
+        (
+            [0] => Analyze this file.
+        )
+
+)
+
+2026-06-17 14:03:11 - Challenge 0: ctitle='Networking Basics', cbody='What is a subnet?', ctype='multiple_choice'
+2026-06-17 14:03:11 - Added challenge 0 to challenges array. Current count: 1
+2026-06-17 14:03:11 - assessErrors: Array
+(
+)
+
+2026-06-17 14:03:11 - Final challenges count: 1
+2026-06-17 14:03:12 - Checking send_assessment_msg handler
+2026-06-17 14:03:16 - Checking send_assessment_msg handler
+2026-06-17 14:03:36 - Checking send_assessment_msg handler
+2026-06-17 14:03:36 - POST RECEIVED: Array
+(
+    [action] => send_assessment_msg
+    [assess_id] => assess_4
+    [post_id] => 12
+    [recipient_email] => emman@gmail.com
+    [deadline] => 2026-06-18T20:03
+    [custom_message] => Hello Emman, we are interested in your skills.
+)
+
+2026-06-17 14:03:36 - send_assessment_msg handler ACTIVATED!
+2026-06-17 14:03:36 - assessId: assess_4, recipEmail: emman@gmail.com, assessment exists? YES
+2026-06-17 14:03:36 - senderUserId: 11, myEmail: gerald123@gmail.com
+2026-06-17 14:03:36 - recipUserId: 12
+2026-06-17 14:03:36 - msgText: Hello Emman, we are interested in your skills.
+
+📋 Skill Assessment: SOC Analyst Exam
+Role: General
+Time Limit: 30 minutes
+Start here: http://localhost/project/assessment_session.php?session=assess_4
+2026-06-17 14:03:36 - convId: 4
+2026-06-17 14:03:36 - message inserted with ID: 9
+2026-06-17 14:03:36 - assessment session created with ID: 4, post_id: 12, deadline: 2026-06-18 20:03:00
+2026-06-17 14:03:36 - Transaction committed successfully!
+2026-06-17 14:03:36 - Notification saved for user ID: 12
+2026-06-17 14:03:36 - Checking send_assessment_msg handler
+2026-06-17 14:04:46 - Checking send_assessment_msg handler
+2026-06-17 14:04:50 - Checking send_assessment_msg handler
