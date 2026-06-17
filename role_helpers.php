@@ -88,6 +88,7 @@ function cs_read_employer_apps(): array {
             description,
             contact_name,
             contact_phone,
+            logo_url,
             status,
             DATE_FORMAT(submitted_at, "%M %e, %Y %l:%i %p") AS submitted_at,
             DATE_FORMAT(reviewed_at, "%M %e, %Y %l:%i %p") AS reviewed_at
@@ -157,6 +158,7 @@ function cs_get_employer_application_by_id(string $id): ?array {
             description,
             contact_name,
             contact_phone,
+            logo_url,
             status,
             DATE_FORMAT(submitted_at, "%M %e, %Y %l:%i %p") AS submitted_at,
             DATE_FORMAT(reviewed_at, "%M %e, %Y %l:%i %p") AS reviewed_at
@@ -290,6 +292,7 @@ function cs_save_employer_application(array $app): ?array {
                 description = ?,
                 contact_name = ?,
                 contact_phone = ?,
+                logo_url = ?,
                 status = ?
             WHERE eapp_id = ?');
             $stmt->execute([
@@ -300,6 +303,7 @@ function cs_save_employer_application(array $app): ?array {
                 $app['description'],
                 $app['contact_name'],
                 $app['contact_phone'] ?? null,
+                $app['logo_url'] ?? null,
                 $app['status'],
                 $idInt
             ]);
@@ -325,8 +329,8 @@ function cs_save_employer_application(array $app): ?array {
         } else {
             $stmt = $pdo->prepare('INSERT INTO employer_applications (
                 user_id, company_name, industry, company_size, website, 
-                description, contact_name, contact_phone, status
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
+                description, contact_name, contact_phone, logo_url, status
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
             
             // Get user_id from email
             $userId = null;
@@ -348,6 +352,7 @@ function cs_save_employer_application(array $app): ?array {
                     $app['description'],
                     $app['contact_name'],
                     $app['contact_phone'] ?? null,
+                    $app['logo_url'] ?? null,
                     'pending'
                 ]);
                 $newId = $pdo->lastInsertId();
@@ -398,8 +403,8 @@ function cs_update_employer_application_status(string $id, string $status): void
             $stmtCheckEmp->execute([$app['user_id']]);
             if ($stmtCheckEmp->fetchColumn() == 0) {
                 $stmtInsertEmp = $pdo->prepare('INSERT INTO EMPLOYERS (
-                    owner_user_id, company_name, industry, company_size, website, description, contact_name, contact_phone
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+                    owner_user_id, company_name, industry, company_size, website, description, contact_name, contact_phone, logo_url
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
                 $stmtInsertEmp->execute([
                     $app['user_id'],
                     $app['company_name'],
@@ -408,7 +413,8 @@ function cs_update_employer_application_status(string $id, string $status): void
                     $app['website'],
                     $app['description'],
                     $app['contact_name'],
-                    $app['contact_phone']
+                    $app['contact_phone'],
+                    $app['logo_url']
                 ]);
             }
             

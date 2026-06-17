@@ -44,11 +44,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (!$existingApp || $existingApp['sta
         $contactName  = trim($_POST['contact_name']  ?? '');
         $contactPhone = trim($_POST['contact_phone'] ?? '');
         $email        = $_SESSION['user']['email'];
+        $logoUrl      = null;
 
         if (!$companyName)  $errors[] = 'Company name is required.';
         if (!$industry)     $errors[] = 'Industry is required.';
         if (!$contactName)  $errors[] = 'Contact name is required.';
         if (mb_strlen($description) < 20) $errors[] = 'Please write at least a short company description (20+ characters).';
+
+        // Handle logo upload
+        if (!empty($_FILES['logo']['name'])) {
+            $allowedLogoExts = ['jpg','jpeg','png','svg','webp'];
+            $uploadDir   = __DIR__ . '/uploads/';
+            if (!is_dir($uploadDir)) @mkdir($uploadDir, 0777, true);
+            
+            if ($_FILES['logo']['error'] === UPLOAD_ERR_OK) {
+                $ext = strtolower(pathinfo($_FILES['logo']['name'], PATHINFO_EXTENSION));
+                if (!in_array($ext, $allowedLogoExts)) {
+                    $errors[] = "Unsupported logo type. Please use JPG, PNG, SVG, or WEBP.";
+                } elseif ($_FILES['logo']['size'] > 5 * 1024 * 1024) {
+                    $errors[] = "Logo file is too large (max 5MB).";
+                } else {
+                    $logoName = 'emp_logo_' . uniqid('', true) . '.' . $ext;
+                    if (move_uploaded_file($_FILES['logo']['tmp_name'], $uploadDir . $logoName)) {
+                        $logoUrl = 'uploads/' . $logoName;
+                    } else {
+                        $errors[] = "Failed to upload logo.";
+                    }
+                }
+            }
+        }
 
         // Handle document uploads (up to 3)
         $documents = [];
@@ -77,6 +101,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (!$existingApp || $existingApp['sta
                 'description'   => $description,
                 'contact_name'  => $contactName,
                 'contact_phone' => $contactPhone,
+                'logo_url'      => $logoUrl,
                 'email'         => $email,
                 'username'      => $_SESSION['user']['username'] ?? $contactName,
                 'documents'     => $documents,
@@ -235,6 +260,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (!$existingApp || $existingApp['sta
                            class="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
                            placeholder="+63 9xx xxx xxxx">
                 </div>
+            </div>
+
+            <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-1">Company Logo</label>
+                <p class="text-xs text-gray-400 mb-2">Upload your company logo (JPG, PNG, SVG, max 5MB).</p>
+                <input type="file" name="logo" accept=".jpg,.jpeg,.png,.svg,.webp"
+                       class="w-full text-sm text-gray-600 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:bg-purple-100 file:text-purple-700 file:font-semibold hover:file:bg-purple-200">
             </div>
 
             <div>

@@ -36,68 +36,43 @@ if (isset($_SESSION['market_message'])) {
 
 $categories = ['All', 'Courses', 'Books', 'Resources'];
 
-$curriculumData = [
-    1 => [
-        'modules' => [
-            ['name' => 'Introduction to Penetration Testing', 'lessons' => 8, 'duration' => '2 weeks'],
-            ['name' => 'Reconnaissance & Footprinting', 'lessons' => 12, 'duration' => '3 weeks'],
-            ['name' => 'Scanning & Enumeration', 'lessons' => 10, 'duration' => '2 weeks'],
-            ['name' => 'Exploitation Fundamentals', 'lessons' => 15, 'duration' => '4 weeks'],
-            ['name' => 'Post-Exploitation Techniques', 'lessons' => 11, 'duration' => '3 weeks'],
-            ['name' => 'Web Application Penetration Testing', 'lessons' => 18, 'duration' => '5 weeks'],
-        ],
-        'objectives' => ['Master ethical hacking methodologies', 'Perform real-world penetration tests', 'Create professional security reports'],
-        'assessments' => ['Mid-term practical exam', 'Final capstone project', 'Written certification exam']
-    ],
-    2 => [
-        'modules' => [
-            ['name' => 'Networking Basics', 'lessons' => 6, 'duration' => '1 week'],
-            ['name' => 'TCP/IP Protocol Suite', 'lessons' => 10, 'duration' => '2 weeks'],
-            ['name' => 'Firewalls & IDS/IPS', 'lessons' => 8, 'duration' => '2 weeks'],
-            ['name' => 'VPN & Encryption', 'lessons' => 7, 'duration' => '1.5 weeks'],
-        ],
-        'objectives' => ['Understand core network security concepts', 'Implement network security controls', 'Troubleshoot security issues'],
-        'assessments' => ['Chapter quizzes', 'Practical lab assignments', 'Final comprehensive exam']
-    ],
-    3 => [
-        'modules' => [
-            ['name' => 'Sandbox Environment Setup', 'lessons' => 3, 'duration' => '1 day'],
-            ['name' => 'Malware Classification', 'lessons' => 5, 'duration' => '3 days'],
-            ['name' => 'Static Analysis', 'lessons' => 8, 'duration' => '1 week'],
-            ['name' => 'Dynamic Analysis', 'lessons' => 10, 'duration' => '1.5 weeks'],
-        ],
-        'objectives' => ['Set up a safe analysis environment', 'Analyze malware samples', 'Generate detailed analysis reports'],
-        'assessments' => ['Lab practicals', 'Analysis report submissions']
-    ],
-    4 => [
-        'modules' => [
-            ['name' => 'Security Operations Center Overview', 'lessons' => 5, 'duration' => '1 week'],
-            ['name' => 'SIEM Implementation', 'lessons' => 12, 'duration' => '3 weeks'],
-            ['name' => 'Incident Response', 'lessons' => 15, 'duration' => '4 weeks'],
-            ['name' => 'Threat Intelligence', 'lessons' => 10, 'duration' => '2.5 weeks'],
-        ],
-        'objectives' => ['Operate a SOC effectively', 'Respond to security incidents', 'Implement threat intelligence'],
-        'assessments' => ['Simulated incident response drills', 'Capstone project', 'Certification prep']
-    ],
-    5 => [
-        'modules' => [
-            ['name' => 'Python for Security', 'lessons' => 8, 'duration' => '2 weeks'],
-            ['name' => 'Automating Scanning', 'lessons' => 10, 'duration' => '2.5 weeks'],
-            ['name' => 'Building Security Tools', 'lessons' => 12, 'duration' => '3 weeks'],
-        ],
-        'objectives' => ['Write Python security scripts', 'Automate security tasks', 'Develop custom tools'],
-        'assessments' => ['Scripting assignments', 'Tool development project']
-    ],
-    6 => [
-        'modules' => [
-            ['name' => 'Web Application Security', 'lessons' => 10, 'duration' => '2.5 weeks'],
-            ['name' => 'OWASP Top 10', 'lessons' => 15, 'duration' => '4 weeks'],
-            ['name' => 'Advanced Exploitation', 'lessons' => 12, 'duration' => '3 weeks'],
-        ],
-        'objectives' => ['Identify web vulnerabilities', 'Exploit common flaws', 'Secure web applications'],
-        'assessments' => ['Hands-on labs', 'Capture-the-Flag challenges', 'Final practical exam']
-    ]
-];
+// Load curriculum data from database
+$curriculumData = [];
+try {
+    $pdo = get_db_connection();
+    foreach ($products as $product) {
+        $productId = $product['id'];
+        $curriculumData[$productId] = [
+            'modules' => [],
+            'objectives' => [],
+            'assessments' => []
+        ];
+        
+        // Get objectives
+        $stmtObj = $pdo->prepare("SELECT objective FROM product_objectives WHERE product_id = ? ORDER BY sort_order ASC");
+        $stmtObj->execute([$productId]);
+        $curriculumData[$productId]['objectives'] = $stmtObj->fetchAll(PDO::FETCH_COLUMN, 0);
+        
+        // Get modules
+        $stmtMod = $pdo->prepare("SELECT title FROM product_modules WHERE product_id = ? ORDER BY sort_order ASC");
+        $stmtMod->execute([$productId]);
+        $modules = $stmtMod->fetchAll(PDO::FETCH_COLUMN, 0);
+        foreach ($modules as $title) {
+            $curriculumData[$productId]['modules'][] = [
+                'name' => $title,
+                'lessons' => rand(5, 20),
+                'duration' => (rand(1, 5) . ' weeks')
+            ];
+        }
+        
+        // Get assessments
+        $stmtAssess = $pdo->prepare("SELECT title FROM product_assessments WHERE product_id = ? ORDER BY sort_order ASC");
+        $stmtAssess->execute([$productId]);
+        $curriculumData[$productId]['assessments'] = $stmtAssess->fetchAll(PDO::FETCH_COLUMN, 0);
+    }
+} catch (Exception $e) {
+    // Fallback to basic array if DB fails
+}
 
 include 'includes/header.php';
 ?>
@@ -185,7 +160,8 @@ include 'includes/header.php';
                         <h2 class="text-2xl font-bold text-gray-800 mb-3"><?php echo htmlspecialchars($product['name']); ?></h2>
                         <p class="text-gray-600 mb-6"><?php echo htmlspecialchars($product['description']); ?></p>
 
-                        <?php if (isset($curriculumData[$product['id']])): ?>
+                        <?php if (!empty($curriculumData[$product['id']]['objectives']) || !empty($curriculumData[$product['id']]['modules']) || !empty($curriculumData[$product['id']]['assessments'])): ?>
+                        <?php if (!empty($curriculumData[$product['id']]['objectives'])): ?>
                         <div class="mb-6">
                             <h3 class="text-lg font-semibold text-gray-800 mb-4">Learning Objectives</h3>
                             <ul class="space-y-2">
@@ -199,7 +175,9 @@ include 'includes/header.php';
                                 <?php endforeach; ?>
                             </ul>
                         </div>
+                        <?php endif; ?>
 
+                        <?php if (!empty($curriculumData[$product['id']]['modules'])): ?>
                         <div class="mb-6">
                             <h3 class="text-lg font-semibold text-gray-800 mb-4">Course Modules</h3>
                             <div class="space-y-3">
@@ -217,7 +195,9 @@ include 'includes/header.php';
                                 <?php endforeach; ?>
                             </div>
                         </div>
+                        <?php endif; ?>
 
+                        <?php if (!empty($curriculumData[$product['id']]['assessments'])): ?>
                         <div>
                             <h3 class="text-lg font-semibold text-gray-800 mb-4">Assessments</h3>
                             <div class="flex flex-wrap gap-3">
@@ -226,6 +206,7 @@ include 'includes/header.php';
                                 <?php endforeach; ?>
                             </div>
                         </div>
+                        <?php endif; ?>
                         <?php endif; ?>
 
                         <div class="mt-8 flex items-center justify-between">

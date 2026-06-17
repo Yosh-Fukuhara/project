@@ -149,6 +149,7 @@ CREATE TABLE IF NOT EXISTS employer_applications (
     description TEXT,
     contact_name VARCHAR(255),
     contact_phone VARCHAR(50),
+    logo_url VARCHAR(255),
     status VARCHAR(50) DEFAULT 'pending',
     submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     reviewed_at TIMESTAMP NULL DEFAULT NULL,
@@ -412,8 +413,8 @@ VALUES ('NetSentinel', 'Solutions', 'hr@netsentinel.com', '$2y$12$EJ63nNC4e/DCLn
 SELECT user_id INTO @netsentinel_id FROM users WHERE email = 'hr@netsentinel.com' LIMIT 1;
 INSERT IGNORE INTO user_profiles (user_id, bio, location, website)
 VALUES (@netsentinel_id, 'Leading cybersecurity firm specializing in penetration testing, SOC operations, and enterprise threat intelligence. We are actively hiring!', 'Manila, Philippines', 'https://netsentinel.example.com');
-INSERT IGNORE INTO EMPLOYERS (owner_user_id, company_name, industry, website, description)
-VALUES (@netsentinel_id, 'NetSentinel Solutions', 'Cybersecurity', 'https://netsentinel.example.com', 'Leading cybersecurity firm specializing in penetration testing, SOC operations, and enterprise threat intelligence.');
+INSERT IGNORE INTO EMPLOYERS (owner_user_id, company_name, industry, company_size, website, description, contact_name, contact_phone, logo_url)
+VALUES (@netsentinel_id, 'NetSentinel Solutions', 'Cybersecurity', '50-200', 'https://netsentinel.example.com', 'Leading cybersecurity firm specializing in penetration testing, SOC operations, and enterprise threat intelligence.', 'HR Department', '+63 2 8123 4567', 'https://api.dicebear.com/7.x/initials/svg?seed=NS');
 
 -- Marcus Vane (applicant)
 INSERT IGNORE INTO users (first_name, last_name, email, password, role, status)
@@ -432,5 +433,57 @@ VALUES ('SecureBank', 'Hiring', 'securebank@example.com', '$2y$12$xcZ72z./T7WI6l
 SELECT user_id INTO @securebank_id FROM users WHERE email = 'securebank@example.com' LIMIT 1;
 INSERT IGNORE INTO user_profiles (user_id, bio, location)
 VALUES (@securebank_id, 'SecureBank is a leading financial institution actively hiring cybersecurity professionals across GRC, SOC, and DevSecOps roles.', 'Makati, Philippines');
-INSERT IGNORE INTO EMPLOYERS (owner_user_id, company_name, industry, description)
-VALUES (@securebank_id, 'SecureBank', 'Financial Services', 'SecureBank is a leading financial institution actively hiring cybersecurity professionals.');
+INSERT IGNORE INTO EMPLOYERS (owner_user_id, company_name, industry, company_size, description, contact_name, contact_phone, logo_url)
+VALUES (@securebank_id, 'SecureBank', 'Financial Services', '500-1000', 'SecureBank is a leading financial institution actively hiring cybersecurity professionals.', 'Recruitment Team', '+63 2 8987 6543', 'https://api.dicebear.com/7.x/initials/svg?seed=SB');
+
+-- ============================================================
+-- Seed Product Categories
+-- ============================================================
+INSERT IGNORE INTO product_categories (category_id, name, description) VALUES
+(1, 'Courses', 'In-depth learning paths and certifications for various cybersecurity domains.'),
+(2, 'Books', 'Comprehensive guides, handbooks, and references from industry experts.'),
+(3, 'Resources', 'Practical tools, lab access, and templates to enhance your cybersecurity skills.');
+
+-- ============================================================
+-- Seed Products
+-- ============================================================
+INSERT IGNORE INTO products (product_id, category_id, name, description, price, image_url, badge, stock) VALUES
+(1, 1, 'Advanced Penetration Testing', 'Master the art of ethical hacking with real-world scenarios and hands-on labs.', 2499.00, 'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&q=80&w=800', 'Best Seller', 100),
+(2, 2, 'Network Security Fundamentals', 'The definitive guide for junior analysts to understand network security protocols.', 499.00, 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&q=80&w=800', NULL, 50),
+(3, 3, 'Malware Analysis Lab Access', '30-day dedicated virtual sandbox for safe detonation and analysis.', 899.00, 'https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&q=80&w=800', 'New', 200),
+(4, 1, 'SOC Analyst Bootcamp', 'Complete training program to become a Security Operations Center analyst.', 1999.00, 'https://images.unsplash.com/photo-1563986768494-4dee2763ff3f?auto=format&fit=crop&q=80&w=800', NULL, 75),
+(5, 1, 'Python for Cybersecurity', 'Learn to automate security tasks using Python.', 1299.00, 'https://images.python.org/static/community-logos/python-logo-master-v3-TM.png', 'Popular', 120),
+(6, 2, 'Web Application Hacker\'s Handbook', 'The classic reference on web security testing.', 799.00, 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&q=80&w=800', 'New', 40);
+
+-- ============================================================
+-- Seed Product Objectives
+-- ============================================================
+INSERT IGNORE INTO product_objectives (product_id, objective, sort_order) VALUES
+(1, 'Identify and exploit common web application vulnerabilities.', 1),
+(1, 'Perform advanced network pivoting and post-exploitation.', 2),
+(1, 'Create professional penetration testing reports.', 3),
+(2, 'Understand the OSI model and its security implications.', 1),
+(2, 'Configure firewalls, IDS, and IPS systems.', 2),
+(4, 'Analyze security logs from various sources (SIEM).', 1),
+(4, 'Implement incident response procedures.', 2);
+
+-- ============================================================
+-- Seed Product Modules
+-- ============================================================
+INSERT IGNORE INTO product_modules (product_id, title, sort_order) VALUES
+(1, 'Reconnaissance and Information Gathering', 1),
+(1, 'Vulnerability Assessment', 2),
+(1, 'Exploitation Techniques', 3),
+(4, 'Introduction to SOC Operations', 1),
+(4, 'Security Monitoring with SIEM', 2),
+(5, 'Basic Python Scripting', 1),
+(5, 'Network Automation for Security', 2);
+
+-- ============================================================
+-- Seed Product Assessments
+-- ============================================================
+INSERT IGNORE INTO product_assessments (product_id, title, sort_order) VALUES
+(1, 'Penetration Testing Final Exam', 1),
+(2, 'Network Security Basics Quiz', 1),
+(4, 'SOC Analyst Skills Assessment', 1),
+(5, 'Python Scripting Challenge', 1);
