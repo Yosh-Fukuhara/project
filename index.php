@@ -1788,29 +1788,7 @@ include 'includes/header.php';
                 </a>
             </div>
 
-            <div class="bg-white rounded-xl shadow-md p-4">
-                <h3 class="font-bold text-lg text-gray-800 mb-4">Trending Skills</h3>
-                <div class="space-y-3">
-                    <?php
-                    // Dynamic trending skills based on job posts
-                    $trendingSkills = [
-                        ['name' => 'Penetration Testing', 'count' => rand(5000, 20000)],
-                        ['name' => 'Zero Trust Architecture', 'count' => rand(5000, 20000)],
-                        ['name' => 'AI Threat Detection', 'count' => rand(5000, 20000)],
-                    ];
-                    foreach (array_slice($trendingSkills, 0, 3) as $skill):
-                        $countFormatted = number_format($skill['count'] / 1000, 1) . 'k';
-                    ?>
-                        <div class="cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition">
-                            <p class="text-gray-800 font-medium text-sm"><?php echo htmlspecialchars($skill['name']); ?></p>
-                            <p class="text-gray-400 text-xs"><?php echo $countFormatted; ?> professionals</p>
-                        </div>
-                    <?php endforeach; ?>
-                </div>
-                <a href="skills.php" class="block w-full mt-4 text-center text-blue-800 font-semibold text-sm hover:underline">
-                    Explore skills
-                </a>
-            </div>
+
         </div>
     </div>
 </div>
