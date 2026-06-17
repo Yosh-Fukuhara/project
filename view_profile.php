@@ -54,20 +54,43 @@ try {
             $viewedUser = array_merge($viewedUser, $profile);
         }
         
-        // Get work experience
-        $workStmt = $pdo->prepare('SELECT company, title FROM user_work WHERE user_id = ? ORDER BY work_id DESC LIMIT 1');
+        // Get full work experience list
+        $workStmt = $pdo->prepare('SELECT work_id, company, title, period, description FROM user_work WHERE user_id = ? ORDER BY work_id DESC');
         $workStmt->execute([$viewedUser['user_id']]);
-        $work = $workStmt->fetch(PDO::FETCH_ASSOC);
-        if ($work) {
-            $viewedUser['work'] = $work['title'] . ' at ' . $work['company'];
+        $workRecords = $workStmt->fetchAll(PDO::FETCH_ASSOC);
+        $viewedUser['experience_list'] = [];
+        foreach ($workRecords as $work) {
+            $viewedUser['experience_list'][] = [
+                'id' => 'exp_' . $work['work_id'],
+                'company' => $work['company'],
+                'role' => $work['title'],
+                'period' => $work['period'],
+                'desc' => $work['description']
+            ];
+        }
+        // Set single work string for backwards compatibility
+        if (!empty($viewedUser['experience_list'])) {
+            $firstWork = $viewedUser['experience_list'][0];
+            $viewedUser['work'] = $firstWork['role'] . ' at ' . $firstWork['company'];
         }
         
-        // Get education
-        $eduStmt = $pdo->prepare('SELECT school, degree FROM user_education WHERE user_id = ? ORDER BY edu_id DESC LIMIT 1');
+        // Get full education list
+        $eduStmt = $pdo->prepare('SELECT edu_id, school, degree, year FROM user_education WHERE user_id = ? ORDER BY edu_id DESC');
         $eduStmt->execute([$viewedUser['user_id']]);
-        $edu = $eduStmt->fetch(PDO::FETCH_ASSOC);
-        if ($edu) {
-            $viewedUser['education'] = $edu['degree'] . ' - ' . $edu['school'];
+        $eduRecords = $eduStmt->fetchAll(PDO::FETCH_ASSOC);
+        $viewedUser['education_list'] = [];
+        foreach ($eduRecords as $edu) {
+            $viewedUser['education_list'][] = [
+                'id' => 'edu_' . $edu['edu_id'],
+                'school' => $edu['school'],
+                'degree' => $edu['degree'],
+                'year' => $edu['year']
+            ];
+        }
+        // Set single education string for backwards compatibility
+        if (!empty($viewedUser['education_list'])) {
+            $firstEdu = $viewedUser['education_list'][0];
+            $viewedUser['education'] = $firstEdu['degree'] ? $firstEdu['degree'] . ' - ' . $firstEdu['school'] : $firstEdu['school'];
         }
         
         $viewedUser['username'] = $viewedUser['first_name'] . ' ' . $viewedUser['last_name'];
@@ -210,6 +233,67 @@ include 'includes/header.php';
                         </div>
                     </div>
                     <?php endif; ?>
+                <?php endforeach; ?>
+            </div>
+        </div>
+        <?php endif; ?>
+
+        <!-- Work Experience Section -->
+        <?php if (!empty($viewedUser['experience_list'])): ?>
+        <div class="bg-white border border-gray-200 rounded-xl p-6 mb-6">
+            <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/>
+                </svg>
+                Work Experience
+            </h2>
+            <div class="space-y-4">
+                <?php foreach ($viewedUser['experience_list'] as $exp): ?>
+                    <div class="flex gap-4">
+                        <div class="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center text-blue-800 font-bold text-base flex-shrink-0 mt-0.5">
+                            <?php echo strtoupper(substr($exp['company'], 0, 1)); ?>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <p class="font-semibold text-gray-900 text-sm"><?php echo htmlspecialchars($exp['role'] ?: $exp['company']); ?></p>
+                            <p class="text-gray-600 text-sm"><?php echo htmlspecialchars($exp['company']); ?></p>
+                            <?php if ($exp['period']): ?>
+                                <p class="text-gray-400 text-xs mt-0.5"><?php echo htmlspecialchars($exp['period']); ?></p>
+                            <?php endif; ?>
+                            <?php if ($exp['desc']): ?>
+                                <p class="text-gray-600 text-sm mt-1"><?php echo htmlspecialchars($exp['desc']); ?></p>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
+        <?php endif; ?>
+
+        <!-- Education Section -->
+        <?php if (!empty($viewedUser['education_list'])): ?>
+        <div class="bg-white border border-gray-200 rounded-xl p-6 mb-6">
+            <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"/>
+                </svg>
+                Education
+            </h2>
+            <div class="space-y-4">
+                <?php foreach ($viewedUser['education_list'] as $edu): ?>
+                    <div class="flex gap-4">
+                        <div class="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center text-indigo-800 font-bold text-base flex-shrink-0 mt-0.5">
+                            🎓
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <p class="font-semibold text-gray-900 text-sm"><?php echo htmlspecialchars($edu['school']); ?></p>
+                            <?php if ($edu['degree']): ?>
+                                <p class="text-gray-600 text-sm"><?php echo htmlspecialchars($edu['degree']); ?></p>
+                            <?php endif; ?>
+                            <?php if ($edu['year']): ?>
+                                <p class="text-gray-400 text-xs mt-0.5"><?php echo htmlspecialchars($edu['year']); ?></p>
+                            <?php endif; ?>
+                        </div>
+                    </div>
                 <?php endforeach; ?>
             </div>
         </div>

@@ -59,6 +59,53 @@ function ensure_tables_exist() {
                 }
             }
         }
+
+        // Ensure user_work exists and has all columns
+        $stmt = $pdo->query("SHOW TABLES LIKE 'user_work'");
+        if (!$stmt->fetch()) {
+            $pdo->exec("CREATE TABLE user_work (
+                work_id INT AUTO_INCREMENT PRIMARY KEY,
+                user_id INT NOT NULL,
+                company VARCHAR(100) NOT NULL,
+                title VARCHAR(100) NOT NULL,
+                period VARCHAR(100) NULL,
+                description TEXT NULL,
+                FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+        } else {
+            $uwColumns = ['work_id', 'user_id', 'company', 'title', 'period', 'description'];
+            foreach ($uwColumns as $col) {
+                $checkCol = $pdo->query("SHOW COLUMNS FROM user_work LIKE '$col'");
+                if (!$checkCol->fetch()) {
+                    if (in_array($col, ['description'])) {
+                        $pdo->exec("ALTER TABLE user_work ADD COLUMN $col TEXT NULL");
+                    } else {
+                        $pdo->exec("ALTER TABLE user_work ADD COLUMN $col VARCHAR(100) NULL");
+                    }
+                }
+            }
+        }
+
+        // Ensure user_education exists and has all columns
+        $stmt = $pdo->query("SHOW TABLES LIKE 'user_education'");
+        if (!$stmt->fetch()) {
+            $pdo->exec("CREATE TABLE user_education (
+                edu_id INT AUTO_INCREMENT PRIMARY KEY,
+                user_id INT NOT NULL,
+                school VARCHAR(100) NOT NULL,
+                degree VARCHAR(100) NULL,
+                year VARCHAR(20) NULL,
+                FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+        } else {
+            $ueColumns = ['edu_id', 'user_id', 'school', 'degree', 'year'];
+            foreach ($ueColumns as $col) {
+                $checkCol = $pdo->query("SHOW COLUMNS FROM user_education LIKE '$col'");
+                if (!$checkCol->fetch()) {
+                    $pdo->exec("ALTER TABLE user_education ADD COLUMN $col VARCHAR(100) NULL");
+                }
+            }
+        }
         
         // Check/create employer_application_documents table (case-insensitive check)
         $tableExists = false;

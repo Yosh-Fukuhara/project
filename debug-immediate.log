@@ -944,3 +944,158 @@ Start here: http://localhost/project/assessment_session.php?session=assess_1
 2026-06-17 11:55:37 - Transaction committed successfully!
 2026-06-17 11:55:37 - Notification saved for user ID: 6
 2026-06-17 11:55:37 - Checking send_assessment_msg handler
+2026-06-17 12:10:23 - Checking send_assessment_msg handler
+2026-06-17 12:10:31 - Checking send_assessment_msg handler
+2026-06-17 12:11:43 - create_assessment handler ACTIVATED! POST: Array
+(
+    [action] => create_assessment
+    [assess_title] => SOC Analyst Exam
+    [assess_role] => SOC Analyst
+    [assess_time] => 30
+    [assess_instructions] => Answer on time.
+    [challenges] => Array
+        (
+            [0] => Array
+                (
+                    [title] => Networking Basics
+                    [type] => multiple-choice
+                    [points] => 100
+                    [body] => What's a subnet?
+                    [options] => Array
+                        (
+                            [A] => Sample A
+                            [B] => Sample B
+                            [C] => Sample C
+                            [D] => Sample D
+                        )
+
+                    [correct_option] => A
+                    [correct_flag] => 
+                    [hint] => Sample hint
+                    [attachment_notes] => Array
+                        (
+                            [0] => Analyze.
+                        )
+
+                )
+
+        )
+
+)
+
+2026-06-17 12:11:43 - Starting to process 1 challenges
+2026-06-17 12:11:43 - Processing challenge 0: Array
+(
+    [title] => Networking Basics
+    [type] => multiple-choice
+    [points] => 100
+    [body] => What's a subnet?
+    [options] => Array
+        (
+            [A] => Sample A
+            [B] => Sample B
+            [C] => Sample C
+            [D] => Sample D
+        )
+
+    [correct_option] => A
+    [correct_flag] => 
+    [hint] => Sample hint
+    [attachment_notes] => Array
+        (
+            [0] => Analyze.
+        )
+
+)
+
+2026-06-17 12:11:43 - Challenge 0: ctitle='Networking Basics', cbody='What's a subnet?', ctype='multiple_choice'
+2026-06-17 12:11:43 - Added challenge 0 to challenges array. Current count: 1
+2026-06-17 12:11:43 - assessErrors: Array
+(
+)
+
+2026-06-17 12:11:43 - Final challenges count: 1
+2026-06-17 12:11:44 - Checking send_assessment_msg handler
+2026-06-17 12:11:46 - Checking send_assessment_msg handler
+2026-06-17 12:11:47 - Checking send_assessment_msg handler
+2026-06-17 12:13:08 - Checking send_assessment_msg handler
+2026-06-17 12:13:24 - Checking send_assessment_msg handler
+2026-06-17 12:13:24 - POST RECEIVED: Array
+(
+    [action] => send_assessment_msg
+    [assess_id] => assess_2
+    [post_id] => 4
+    [recipient_email] => yoshinubofukuhara2@gmail.com
+    [deadline] => 2026-06-18T18:13
+    [custom_message] => Hi, Yoshi. Please answer.
+)
+
+2026-06-17 12:13:24 - send_assessment_msg handler ACTIVATED!
+2026-06-17 12:13:24 - assessId: assess_2, recipEmail: yoshinubofukuhara2@gmail.com, assessment exists? YES
+2026-06-17 12:13:24 - senderUserId: 8, myEmail: marck@gmail.com
+2026-06-17 12:13:24 - recipUserId: 
+2026-06-17 12:13:24 - msgText: Hi, Yoshi. Please answer.
+
+📋 Skill Assessment: SOC Analyst Exam
+Role: General
+Time Limit: 30 minutes
+Start here: http://localhost/project/assessment_session.php?session=assess_2
+2026-06-17 12:13:24 - Skipping DB message: sender or recipient ID missing
+2026-06-17 12:13:24 - Transaction committed successfully!
+2026-06-17 12:13:24 - Checking send_assessment_msg handler
+2026-06-17 12:15:05 - Checking send_assessment_msg handler
+2026-06-17 12:15:46 - Checking send_assessment_msg handler
+2026-06-17 12:15:46 - POST RECEIVED: Array
+(
+    [action] => send_assessment_msg
+    [assess_id] => assess_2
+    [post_id] => 4
+    [recipient_email] => yoshinubofukuhara2@gmail.com
+    [deadline] => 2026-06-18T18:15
+    [custom_message] => hey
+)
+
+2026-06-17 12:15:46 - send_assessment_msg handler ACTIVATED!
+2026-06-17 12:15:46 - assessId: assess_2, recipEmail: yoshinubofukuhara2@gmail.com, assessment exists? YES
+2026-06-17 12:15:46 - senderUserId: 8, myEmail: marck@gmail.com
+2026-06-17 12:15:46 - recipUserId: 
+2026-06-17 12:15:46 - msgText: hey
+
+📋 Skill Assessment: SOC Analyst Exam
+Role: General
+Time Limit: 30 minutes
+Start here: http://localhost/project/assessment_session.php?session=assess_2
+2026-06-17 12:15:46 - Skipping DB message: sender or recipient ID missing
+2026-06-17 12:15:46 - Transaction committed successfully!
+2026-06-17 12:15:46 - Checking send_assessment_msg handler
+2026-06-17 12:16:11 - Checking send_assessment_msg handler
+2026-06-17 12:17:16 - Checking send_assessment_msg handler
+2026-06-17 12:17:23 - Checking send_assessment_msg handler
+2026-06-17 12:17:23 - POST RECEIVED: Array
+(
+    [action] => send_assessment_msg
+    [assess_id] => assess_2
+    [post_id] => 4
+    [recipient_email] => yoshi@gmail.com
+    [deadline] => 2026-06-18T18:17
+    [custom_message] => hey
+)
+
+2026-06-17 12:17:23 - send_assessment_msg handler ACTIVATED!
+2026-06-17 12:17:23 - assessId: assess_2, recipEmail: yoshi@gmail.com, assessment exists? YES
+2026-06-17 12:17:23 - senderUserId: 8, myEmail: marck@gmail.com
+2026-06-17 12:17:23 - recipUserId: 7
+2026-06-17 12:17:23 - msgText: hey
+
+📋 Skill Assessment: SOC Analyst Exam
+Role: General
+Time Limit: 30 minutes
+Start here: http://localhost/project/assessment_session.php?session=assess_2
+2026-06-17 12:17:23 - convId: 2
+2026-06-17 12:17:23 - message inserted with ID: 2
+2026-06-17 12:17:23 - assessment session created with ID: 2, post_id: 4, deadline: 2026-06-18 18:17:00
+2026-06-17 12:17:23 - Transaction committed successfully!
+2026-06-17 12:17:23 - Notification saved for user ID: 7
+2026-06-17 12:17:23 - Checking send_assessment_msg handler
+2026-06-17 12:17:48 - Checking send_assessment_msg handler
+2026-06-17 12:17:50 - Checking send_assessment_msg handler
