@@ -4,7 +4,7 @@ require_once 'role_helpers.php';
 cs_require_auth();
 cs_init_assessments();
 
-
+$immediateLog = __DIR__ . '/debug-immediate.log';
 
 // Auto-upgrade session role if file store shows approval
 if (isset($_SESSION['user']) && !cs_is_employer() && !cs_is_admin()) {
@@ -268,7 +268,6 @@ function get_or_create_conversation($my_id, $other_id) {
 }
 
 // ── Handle Send Assessment via message ────────────────────────────────────
-$immediateLog = __DIR__ . '/debug-immediate.log';
 file_put_contents($immediateLog, date('Y-m-d H:i:s') . " - Checking send_assessment_msg handler\n", FILE_APPEND);
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     file_put_contents($immediateLog, date('Y-m-d H:i:s') . " - POST RECEIVED: " . print_r($_POST, true) . "\n", FILE_APPEND);
