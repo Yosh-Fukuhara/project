@@ -44,6 +44,22 @@ function ensure_tables_exist() {
             }
         }
 
+        // Ensure users table has 'phone_number' and 'is_verified' columns
+        $stmt = $pdo->query("SHOW TABLES LIKE 'users'");
+        if ($stmt->fetch()) {
+            $userColumns = ['phone_number', 'is_verified'];
+            foreach ($userColumns as $col) {
+                $checkCol = $pdo->query("SHOW COLUMNS FROM users LIKE '$col'");
+                if (!$checkCol->fetch()) {
+                    if ($col === 'is_verified') {
+                        $pdo->exec("ALTER TABLE users ADD COLUMN $col BOOLEAN DEFAULT FALSE");
+                    } else {
+                        $pdo->exec("ALTER TABLE users ADD COLUMN $col VARCHAR(50) NULL");
+                    }
+                }
+            }
+        }
+
         // Ensure user_profiles has all columns
         $stmt = $pdo->query("SHOW TABLES LIKE 'user_profiles'");
         if ($stmt->fetch()) {
