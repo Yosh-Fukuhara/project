@@ -858,30 +858,120 @@ include 'includes/header.php';
                     <?php if (empty($purchases)): ?>
                         <p class="text-gray-500 text-sm">No purchases yet. <a href="market.php" class="text-blue-700 hover:underline font-semibold">Browse marketplace</a></p>
                     <?php else: ?>
+                        <?php
+                        $hasAdvancedPenetrationTestingCourse = false;
+                        foreach ($purchases as $purchase) {
+                            foreach ($purchase['items'] as $item) {
+                                if (isset($item['product_name']) && $item['product_name'] === 'Advanced Penetration Testing') {
+                                    $hasAdvancedPenetrationTestingCourse = true;
+                                    break 2; // Break both inner and outer loops
+                                }
+                            }
+                        }
+                        if ($hasAdvancedPenetrationTestingCourse):
+                        ?>
+                        <div class="mt-4 mb-4">
+                            <a href="Advanced_Penetration_Testing.php" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                                Access Advanced Penetration Testing Course
+                            </a>
+                        </div>
+                        <?php endif; ?>
+                        <?php
+                        $hasNetworkSecurityFundamentalsBook = false;
+                        foreach ($purchases as $purchase) {
+                            foreach ($purchase['items'] as $item) {
+                                if (isset($item['product_name']) && $item['product_name'] === 'Network Security Fundamentals') {
+                                    $hasNetworkSecurityFundamentalsBook = true;
+                                    break 2;
+                                }
+                            }
+                        }
+                        if ($hasNetworkSecurityFundamentalsBook):
+                        ?>
+                        <div class="mt-4 mb-4">
+                            <a href="Network_Security_Fundamentals.php" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                                Access Network Security Fundamentals Book
+                            </a>
+                        </div>
+                        <?php endif; ?>
+                        <?php
+                        $hasMalwareAnalysisLabAccessResource = false;
+                        foreach ($purchases as $purchase) {
+                            foreach ($purchase['items'] as $item) {
+                                if (isset($item['product_name']) && $item['product_name'] === 'Malware Analysis Lab Access') {
+                                    $hasMalwareAnalysisLabAccessResource = true;
+                                    break 2;
+                                }
+                            }
+                        }
+                        if ($hasMalwareAnalysisLabAccessResource):
+                        ?>
+                        <div class="mt-4 mb-4">
+                            <a href="Malware_Analysis_Lab_Access.php" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                                Access Malware Analysis Lab Access Resource
+                            </a>
+                        </div>
+                        <?php endif; ?>
+                        <?php
+                        $hasSOCAnalystBootcampCourse = false;
+                        foreach ($purchases as $purchase) {
+                            foreach ($purchase['items'] as $item) {
+                                if (isset($item['product_name']) && $item['product_name'] === 'SOC Analyst Bootcamp') {
+                                    $hasSOCAnalystBootcampCourse = true;
+                                    break 2;
+                                }
+                            }
+                        }
+                        if ($hasSOCAnalystBootcampCourse):
+                        ?>
+                        <div class="mt-4 mb-4">
+                            <a href="SOC_Analyst_Bootcamp.php" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                                Access SOC Analyst Bootcamp Course
+                            </a>
+                        </div>
+                        <?php endif; ?>
+                        <?php
+                        $hasPythonForCybersecurityCourse = false;
+                        foreach ($purchases as $purchase) {
+                            foreach ($purchase['items'] as $item) {
+                                if (isset($item['product_name']) && $item['product_name'] === 'Python for Cybersecurity') {
+                                    $hasPythonForCybersecurityCourse = true;
+                                    break 2;
+                                }
+                            }
+                        }
+                        if ($hasPythonForCybersecurityCourse):
+                        ?>
+                        <div class="mt-4 mb-4">
+                            <a href="Python_for_Cybersecurity.php" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                                Access Python for Cybersecurity Course
+                            </a>
+                        </div>
+                        <?php endif; ?>
                         <div class="space-y-3">
-                        <?php foreach (array_slice($purchases, 0, 5) as $order): ?>
+                        <?php foreach (array_slice($purchases, 0, 5) as $purchase): ?>
                             <div class="border border-gray-100 rounded-xl p-3 bg-gray-50">
                                 <div class="flex items-center justify-between mb-1.5">
-                                    <span class="text-xs font-bold text-blue-900 font-mono"><?php echo htmlspecialchars($order['id']); ?></span>
-                                    <span class="text-xs text-gray-400"><?php echo htmlspecialchars($order['ordered_at'] ?? ''); ?></span>
+                                    <span class="text-xs font-bold text-blue-900 font-mono"><?php echo htmlspecialchars($purchase['id']); ?></span>
+                                    <span class="text-xs text-gray-400"><?php echo htmlspecialchars($purchase['purchased_at'] ?? $purchase['ordered_at'] ?? ''); ?></span>
                                 </div>
                                 <ul class="space-y-0.5 mb-1.5">
-                                <?php foreach ($order['items'] as $item): ?>
+                                <?php foreach ($purchase['items'] as $item): ?>
                                     <li class="text-xs text-gray-700 flex justify-between">
-                                        <span class="truncate pr-2"><?php echo htmlspecialchars($item['name']); ?> &times;<?php echo (int)$item['quantity']; ?></span>
-                                        <span class="flex-shrink-0 font-semibold">₱<?php echo number_format($item['price'] * $item['quantity'], 2); ?></span>
+                                        <span class="truncate pr-2"><?php echo htmlspecialchars($item['product_name'] ?? 'Unknown Product'); ?> &times;<?php echo (int)($item['quantity'] ?? 1); ?></span>
+                                        <span class="flex-shrink-0 font-semibold">₱<?php echo number_format(($item['unit_price'] ?? 0) * ($item['quantity'] ?? 1), 2); ?></span>
                                     </li>
                                 <?php endforeach; ?>
                                 </ul>
                                 <div class="flex items-center justify-between pt-1.5 border-t border-gray-200">
-                                    <span class="text-xs text-gray-500"><?php echo htmlspecialchars($order['payment_method'] ?? ''); ?></span>
-                                    <span class="text-xs font-bold text-gray-900">₱<?php echo number_format($order['grand_total'] ?? 0, 2); ?></span>
+                                    <span class="text-xs text-gray-500"><?php echo htmlspecialchars($purchase['payment_method'] ?? ''); ?></span>
+                                    <span class="text-xs font-bold text-gray-900">₱<?php echo number_format($purchase['grand_total'] ?? 0, 2); ?></span>
                                 </div>
                             </div>
                         <?php endforeach; ?>
                         </div>
                         <?php if (count($purchases) > 5): ?>
-                            <p class="text-xs text-gray-400 mt-2 text-right"><?php echo count($purchases) - 5; ?> more order(s) not shown</p>
+                            <p class="text-xs text-gray-400 mt-2 text-right"><?php echo count($purchases) - 5; ?> more purchase(s) not shown</p>
                         <?php endif; ?>
                     <?php endif; ?>
                 </div>

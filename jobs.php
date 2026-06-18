@@ -59,33 +59,33 @@ include 'includes/header.php';
 ?>
 
 <div class="bg-gray-100 min-h-screen">
-    <div class="container mx-auto px-4 py-8">
-        <nav class="flex items-center gap-2 text-sm text-gray-500 mb-8">
+    <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10">
+        <nav class="flex items-center gap-2 text-sm text-gray-500 mb-6 sm:mb-8">
             <a href="index.php" class="text-blue-800 hover:underline">Home</a>
             <span>/</span>
             <span class="text-gray-700 font-semibold">All Available Jobs</span>
         </nav>
 
         <div class="max-w-4xl mx-auto">
-            <div class="flex items-center justify-between mb-8">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between mb-6 sm:mb-8 gap-4">
                 <div>
-                    <h1 class="text-3xl font-bold text-gray-900">Available Jobs</h1>
-                    <p class="text-gray-600">Find your next opportunity in cybersecurity and tech</p>
+                    <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">Available Jobs</h1>
+                    <p class="text-gray-600 text-sm sm:text-base">Find your next opportunity in cybersecurity and tech</p>
                 </div>
-                <div class="bg-blue-100 text-blue-800 px-4 py-2 rounded-full font-bold text-sm">
+                <div class="bg-blue-100 text-blue-800 px-4 py-2 rounded-full font-bold text-sm self-start sm:self-auto">
                     <?php echo count($allJobs); ?> Opportunities
                 </div>
             </div>
 
-            <div class="space-y-6">
+            <div class="space-y-4 sm:space-y-6">
                 <?php foreach ($allJobs as $job): 
                     $pid = $job['id'] ?? 'job_' . uniqid();
                     $applyEnabled = !empty($job['enable_apply']);
                 ?>
                     <div class="bg-white rounded-2xl shadow-md overflow-hidden hover:shadow-lg transition border border-gray-100">
-                        <div class="p-6">
-                            <div class="flex items-start gap-4">
-                                <div class="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center text-3xl flex-shrink-0">
+                        <div class="p-4 sm:p-6">
+                            <div class="flex items-start gap-3 sm:gap-4">
+                                <div class="w-12 h-12 sm:w-16 sm:h-16 bg-blue-100 rounded-xl sm:rounded-2xl flex items-center justify-center text-2xl sm:text-3xl flex-shrink-0">
                                     <?php if (!empty($job['avatar'])): ?>
                                         <img src="<?php echo htmlspecialchars($job['avatar']); ?>" alt="" class="w-full h-full object-cover">
                                     <?php else: ?>
@@ -93,43 +93,43 @@ include 'includes/header.php';
                                     <?php endif; ?>
                                 </div>
                                 <div class="flex-1 min-w-0">
-                                    <div class="flex items-center justify-between mb-1">
-                                        <h2 class="text-xl font-bold text-gray-900 truncate"><?php echo htmlspecialchars($job['username'] ?? $job['company'] ?? 'Company'); ?></h2>
-                                        <span class="text-xs text-gray-400"><?php echo htmlspecialchars($job['time']); ?></span>
+                                    <div class="flex flex-col sm:flex-row sm:items-center justify-between mb-2">
+                                        <h2 class="text-lg sm:text-xl font-bold text-gray-900 truncate"><?php echo htmlspecialchars($job['username'] ?? $job['company'] ?? 'Company'); ?></h2>
+                                        <span class="text-xs text-gray-400 self-start sm:self-auto mt-1 sm:mt-0"><?php echo htmlspecialchars($job['time']); ?></span>
                                     </div>
-                                    <div class="flex flex-wrap gap-2 mb-4">
+                                    <div class="flex flex-wrap gap-1.5 sm:gap-2 mb-3 sm:mb-4">
                                         <?php if (!empty($job['tags'])): ?>
                                             <?php foreach ($job['tags'] as $tag): ?>
                                                 <span class="bg-blue-50 text-blue-700 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase"><?php echo htmlspecialchars($tag); ?></span>
                                             <?php endforeach; ?>
                                         <?php endif; ?>
                                     </div>
-                                    <p class="text-gray-700 leading-relaxed mb-6 whitespace-pre-wrap">
+                                    <p class="text-gray-700 leading-relaxed mb-4 sm:mb-6 whitespace-pre-wrap text-sm sm:text-base">
                                         <?php echo nl2br(htmlspecialchars($job['content'])); ?>
                                     </p>
                                     
-                                    <div class="flex items-center justify-between pt-6 border-t border-gray-50">
-                                        <div class="flex items-center gap-4">
-                                            <span class="text-sm text-gray-500 flex items-center gap-1">
-                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <div class="flex flex-col sm:flex-row sm:items-center justify-between pt-4 sm:pt-6 border-t border-gray-50 gap-4">
+                                        <div class="flex items-center gap-3 sm:gap-4">
+                                            <span class="text-xs sm:text-sm text-gray-500 flex items-center gap-1">
+                                                <svg class="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
                                                 </svg>
-                                                Remote / Global
+                                                Remote
                                             </span>
-                                            <span class="text-sm text-gray-500 flex items-center gap-1">
-                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <span class="text-xs sm:text-sm text-gray-500 flex items-center gap-1">
+                                                <svg class="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                                                 </svg>
                                                 Full-time
                                             </span>
                                         </div>
                                         <?php if ($applyEnabled): ?>
-                                            <button class="apply-modal-btn bg-pink-700 hover:bg-pink-800 text-white font-bold px-8 py-3 rounded-xl transition shadow-lg shadow-pink-700/20" data-post-id="<?php echo htmlspecialchars($pid); ?>">
+                                            <button class="apply-modal-btn bg-pink-700 hover:bg-pink-800 text-white font-bold px-6 sm:px-8 py-2.5 sm:py-3 rounded-xl transition shadow-lg shadow-pink-700/20 w-full sm:w-auto" data-post-id="<?php echo htmlspecialchars($pid); ?>">
                                                 Apply Now
                                             </button>
                                         <?php else: ?>
-                                            <span class="text-gray-400 text-sm italic">Direct application disabled</span>
+                                            <span class="text-gray-400 text-xs sm:text-sm italic">Direct application disabled</span>
                                         <?php endif; ?>
                                     </div>
                                 </div>

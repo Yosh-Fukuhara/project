@@ -1313,3 +1313,99 @@ Start here: http://localhost/project/assessment_session.php?session=assess_4
 2026-06-17 14:03:36 - Checking send_assessment_msg handler
 2026-06-17 14:04:46 - Checking send_assessment_msg handler
 2026-06-17 14:04:50 - Checking send_assessment_msg handler
+2026-06-17 17:01:13 - Checking send_assessment_msg handler
+2026-06-17 17:01:20 - Checking send_assessment_msg handler
+2026-06-17 17:01:47 - create_assessment handler ACTIVATED! POST: Array
+(
+    [action] => create_assessment
+    [assess_title] => QA Testing Skill ASSESSMENT
+    [assess_role] => QA Tester
+    [assess_time] => 30
+    [assess_instructions] => Analyze the following and document the bugs!
+    [challenges] => Array
+        (
+            [0] => Array
+                (
+                    [title] => Debuging
+                    [type] => flag
+                    [points] => 100
+                    [body] => yeah do this bro
+                    [options] => Array
+                        (
+                            [A] => 
+                            [B] => 
+                            [C] => 
+                            [D] => 
+                        )
+
+                    [correct_option] => A
+                    [correct_flag] => error:404
+                    [hint] => 
+                )
+
+        )
+
+)
+
+2026-06-17 17:01:47 - Starting to process 1 challenges
+2026-06-17 17:01:47 - Processing challenge 0: Array
+(
+    [title] => Debuging
+    [type] => flag
+    [points] => 100
+    [body] => yeah do this bro
+    [options] => Array
+        (
+            [A] => 
+            [B] => 
+            [C] => 
+            [D] => 
+        )
+
+    [correct_option] => A
+    [correct_flag] => error:404
+    [hint] => 
+)
+
+2026-06-17 17:01:47 - Challenge 0: ctitle='Debuging', cbody='yeah do this bro', ctype='flag'
+2026-06-17 17:01:47 - Added challenge 0 to challenges array. Current count: 1
+2026-06-17 17:01:47 - assessErrors: Array
+(
+)
+
+2026-06-17 17:01:47 - Final challenges count: 1
+2026-06-17 17:01:48 - Checking send_assessment_msg handler
+2026-06-17 17:02:18 - Checking send_assessment_msg handler
+2026-06-17 17:11:05 - Checking send_assessment_msg handler
+2026-06-17 17:13:50 - Checking send_assessment_msg handler
+2026-06-17 17:15:16 - Checking send_assessment_msg handler
+2026-06-17 17:21:19 - Checking send_assessment_msg handler
+2026-06-17 17:21:42 - Checking send_assessment_msg handler
+2026-06-17 17:22:10 - Checking send_assessment_msg handler
+2026-06-17 17:22:10 - POST RECEIVED: Array
+(
+    [action] => send_assessment_msg
+    [assess_id] => assess_1
+    [post_id] => 1
+    [recipient_email] => aaa@gmail.com
+    [deadline] => 2026-06-20T11:21
+    [custom_message] => Hi please answer
+
+)
+
+2026-06-17 17:22:10 - send_assessment_msg handler ACTIVATED!
+2026-06-17 17:22:10 - assessId: assess_1, recipEmail: aaa@gmail.com, assessment exists? YES
+2026-06-17 17:22:10 - senderUserId: 5, myEmail: mabalotmarckjedrick@gmail.com
+2026-06-17 17:22:10 - recipUserId: 6
+2026-06-17 17:22:10 - msgText: Hi please answer
+
+📋 Skill Assessment: QA Testing Skill ASSESSMENT
+Role: General
+Time Limit: 30 minutes
+Start here: http://localhost:8080/project/assessment_session.php?session=assess_1
+2026-06-17 17:22:10 - convId: 1
+2026-06-17 17:22:10 - message inserted with ID: 1
+2026-06-17 17:22:10 - assessment session created with ID: 2, post_id: 1, deadline: 2026-06-20 11:21:00
+2026-06-17 17:22:10 - Transaction committed successfully!
+2026-06-17 17:22:10 - Notification saved for user ID: 6
+2026-06-17 17:22:10 - Checking send_assessment_msg handler

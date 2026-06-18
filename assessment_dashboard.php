@@ -177,7 +177,7 @@ $currentPage = 'assessment';
 
     <!-- ── Page header ── -->
     <div class="bg-white border-b border-gray-200">
-        <div class="max-w-6xl mx-auto px-4 py-6">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
             <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                 <div>
                     <div class="flex items-center gap-2 text-sm text-gray-500 mb-1">
@@ -185,10 +185,10 @@ $currentPage = 'assessment';
                         <span>/</span>
                         <span>Assessment Dashboard</span>
                     </div>
-                    <h1 class="dash-header text-2xl font-bold text-blue-900"><?php echo htmlspecialchars($session['title']); ?></h1>
-                    <div class="flex flex-wrap items-center gap-3 mt-2 text-sm text-gray-500">
+                    <h1 class="dash-header text-xl sm:text-2xl font-bold text-blue-900"><?php echo htmlspecialchars($session['title']); ?></h1>
+                    <div class="flex flex-wrap items-center gap-2 mt-2 text-xs sm:text-sm text-gray-500">
                         <span class="flex items-center gap-1">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg class="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-2 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
                             </svg>
                             <?php echo htmlspecialchars($session['company']); ?>
@@ -201,17 +201,17 @@ $currentPage = 'assessment';
                         <span><?php echo $session['total_pts']; ?> pts total</span>
                     </div>
                 </div>
-                <div class="flex gap-2 flex-shrink-0">
+                <div class="flex flex-wrap gap-2 flex-shrink-0">
                     <a href="assessment_session.php"
                        target="_blank"
-                       class="flex items-center gap-2 border border-gray-300 text-gray-700 text-sm font-semibold px-4 py-2 rounded-xl hover:bg-gray-50 transition">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                       class="flex items-center gap-2 border border-gray-300 text-gray-700 text-xs sm:text-sm font-semibold px-3 sm:px-4 py-2 rounded-xl hover:bg-gray-50 transition">
+                        <svg class="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
                         </svg>
                         Preview Assessment
                     </a>
-                    <button onclick="copyLink()" class="flex items-center gap-2 bg-blue-900 hover:bg-blue-800 text-white text-sm font-semibold px-4 py-2 rounded-xl transition">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <button onclick="copyLink()" class="flex items-center gap-2 bg-blue-900 hover:bg-blue-800 text-white text-xs sm:text-sm font-semibold px-3 sm:px-4 py-2 rounded-xl transition">
+                        <svg class="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
                         </svg>
                         <span id="copyBtnLabel">Copy Link</span>
@@ -221,10 +221,10 @@ $currentPage = 'assessment';
         </div>
     </div>
 
-    <div class="max-w-6xl mx-auto px-4 py-6 space-y-6">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
 
         <!-- ── Summary cards ── -->
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
             <?php
             $stats = [
                 ['label'=>'Applicants',  'value'=> count($applicants),  'icon'=>'👥', 'color'=>'blue'],
@@ -236,28 +236,28 @@ $currentPage = 'assessment';
             $textColors = ['blue'=>'text-blue-900','green'=>'text-green-700','purple'=>'text-purple-700','amber'=>'text-amber-700'];
             foreach ($stats as $s):
             ?>
-            <div class="<?php echo $colors[$s['color']]; ?> border rounded-2xl p-4 text-center">
-                <div class="text-2xl mb-1"><?php echo $s['icon']; ?></div>
-                <p class="dash-mono text-xl font-bold <?php echo $textColors[$s['color']]; ?>"><?php echo $s['value']; ?></p>
-                <p class="text-xs text-gray-500 mt-0.5"><?php echo $s['label']; ?></p>
+            <div class="<?php echo $colors[$s['color']]; ?> border rounded-2xl p-3 sm:p-4 text-center">
+                <div class="text-lg sm:text-2xl mb-1"><?php echo $s['icon']; ?></div>
+                <p class="dash-mono text-lg sm:text-xl font-bold <?php echo $textColors[$s['color']]; ?>"><?php echo $s['value']; ?></p>
+                <p class="text-[10px] sm:text-xs text-gray-500 mt-0.5"><?php echo $s['label']; ?></p>
             </div>
             <?php endforeach; ?>
         </div>
 
         <!-- ── Leaderboard ── -->
         <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-            <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-                <h2 class="dash-header font-bold text-gray-900 text-lg">Leaderboard</h2>
-                <div class="flex gap-2 text-xs">
-                    <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full challenge-dot-correct inline-block"></span> Correct</span>
-                    <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full challenge-dot-submitted inline-block"></span> Submitted</span>
-                    <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full challenge-dot-wrong inline-block"></span> Wrong</span>
-                    <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full challenge-dot-skipped inline-block"></span> Skipped</span>
+            <div class="px-4 sm:px-6 py-4 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <h2 class="dash-header font-bold text-gray-900 text-base sm:text-lg">Leaderboard</h2>
+                <div class="flex flex-wrap gap-2 text-[10px] sm:text-xs">
+                    <span class="flex items-center gap-1"><span class="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full challenge-dot-correct inline-block"></span> Correct</span>
+                    <span class="flex items-center gap-1"><span class="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full challenge-dot-submitted inline-block"></span> Submitted</span>
+                    <span class="flex items-center gap-1"><span class="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full challenge-dot-wrong inline-block"></span> Wrong</span>
+                    <span class="flex items-center gap-1"><span class="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full challenge-dot-skipped inline-block"></span> Skipped</span>
                 </div>
             </div>
 
             <!-- Table header -->
-            <div class="grid grid-cols-12 gap-2 px-6 py-2 bg-gray-50 text-xs font-bold text-gray-500 uppercase tracking-wider border-b border-gray-100">
+            <div class="hidden md:grid grid-cols-12 gap-2 px-6 py-2 bg-gray-50 text-xs font-bold text-gray-500 uppercase tracking-wider border-b border-gray-100">
                 <div class="col-span-1 text-center">Rank</div>
                 <div class="col-span-3">Applicant</div>
                 <div class="col-span-2 text-center">Score</div>
@@ -276,7 +276,89 @@ $currentPage = 'assessment';
                 $medalClass = $rank === 1 ? 'medal-1' : ($rank === 2 ? 'medal-2' : ($rank === 3 ? 'medal-3' : ''));
                 $delay = $i * 60;
             ?>
-            <div class="grid grid-cols-12 gap-2 px-6 py-4 border-b border-gray-100 items-center hover:bg-gray-50/60 transition row-animate <?php echo $rankClass; ?>"
+
+            <!-- Mobile: Card view -->
+            <div class="md:hidden px-4 py-4 border-b border-gray-100 hover:bg-gray-50/60 transition row-animate <?php echo $rankClass; ?>" style="animation-delay:<?php echo $delay; ?>ms">
+                <div class="flex items-start gap-3 mb-3">
+                    <!-- Rank + Avatar -->
+                    <div class="flex items-center gap-3">
+                        <div class="text-center">
+                            <?php if ($isCompleted && $rank <= 3): ?>
+                                <span class="text-lg <?php echo $medalClass; ?>"></span>
+                            <?php elseif ($isCompleted): ?>
+                                <span class="dash-mono font-bold text-gray-500 text-xs">#<?php echo $rank; ?></span>
+                            <?php else: ?>
+                                <span class="text-gray-300 text-sm">—</span>
+                            <?php endif; ?>
+                        </div>
+                        <div class="w-9 h-9 rounded-full bg-blue-100 text-blue-900 font-bold text-sm flex items-center justify-center flex-shrink-0">
+                            <?php echo strtoupper(substr($app['name'], 0, 1)); ?>
+                        </div>
+                    </div>
+                    <!-- Name + Email -->
+                    <div class="flex-1 min-w-0">
+                        <p class="font-semibold text-gray-900 text-sm truncate"><?php echo htmlspecialchars($app['name']); ?></p>
+                        <p class="text-xs text-gray-400 truncate"><?php echo htmlspecialchars($app['email']); ?></p>
+                    </div>
+                </div>
+
+                <!-- Score / Time -->
+                <div class="grid grid-cols-2 gap-3 mb-3">
+                    <?php if ($isCompleted): ?>
+                        <div class="text-center">
+                            <p class="dash-mono font-bold text-blue-900 text-sm"><?php echo $app['score']; ?> <span class="text-gray-400 font-normal">/ <?php echo $session['total_pts']; ?></span></p>
+                            <div class="w-full bg-gray-200 rounded-full mt-1 h-1.5">
+                                <div class="score-bar-fill" style="width:<?php echo $pct; ?>%"></div>
+                            </div>
+                            <p class="text-[10px] text-gray-400 mt-0.5"><?php echo $pct; ?>%</p>
+                        </div>
+                        <div class="text-center">
+                            <p class="dash-mono font-semibold text-gray-800 text-sm"><?php echo $app['time_used']; ?></p>
+                            <p class="text-[10px] text-gray-400">of 45:00</p>
+                        </div>
+                    <?php else: ?>
+                        <div class="col-span-2 text-center">
+                            <span class="text-xs px-2.5 py-1 rounded-full font-semibold status-<?php echo $app['status']; ?>">
+                                <?php echo ucfirst($app['status']); ?>
+                            </span>
+                        </div>
+                    <?php endif; ?>
+                </div>
+
+                <!-- Challenge dots (mobile) -->
+                <?php if ($isCompleted): ?>
+                    <div class="flex items-center justify-center gap-1.5 flex-wrap mb-3">
+                        <?php foreach ($app['challenge_results'] as $cr): ?>
+                        <div class="relative group">
+                            <span class="w-2.5 h-2.5 rounded-full inline-block challenge-dot-<?php echo $cr['status']; ?>"></span>
+                        </div>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
+
+                <!-- Actions (mobile) -->
+                <div class="flex items-center justify-center gap-2">
+                    <?php if ($isCompleted): ?>
+                        <button onclick="openDetailModal(<?php echo htmlspecialchars(json_encode($app)); ?>)"
+                                class="text-xs font-semibold text-blue-700 border border-blue-200 px-3 py-1.5 rounded-lg hover:bg-blue-50 transition">
+                            Details
+                        </button>
+                        <a href="messages.php" class="text-xs font-semibold text-gray-600 border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition">
+                            Message
+                        </a>
+                    <?php elseif ($app['status'] === 'pending'): ?>
+                        <button onclick="openSendAssessmentModal(<?php echo htmlspecialchars(json_encode(['name'=>$app['name'],'email'=>$app['email'],'user_id'=>$app['user_id']])); ?>)"
+                                class="text-xs font-semibold text-blue-700 border border-blue-200 px-3 py-1.5 rounded-lg hover:bg-blue-50 transition">
+                            Send Link
+                        </button>
+                    <?php else: ?>
+                        <span class="text-xs text-gray-400 italic">Awaiting...</span>
+                    <?php endif; ?>
+                </div>
+            </div>
+
+            <!-- Desktop: Grid view -->
+            <div class="hidden md:grid grid-cols-12 gap-2 px-6 py-4 border-b border-gray-100 items-center hover:bg-gray-50/60 transition row-animate <?php echo $rankClass; ?>"
                  style="animation-delay:<?php echo $delay; ?>ms">
 
                 <!-- Rank -->
@@ -358,10 +440,10 @@ $currentPage = 'assessment';
                             Message
                         </a>
                     <?php elseif ($app['status'] === 'pending'): ?>
-                        <button onclick="openSendAssessmentModal(<?php echo htmlspecialchars(json_encode(['name'=>$app['name'],'email'=>$app['email'],'user_id'=>$app['user_id']])); ?>)"
-                class="text-xs font-semibold text-blue-700 border border-blue-200 px-3 py-1.5 rounded-lg hover:bg-blue-50 transition">
-            Send Link
-        </button>
+                        <button onclick="openSendAssessmentModal(<?php echo htmlspecialchars(json_encode(['name'=>$app['name'],'email'=>$app['email'],'user_id'=>$app['user_id']])); ?>"
+                                class="text-xs font-semibold text-blue-700 border border-blue-200 px-3 py-1.5 rounded-lg hover:bg-blue-50 transition">
+                            Send Link
+                        </button>
                     <?php else: ?>
                         <span class="text-xs text-gray-400 italic">Awaiting...</span>
                     <?php endif; ?>
@@ -372,33 +454,33 @@ $currentPage = 'assessment';
 
         <!-- ── Challenge breakdown ── -->
         <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-            <div class="px-6 py-4 border-b border-gray-100">
-                <h2 class="dash-header font-bold text-gray-900 text-lg">Challenge Breakdown</h2>
-                <p class="text-sm text-gray-500 mt-0.5">How each applicant performed per challenge</p>
+            <div class="px-4 sm:px-6 py-4 border-b border-gray-100">
+                <h2 class="dash-header font-bold text-gray-900 text-base sm:text-lg">Challenge Breakdown</h2>
+                <p class="text-xs sm:text-sm text-gray-500 mt-0.5">How each applicant performed per challenge</p>
             </div>
             <div class="overflow-x-auto">
-                <table class="w-full text-sm">
+                <table class="w-full text-xs sm:text-sm">
                     <thead>
                         <tr class="bg-gray-50 border-b border-gray-100">
-                            <th class="text-left px-6 py-3 font-bold text-gray-600 text-xs uppercase tracking-wide">Applicant</th>
+                            <th class="text-left px-4 sm:px-6 py-3 font-bold text-gray-600 text-[10px] sm:text-xs uppercase tracking-wide">Applicant</th>
                             <?php foreach ($challenges as $ch): ?>
-                            <th class="text-center px-3 py-3 font-bold text-gray-600 text-xs uppercase tracking-wide">
+                            <th class="text-center px-2 sm:px-3 py-3 font-bold text-gray-600 text-[10px] sm:text-xs uppercase tracking-wide">
                                 <?php echo htmlspecialchars($ch['title']); ?><br>
                                 <span class="text-gray-400 font-normal normal-case dash-mono"><?php echo $ch['points']; ?>pts</span>
                             </th>
                             <?php endforeach; ?>
-                            <th class="text-center px-4 py-3 font-bold text-gray-600 text-xs uppercase tracking-wide">Total</th>
+                            <th class="text-center px-3 sm:px-4 py-3 font-bold text-gray-600 text-[10px] sm:text-xs uppercase tracking-wide">Total</th>
                         </tr>
                     </thead>
                     <tbody>
                     <?php foreach ($applicants as $app): ?>
                         <tr class="border-b border-gray-100 hover:bg-gray-50/60 transition">
-                            <td class="px-6 py-3">
+                            <td class="px-4 sm:px-6 py-3">
                                 <div class="flex items-center gap-2">
-                                    <div class="w-7 h-7 rounded-full bg-blue-100 text-blue-900 font-bold text-xs flex items-center justify-center flex-shrink-0">
+                                    <div class="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-blue-100 text-blue-900 font-bold text-[10px] sm:text-xs flex items-center justify-center flex-shrink-0">
                                         <?php echo strtoupper(substr($app['name'], 0, 1)); ?>
                                     </div>
-                                    <span class="font-semibold text-gray-800"><?php echo htmlspecialchars($app['name']); ?></span>
+                                    <span class="font-semibold text-gray-800 text-xs sm:text-sm truncate"><?php echo htmlspecialchars($app['name']); ?></span>
                                 </div>
                             </td>
                             <?php
@@ -415,19 +497,19 @@ $currentPage = 'assessment';
                                         $bg = $cr['status'] === 'correct' ? 'bg-green-100 text-green-800' :
                                               ($cr['status'] === 'submitted' ? 'bg-blue-100 text-blue-800' :
                                               ($cr['status'] === 'wrong' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-400'));
-                                        echo '<td class="px-3 py-3 text-center"><span class="dash-mono text-xs font-bold px-2.5 py-1 rounded-full ' . $bg . '">' . $cr['earned'] . '</span></td>';
+                                        echo '<td class="px-2 sm:px-3 py-3 text-center"><span class="dash-mono text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded-full ' . $bg . '">' . $cr['earned'] . '</span></td>';
                                     } else {
-                                        echo '<td class="px-3 py-3 text-center"><span class="text-gray-300 text-xs">—</span></td>';
+                                        echo '<td class="px-2 sm:px-3 py-3 text-center"><span class="text-gray-300 text-[10px] sm:text-xs">—</span></td>';
                                     }
                                 }
                             } else {
                                 for ($ci = 0; $ci < count($challenges); $ci++) {
-                                    echo '<td class="px-3 py-3 text-center"><span class="text-gray-300 text-xs">—</span></td>';
+                                    echo '<td class="px-2 sm:px-3 py-3 text-center"><span class="text-gray-300 text-[10px] sm:text-xs">—</span></td>';
                                 }
                             }
                             ?>
-                            <td class="px-4 py-3 text-center">
-                                <span class="dash-mono font-bold text-blue-900 text-sm">
+                            <td class="px-3 sm:px-4 py-3 text-center">
+                                <span class="dash-mono font-bold text-blue-900 text-xs sm:text-sm">
                                     <?php echo $app['score'] !== null ? $app['score'] : '—'; ?>
                                 </span>
                             </td>
@@ -443,61 +525,61 @@ $currentPage = 'assessment';
 
 <!-- ── Send Assessment Modal ── -->
 <div id="sendAssessmentModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center p-4 z-50">
-    <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
-        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-            <h3 class="dash-header text-lg font-bold text-gray-900">Send Assessment Link</h3>
+    <div class="bg-white w-full max-w-sm sm:max-w-md rounded-2xl shadow-2xl overflow-hidden">
+        <div class="px-4 sm:px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+            <h3 class="dash-header text-base sm:text-lg font-bold text-gray-900">Send Assessment Link</h3>
             <button onclick="closeSendAssessmentModal()" class="text-gray-400 hover:text-gray-700 transition">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                 </svg>
             </button>
         </div>
-        <div class="p-6">
+        <div class="p-4 sm:p-6">
             <div class="flex items-center gap-3 mb-4">
                 <div class="w-10 h-10 rounded-full bg-blue-100 text-blue-900 font-bold text-sm flex items-center justify-center" id="sendModalAvatar">J</div>
-                <div>
-                    <p class="font-semibold text-gray-900 text-sm" id="sendModalName">Applicant</p>
-                    <p class="text-gray-500 text-xs" id="sendModalEmail">email</p>
+                <div class="min-w-0 flex-1">
+                    <p class="font-semibold text-gray-900 text-sm truncate" id="sendModalName">Applicant</p>
+                    <p class="text-gray-500 text-xs truncate" id="sendModalEmail">email</p>
                 </div>
             </div>
             <input type="hidden" id="sendModalApplicantUserId" value="">
             <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
                 <p class="text-xs font-semibold text-blue-700 mb-1">Assessment link to be sent:</p>
-                <p class="text-xs text-blue-900 font-mono break-all" id="sendModalLink"></p>
+                <p class="text-[10px] sm:text-xs text-blue-900 font-mono break-all" id="sendModalLink"></p>
             </div>
             <textarea id="sendModalMessage" rows="4"
-                class="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm resize-none"
+                class="w-full px-3 sm:px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm resize-none"
                 placeholder="Add a message (optional)..."></textarea>
             <div class="mt-4 flex items-center gap-2">
                 <input type="checkbox" id="sendViaDM" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500" checked>
-                <label for="sendViaDM" class="text-sm text-gray-700">Send via Direct Message</label>
+                <label for="sendViaDM" class="text-xs sm:text-sm text-gray-700">Send via Direct Message</label>
             </div>
             <p id="sendModalFeedback" class="text-xs font-semibold mt-2 hidden"></p>
         </div>
         <div class="flex border-t border-gray-200">
-            <button onclick="closeSendAssessmentModal()" class="flex-1 py-3 font-semibold text-gray-600 hover:bg-gray-50 transition text-sm">Cancel</button>
-            <button id="sendAssessmentConfirmBtn" class="flex-1 py-3 font-bold bg-blue-900 text-white hover:bg-blue-800 transition text-sm">Send</button>
+            <button onclick="closeSendAssessmentModal()" class="flex-1 py-3 font-semibold text-gray-600 hover:bg-gray-50 transition text-xs sm:text-sm">Cancel</button>
+            <button id="sendAssessmentConfirmBtn" class="flex-1 py-3 font-bold bg-blue-900 text-white hover:bg-blue-800 transition text-xs sm:text-sm">Send</button>
         </div>
     </div>
 </div>
 
 <!-- ── Applicant Detail Modal ── -->
 <div id="detailModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center p-4 z-50">
-    <div class="bg-white w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
-        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
-            <h3 class="dash-header text-lg font-bold text-gray-900" id="detailName">Applicant Details</h3>
+    <div class="bg-white w-full max-w-lg sm:max-w-2xl rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+        <div class="px-4 sm:px-6 py-4 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
+            <h3 class="dash-header text-base sm:text-lg font-bold text-gray-900" id="detailName">Applicant Details</h3>
             <button onclick="closeDetailModal()" class="text-gray-400 hover:text-gray-700 transition">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                 </svg>
             </button>
         </div>
-        <div class="p-6 overflow-y-auto flex-1" id="detailBody"></div>
-        <div class="px-6 py-4 border-t border-gray-200 flex gap-3 flex-shrink-0">
-            <a href="messages.php" class="flex-1 text-center bg-blue-900 hover:bg-blue-800 text-white font-bold py-2.5 rounded-xl transition text-sm">
+        <div class="p-4 sm:p-6 overflow-y-auto flex-1" id="detailBody"></div>
+        <div class="px-4 sm:px-6 py-4 border-t border-gray-200 flex gap-3 flex-shrink-0">
+            <a href="messages.php" class="flex-1 text-center bg-blue-900 hover:bg-blue-800 text-white font-bold py-2.5 rounded-xl transition text-xs sm:text-sm">
                 Message Applicant
             </a>
-            <button onclick="closeDetailModal()" class="flex-1 border border-gray-300 text-gray-700 font-semibold py-2.5 rounded-xl hover:bg-gray-50 transition text-sm">
+            <button onclick="closeDetailModal()" class="flex-1 border border-gray-300 text-gray-700 font-semibold py-2.5 rounded-xl hover:bg-gray-50 transition text-xs sm:text-sm">
                 Close
             </button>
         </div>
@@ -644,57 +726,60 @@ function openDetailModal(app) {
     };
     const statusLabels = { correct:'Correct', submitted:'Submitted', wrong:'Wrong', skipped:'Skipped' };
 
-    let rows = app.challenge_results.map(cr => `
-        <tr class="border-b border-gray-100">
-            <td class="py-3 pr-3 font-semibold text-gray-800 text-sm">${cr.title}</td>
-            <td class="py-3 px-3 text-center">
-                <span class="text-xs font-bold dash-mono px-2.5 py-1 rounded-full ${statusColors[cr.status] || 'bg-gray-100 text-gray-500'}">
+    let challengeCards = app.challenge_results.map(cr => `
+        <div class="bg-gray-50 rounded-xl p-4 border border-gray-100">
+            <div class="flex items-start justify-between gap-3 mb-2">
+                <p class="font-semibold text-gray-800 text-sm flex-1 min-w-0 truncate">${cr.title}</p>
+                <span class="text-[10px] sm:text-xs font-bold dash-mono px-2.5 py-1 rounded-full flex-shrink-0 ${statusColors[cr.status] || 'bg-gray-100 text-gray-500'}">
                     ${statusLabels[cr.status] || cr.status}
                 </span>
-            </td>
-            <td class="py-3 px-3 text-center dash-mono text-sm font-bold text-blue-900">${cr.earned} <span class="text-gray-400 font-normal">/ ${cr.pts}</span></td>
-            <td class="py-3 pl-3 text-center text-sm text-gray-500 dash-mono">${cr.time}</td>
-        </tr>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div class="text-center">
+                    <p class="dash-mono text-sm font-bold text-blue-900">${cr.earned} <span class="text-gray-400 font-normal">/ ${cr.pts}</span></p>
+                    <p class="text-[10px] text-gray-500">Points</p>
+                </div>
+                <div class="text-center">
+                    <p class="dash-mono text-sm text-gray-500">${cr.time}</p>
+                    <p class="text-[10px] text-gray-500">Time</p>
+                </div>
+            </div>
+        </div>
     `).join('');
 
     const pct = Math.round((app.score / <?php echo $session['total_pts']; ?>) * 100);
 
     document.getElementById('detailBody').innerHTML = `
         <div class="flex items-center gap-4 mb-5">
-            <div class="w-14 h-14 rounded-full bg-blue-100 text-blue-900 font-bold text-xl flex items-center justify-center">
+            <div class="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-blue-100 text-blue-900 font-bold text-lg sm:text-xl flex items-center justify-center flex-shrink-0">
                 ${app.name.charAt(0).toUpperCase()}
             </div>
-            <div>
-                <h4 class="dash-header text-xl font-bold text-gray-900">${app.name}</h4>
-                <p class="text-gray-500 text-sm">${app.email}</p>
-                <p class="text-xs text-gray-400 mt-0.5">Completed: ${app.completed_at}</p>
+            <div class="min-w-0 flex-1">
+                <h4 class="dash-header text-lg sm:text-xl font-bold text-gray-900 truncate">${app.name}</h4>
+                <p class="text-gray-500 text-xs sm:text-sm truncate">${app.email}</p>
+                <p class="text-[10px] sm:text-xs text-gray-400 mt-0.5">Completed: ${app.completed_at}</p>
             </div>
         </div>
-        <div class="grid grid-cols-3 gap-3 mb-5">
+        <div class="grid grid-cols-3 gap-2 sm:gap-3 mb-5">
             <div class="bg-blue-50 rounded-xl p-3 text-center">
-                <p class="dash-mono text-xl font-bold text-blue-900">${app.score}</p>
-                <p class="text-xs text-gray-500">Points (${pct}%)</p>
+                <p class="dash-mono text-lg sm:text-xl font-bold text-blue-900">${app.score}</p>
+                <p class="text-[10px] sm:text-xs text-gray-500">Points (${pct}%)</p>
             </div>
             <div class="bg-green-50 rounded-xl p-3 text-center">
-                <p class="dash-mono text-xl font-bold text-green-700">${app.solved}/${app.challenge_results.length}</p>
-                <p class="text-xs text-gray-500">Solved</p>
+                <p class="dash-mono text-lg sm:text-xl font-bold text-green-700">${app.solved}/${app.challenge_results.length}</p>
+                <p class="text-[10px] sm:text-xs text-gray-500">Solved</p>
             </div>
             <div class="bg-amber-50 rounded-xl p-3 text-center">
-                <p class="dash-mono text-xl font-bold text-amber-700">${app.time_used}</p>
-                <p class="text-xs text-gray-500">Time Used</p>
+                <p class="dash-mono text-lg sm:text-xl font-bold text-amber-700">${app.time_used}</p>
+                <p class="text-[10px] sm:text-xs text-gray-500">Time Used</p>
             </div>
         </div>
-        <table class="w-full">
-            <thead>
-                <tr class="text-xs uppercase tracking-wide text-gray-500 border-b border-gray-200">
-                    <th class="text-left pb-2 pr-3">Challenge</th>
-                    <th class="text-center pb-2 px-3">Status</th>
-                    <th class="text-center pb-2 px-3">Points</th>
-                    <th class="text-center pb-2 pl-3">Time</th>
-                </tr>
-            </thead>
-            <tbody>${rows}</tbody>
-        </table>
+        <div class="space-y-3">
+            <h5 class="text-sm font-semibold text-gray-700">Challenges</h5>
+            <div class="grid grid-cols-1 gap-3">
+                ${challengeCards}
+            </div>
+        </div>
     `;
 
     const modal = document.getElementById('detailModal');

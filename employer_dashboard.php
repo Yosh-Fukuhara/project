@@ -458,26 +458,26 @@ include 'includes/header.php';
 <div class="max-w-7xl mx-auto px-4 py-8">
 
     <!-- Header -->
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
         <div>
-            <h1 class="text-3xl font-extrabold text-blue-900"><?php echo htmlspecialchars($companyName); ?></h1>
-            <p class="text-gray-500 text-sm mt-1">Employer Dashboard</p>
+            <h1 class="text-2xl sm:text-3xl font-extrabold text-blue-900"><?php echo htmlspecialchars($companyName); ?></h1>
+            <p class="text-gray-500 text-xs sm:text-sm mt-1">Employer Dashboard</p>
         </div>
         <div class="flex items-center gap-2">
-            <span class="bg-purple-100 text-purple-700 text-xs font-bold px-3 py-1.5 rounded-full uppercase tracking-wider">Employer</span>
-            <a href="index.php" class="text-sm text-blue-700 font-semibold hover:underline">← Feed</a>
+            <span class="bg-purple-100 text-purple-700 text-[10px] sm:text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">Employer</span>
+            <a href="index.php" class="text-xs sm:text-sm text-blue-700 font-semibold hover:underline">← Feed</a>
         </div>
     </div>
 
     <?php if ($flash): ?>
-    <div class="mb-4 px-4 py-3 rounded-xl text-sm font-semibold
+    <div class="mb-4 px-3 py-2.5 sm:px-4 sm:py-3 rounded-xl text-xs sm:text-sm font-semibold
         <?php echo $flashType === 'red' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'; ?>">
         <?php echo htmlspecialchars($flash); ?>
     </div>
     <?php endif; ?>
 
     <!-- Stats row -->
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
         <?php
         $stats = [
             ['Hiring Posts', count($myPosts), '📝'],
@@ -486,23 +486,23 @@ include 'includes/header.php';
             ['New This Week', count(array_filter($myApplications, fn($a) => (strtotime($a['time'] ?? '0') > strtotime('-7 days')))), '🔔'],
         ];
         foreach ($stats as [$label, $val, $icon]): ?>
-        <div class="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm text-center">
-            <div class="text-2xl mb-1"><?php echo $icon; ?></div>
-            <div class="text-3xl font-extrabold text-blue-900"><?php echo $val; ?></div>
-            <div class="text-xs text-gray-500 mt-1"><?php echo $label; ?></div>
+        <div class="bg-white rounded-2xl border border-gray-200 p-3 sm:p-5 shadow-sm text-center">
+            <div class="text-xl sm:text-2xl mb-1"><?php echo $icon; ?></div>
+            <div class="text-2xl sm:text-3xl font-extrabold text-blue-900"><?php echo $val; ?></div>
+            <div class="text-[10px] sm:text-xs text-gray-500 mt-1"><?php echo $label; ?></div>
         </div>
         <?php endforeach; ?>
     </div>
 
     <!-- Tabs -->
-    <div class="flex gap-1 bg-white rounded-2xl shadow-sm border border-gray-200 p-1 mb-8 overflow-x-auto">
+    <div class="flex gap-1 bg-white rounded-2xl shadow-sm border border-gray-200 p-1 mb-6 overflow-x-auto">
         <?php foreach (['applicants'=>'Applicants','assessments'=>'Assessments','create_assessment'=>'+ New Assessment'] as $key=>$label): ?>
         <a href="?tab=<?php echo $key; ?>"
-           class="flex-shrink-0 px-4 py-2 rounded-xl text-sm font-semibold transition
+           class="flex-shrink-0 px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition
            <?php echo $tab === $key ? 'bg-blue-900 text-white' : 'text-gray-600 hover:bg-gray-100'; ?>">
             <?php echo $label; ?>
             <?php if ($key === 'applicants' && count($myApplications) > 0): ?>
-            <span class="ml-1 bg-blue-700 text-white text-xs rounded-full px-1.5 py-0.5"><?php echo count($myApplications); ?></span>
+            <span class="ml-1 bg-blue-700 text-white text-[10px] sm:text-xs rounded-full px-1.5 py-0.5"><?php echo count($myApplications); ?></span>
             <?php endif; ?>
         </a>
         <?php endforeach; ?>
@@ -511,18 +511,67 @@ include 'includes/header.php';
     <!-- ── APPLICANTS TAB ── -->
     <?php if ($tab === 'applicants'): ?>
     <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-        <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-            <h2 class="font-bold text-gray-900">All Applicants (<?php echo count($myApplications); ?>)</h2>
+        <div class="px-4 sm:px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+            <h2 class="font-bold text-gray-900 text-base sm:text-lg">All Applicants (<?php echo count($myApplications); ?>)</h2>
         </div>
         <?php if (empty($myApplications)): ?>
-        <div class="p-12 text-center text-gray-400">
-            <div class="text-5xl mb-3">👥</div>
-            <p class="font-medium">No applicants yet.</p>
-            <p class="text-xs mt-1">Post a hiring job on the feed and enable the "Apply" button to start receiving applications.</p>
-            <a href="index.php" class="inline-block mt-4 bg-blue-900 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-blue-800 transition">Go to Feed</a>
+        <div class="p-10 sm:p-12 text-center text-gray-400">
+            <div class="text-4xl sm:text-5xl mb-3">👥</div>
+            <p class="font-medium text-sm sm:text-base">No applicants yet.</p>
+            <p class="text-[10px] sm:text-xs mt-1">Post a hiring job on the feed and enable the "Apply" button to start receiving applications.</p>
+            <a href="index.php" class="inline-block mt-4 bg-blue-900 text-white font-bold px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm hover:bg-blue-800 transition">Go to Feed</a>
         </div>
         <?php else: ?>
-        <div class="overflow-x-auto">
+
+        <!-- Mobile Cards View -->
+        <div class="md:hidden p-3 sm:p-4 space-y-4">
+            <?php foreach ($myApplications as $app): ?>
+            <div class="bg-gray-50 border border-gray-200 rounded-xl p-4">
+                <div class="flex items-start gap-3 mb-3">
+                    <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-900 font-bold text-base flex-shrink-0">
+                        <?php echo strtoupper(substr($app['name'] ?? '?', 0, 1)); ?>
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <p class="font-semibold text-gray-800 text-sm truncate"><?php echo htmlspecialchars($app['name'] ?? '—'); ?></p>
+                        <p class="text-gray-400 text-xs truncate"><?php echo htmlspecialchars($app['email'] ?? ''); ?></p>
+                        <?php if (!empty($app['phone'])): ?>
+                        <p class="text-gray-400 text-[10px] mt-0.5"><?php echo htmlspecialchars($app['phone']); ?></p>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                <div class="mb-2">
+                    <p class="text-xs font-semibold text-gray-600 mb-1">Applied</p>
+                    <p class="text-gray-600 text-xs truncate"><?php echo htmlspecialchars($app['post_content'] ?? '—'); ?></p>
+                </div>
+                <div class="flex items-center justify-between mb-3">
+                    <p class="text-gray-500 text-[10px]"><?php echo htmlspecialchars($app['time'] ?? '—'); ?></p>
+                    <?php if (!empty($app['resume'])): ?>
+                    <a href="<?php echo htmlspecialchars($app['resume']); ?>" target="_blank"
+                       class="inline-flex items-center gap-1 bg-blue-100 text-blue-700 hover:bg-blue-200 px-3 py-1.5 rounded-lg text-[10px] font-semibold transition">
+                        📎 View Resume
+                    </a>
+                    <?php else: ?>
+                    <span class="text-gray-400 text-[10px]">No resume</span>
+                    <?php endif; ?>
+                </div>
+                <button
+                    class="send-assess-btn w-full bg-purple-700 hover:bg-purple-800 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition"
+                    data-name="<?php echo htmlspecialchars($app['name'] ?? ''); ?>"
+                    data-email="<?php echo htmlspecialchars($app['email'] ?? ''); ?>"
+                    data-post-id="<?php echo htmlspecialchars($app['post_id'] ?? ''); ?>">
+                    Send Assessment
+                </button>
+                <?php if (!empty($app['message'])): ?>
+                <div class="mt-3 bg-white p-3 rounded-lg border border-gray-100">
+                    <p class="text-xs text-gray-600"><strong class="text-gray-700">Cover message:</strong> <?php echo nl2br(htmlspecialchars($app['message'])); ?></p>
+                </div>
+                <?php endif; ?>
+            </div>
+            <?php endforeach; ?>
+        </div>
+
+        <!-- Desktop Table View -->
+        <div class="hidden md:block overflow-x-auto">
             <table class="w-full text-sm">
                 <thead class="bg-gray-50 text-xs uppercase text-gray-500 tracking-wide">
                     <tr>
@@ -587,6 +636,7 @@ include 'includes/header.php';
                 </tbody>
             </table>
         </div>
+
         <?php endif; ?>
     </div>
 
@@ -594,29 +644,29 @@ include 'includes/header.php';
     <?php elseif ($tab === 'assessments'): ?>
     <div class="space-y-4">
         <?php if (empty($myAssessments)): ?>
-        <div class="bg-white rounded-2xl border border-gray-200 p-12 text-center text-gray-400 shadow-sm">
-            <div class="text-5xl mb-3">📋</div>
-            <p class="font-medium">No assessments yet.</p>
-            <a href="?tab=create_assessment" class="inline-block mt-4 bg-blue-900 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-blue-800 transition">Create Your First Assessment</a>
+        <div class="bg-white rounded-2xl border border-gray-200 p-10 sm:p-12 text-center text-gray-400 shadow-sm">
+            <div class="text-4xl sm:text-5xl mb-3">📋</div>
+            <p class="font-medium text-sm sm:text-base">No assessments yet.</p>
+            <a href="?tab=create_assessment" class="inline-block mt-4 bg-blue-900 text-white font-bold px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm hover:bg-blue-800 transition">Create Your First Assessment</a>
         </div>
         <?php else: ?>
         <?php foreach ($myAssessments as $a): ?>
-        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 sm:p-6">
             <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                 <div>
-                    <h3 class="font-bold text-lg text-gray-900"><?php echo htmlspecialchars($a['title']); ?></h3>
-                    <p class="text-gray-500 text-sm mt-0.5">
-                        <?php if ($a['role']): ?><span class="bg-blue-100 text-blue-700 text-xs font-semibold px-2 py-0.5 rounded-full mr-2"><?php echo htmlspecialchars($a['role']); ?></span><?php endif; ?>
+                    <h3 class="font-bold text-base sm:text-lg text-gray-900"><?php echo htmlspecialchars($a['title']); ?></h3>
+                    <p class="text-gray-500 text-xs sm:text-sm mt-0.5">
+                        <?php if ($a['role']): ?><span class="bg-blue-100 text-blue-700 text-[10px] sm:text-xs font-semibold px-2 py-0.5 rounded-full mr-2"><?php echo htmlspecialchars($a['role']); ?></span><?php endif; ?>
                         <?php echo count($a['challenges']); ?> challenges &bull; <?php echo $a['time_limit']; ?> min &bull; <?php echo $a['total_pts']; ?> pts total
                     </p>
-                    <p class="text-xs text-gray-400 mt-1">Created <?php echo htmlspecialchars($a['created_at']); ?></p>
+                    <p class="text-[10px] sm:text-xs text-gray-400 mt-1">Created <?php echo htmlspecialchars($a['created_at']); ?></p>
                 </div>
                 <div class="flex flex-wrap gap-2 flex-shrink-0">
                     <a href="assessment_session.php?session=<?php echo urlencode($a['id']); ?>" target="_blank"
-                       class="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold px-3 py-2 rounded-xl transition">Preview</a>
+                       class="text-[10px] sm:text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold px-3 py-2 rounded-xl transition">Preview</a>
                     <a href="assessment_dashboard.php?assess_id=<?php echo urlencode($a['id']); ?>"
-                       class="text-xs bg-blue-900 hover:bg-blue-800 text-white font-semibold px-3 py-2 rounded-xl transition">View Results</a>
-                    <button class="send-assess-btn text-xs bg-purple-700 hover:bg-purple-800 text-white font-semibold px-3 py-2 rounded-xl transition"
+                       class="text-[10px] sm:text-xs bg-blue-900 hover:bg-blue-800 text-white font-semibold px-3 py-2 rounded-xl transition">View Results</a>
+                    <button class="send-assess-btn text-[10px] sm:text-xs bg-purple-700 hover:bg-purple-800 text-white font-semibold px-3 py-2 rounded-xl transition"
                             data-assess-id="<?php echo htmlspecialchars($a['id']); ?>"
                             data-assess-title="<?php echo htmlspecialchars($a['title']); ?>">
                         Send to Applicant
@@ -627,7 +677,7 @@ include 'includes/header.php';
             <!-- Challenge list -->
             <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 <?php foreach ($a['challenges'] as $ch): ?>
-                <div class="bg-gray-50 rounded-xl p-3 text-xs">
+                <div class="bg-gray-50 rounded-xl p-3 text-[10px] sm:text-xs">
                     <div class="flex items-center justify-between mb-1">
                         <span class="font-semibold text-gray-700 truncate"><?php echo htmlspecialchars($ch['title']); ?></span>
                         <span class="bg-blue-100 text-blue-700 font-bold px-1.5 rounded-full ml-2 flex-shrink-0"><?php echo $ch['points']; ?>pts</span>
@@ -644,68 +694,68 @@ include 'includes/header.php';
     <!-- ── CREATE ASSESSMENT TAB ── -->
     <?php elseif ($tab === 'create_assessment'): ?>
     <?php if (!empty($assessErrors ?? [])): ?>
-    <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mb-6 text-sm">
+    <div class="bg-red-50 border border-red-200 text-red-700 px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl mb-6 text-xs sm:text-sm">
         <ul class="list-disc list-inside space-y-1">
             <?php foreach ($assessErrors as $e): ?><li><?php echo htmlspecialchars($e); ?></li><?php endforeach; ?>
         </ul>
     </div>
     <?php endif; ?>
 
-    <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-        <h2 class="text-xl font-bold text-gray-900 mb-1">Create Skill Assessment</h2>
-        <p class="text-gray-500 text-sm mb-6">Build a custom assessment to send to applicants. You can add flag-style, coding, or short-answer challenges.</p>
+    <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 sm:p-6">
+        <h2 class="text-lg sm:text-xl font-bold text-gray-900 mb-1">Create Skill Assessment</h2>
+        <p class="text-gray-500 text-xs sm:text-sm mb-6">Build a custom assessment to send to applicants. You can add flag-style, coding, or short-answer challenges.</p>
 
         <form method="POST" id="assessForm" class="space-y-6" enctype="multipart/form-data">
             <input type="hidden" name="action" value="create_assessment">
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
                 <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-1">Assessment Title <span class="text-red-500">*</span></label>
+                    <label class="block text-xs sm:text-sm font-semibold text-gray-700 mb-1">Assessment Title <span class="text-red-500">*</span></label>
                     <input name="assess_title" required maxlength="100" placeholder="e.g. SOC Analyst Skill Assessment"
-                           class="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                           class="w-full px-3 sm:px-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm">
                 </div>
                 <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-1">Role / Position</label>
+                    <label class="block text-xs sm:text-sm font-semibold text-gray-700 mb-1">Role / Position</label>
                     <input name="assess_role" maxlength="80" placeholder="e.g. SOC Analyst, Penetration Tester"
-                           class="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                           class="w-full px-3 sm:px-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm">
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
                 <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-1">Time Limit (minutes)</label>
+                    <label class="block text-xs sm:text-sm font-semibold text-gray-700 mb-1">Time Limit (minutes)</label>
                     <input name="assess_time" type="number" min="5" max="180" value="30"
-                           class="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                           class="w-full px-3 sm:px-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm">
                 </div>
                 <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-1">Instructions</label>
+                    <label class="block text-xs sm:text-sm font-semibold text-gray-700 mb-1">Instructions</label>
                     <input name="assess_instructions" maxlength="300" placeholder="Optional instructions for applicants…"
-                           class="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                           class="w-full px-3 sm:px-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm">
                 </div>
             </div>
 
             <!-- Challenges builder -->
             <div>
                 <div class="flex items-center justify-between mb-3">
-                    <h3 class="font-bold text-gray-800">Challenges <span class="text-red-500">*</span></h3>
+                    <h3 class="font-bold text-gray-800 text-sm sm:text-base">Challenges <span class="text-red-500">*</span></h3>
                     <button type="button" id="addChallengeBtn"
-                            class="bg-blue-100 hover:bg-blue-200 text-blue-900 text-xs font-bold px-4 py-2 rounded-xl transition">
+                            class="bg-blue-100 hover:bg-blue-200 text-blue-900 text-[10px] sm:text-xs font-bold px-4 py-2 rounded-xl transition">
                         + Add Challenge
                     </button>
                 </div>
                 <div id="challengesList" class="space-y-4">
                     <!-- Injected by JS -->
                 </div>
-                <p id="noChallengesMsg" class="text-gray-400 text-sm py-4 text-center border-2 border-dashed border-gray-200 rounded-xl">
+                <p id="noChallengesMsg" class="text-gray-400 text-xs sm:text-sm py-4 text-center border-2 border-dashed border-gray-200 rounded-xl">
                     Click "Add Challenge" to build your assessment.
                 </p>
             </div>
 
-            <div class="pt-2 flex gap-3">
-                <button type="submit" class="flex-1 bg-blue-900 hover:bg-blue-800 text-white font-bold py-3 rounded-xl transition">
+            <div class="pt-2 flex gap-2 sm:gap-3">
+                <button type="submit" class="flex-1 bg-blue-900 hover:bg-blue-800 text-white font-bold py-2.5 sm:py-3 rounded-xl transition text-xs sm:text-sm">
                     Create Assessment
                 </button>
-                <a href="?tab=assessments" class="px-5 py-3 rounded-xl border border-gray-300 text-gray-700 font-semibold hover:bg-gray-50 transition text-sm flex items-center">Cancel</a>
+                <a href="?tab=assessments" class="px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl border border-gray-300 text-gray-700 font-semibold hover:bg-gray-50 transition text-xs sm:text-sm flex items-center">Cancel</a>
             </div>
         </form>
     </div>
@@ -716,38 +766,38 @@ include 'includes/header.php';
 
 <!-- Send Assessment Modal -->
 <div id="sendAssessModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center p-4 z-50">
-    <div class="bg-white w-full max-w-md rounded-2xl shadow-xl overflow-hidden">
-        <div class="flex items-center justify-between px-5 py-4 border-b border-gray-200">
-            <h3 class="font-bold text-gray-900">Send Assessment</h3>
+    <div class="bg-white w-full max-w-sm sm:max-w-md rounded-2xl shadow-xl overflow-hidden">
+        <div class="flex items-center justify-between px-4 sm:px-5 py-4 border-b border-gray-200">
+            <h3 class="font-bold text-gray-900 text-base sm:text-lg">Send Assessment</h3>
             <button onclick="closeSendModal()" class="text-gray-500 hover:text-gray-700 text-xl">&times;</button>
         </div>
-        <form method="POST" class="p-5 space-y-4">
+        <form method="POST" class="p-4 sm:p-5 space-y-4">
             <input type="hidden" name="action" value="send_assessment_msg">
             <input type="hidden" id="sendAssessId" name="assess_id" value="">
             <input type="hidden" id="sendPostId" name="post_id" value="">
             <div>
-                <label class="block text-sm font-semibold text-gray-700 mb-1">Assessment</label>
-                <p id="sendAssessTitle" class="text-blue-900 font-bold text-sm"></p>
+                <label class="block text-xs sm:text-sm font-semibold text-gray-700 mb-1">Assessment</label>
+                <p id="sendAssessTitle" class="text-blue-900 font-bold text-xs sm:text-sm"></p>
             </div>
             <div>
-                <label class="block text-sm font-semibold text-gray-700 mb-1">Recipient Email <span class="text-red-500">*</span></label>
+                <label class="block text-xs sm:text-sm font-semibold text-gray-700 mb-1">Recipient Email <span class="text-red-500">*</span></label>
                 <input type="email" name="recipient_email" id="sendAssessEmail" required
-                       class="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm" placeholder="applicant@email.com">
+                       class="w-full px-3 sm:px-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500 text-xs sm:text-sm" placeholder="applicant@email.com">
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-1">Deadline (optional)</label>
+                    <label class="block text-xs sm:text-sm font-semibold text-gray-700 mb-1">Deadline (optional)</label>
                     <input type="datetime-local" name="deadline"
-                           class="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm">
+                           class="w-full px-3 sm:px-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500 text-xs sm:text-sm">
                 </div>
                 <div class="sm:col-span-1">
-                    <label class="block text-sm font-semibold text-gray-700 mb-1">Personal Message (optional)</label>
+                    <label class="block text-xs sm:text-sm font-semibold text-gray-700 mb-1">Personal Message (optional)</label>
                     <textarea name="custom_message" rows="2"
-                              class="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm resize-none"
+                              class="w-full px-3 sm:px-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500 text-xs sm:text-sm resize-none"
                               placeholder="Hi [Name], we'd like you to complete this assessment…"></textarea>
                 </div>
             </div>
-            <button type="submit" class="w-full bg-purple-700 hover:bg-purple-800 text-white font-bold py-3 rounded-xl transition">
+            <button type="submit" class="w-full bg-purple-700 hover:bg-purple-800 text-white font-bold py-2.5 sm:py-3 rounded-xl transition text-xs sm:text-sm">
                 Send via Messages
             </button>
         </form>

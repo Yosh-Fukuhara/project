@@ -24,6 +24,7 @@ foreach ($_SESSION['cart'] as &$item) {
     foreach ($products as $p) {
         if ($item['id'] === $p['id']) {
             $item['price'] = $p['price']; // Update to latest price
+            $item['name'] = $p['name']; // Add product name
             break;
         }
     }
@@ -76,15 +77,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['checkout'])) {
                 $checkoutErrors[] = 'Please enter a valid CVV (3–4 digits).';
             }
         } else {
-            // GCash / PayMaya — expect Philippine mobile number
-            if (!preg_match('/09\d{9}/', $paymentDetails)) {
-                $checkoutErrors[] = 'Please enter a valid mobile number starting with 09 (11 digits).';
+            // GCash / PayMaya — extract and validate Philippine mobile number
+            if (preg_match('/(\b09\d{9})\b/', $paymentDetails, $matches)) {
+                // If a valid number is found, use it for $paymentDetails
+                $paymentDetails = $matches[1];
+            } else {
+                $checkoutErrors[] = 'Please enter a valid mobile number (11 digits starting with 09, e.g., 09171234567).';
             }
         }
     }
 
     if (empty($checkoutErrors)) {
-        $orderId = 'ORD-' . strtoupper(substr(uniqid('', true), -8));
+        $purchaseId = 'PUR-' . strtoupper(substr(uniqid('', true), -8));
         $subtotal = $total;
         $tax = $total * 0.12;
         $grandTotal = $total * 1.12;
@@ -94,7 +98,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['checkout'])) {
         try {
             $pdo->beginTransaction();
             
-            // Insert into orders
+            // Insert into orders (keep original table name)
             $stmt = $pdo->prepare("
                 INSERT INTO orders (user_id, subtotal, tax, grand_total, payment_method, payment_details)
                 VALUES (?, ?, ?, ?, ?, ?)
@@ -107,16 +111,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['checkout'])) {
                 $paymentMethod,
                 $paymentDetails
             ]);
-            $dbOrderId = $pdo->lastInsertId();
+            $dbPurchaseId = $pdo->lastInsertId();
             
-            // Insert each cart item into order_items
+            // Insert each cart item into order_items (keep original table name)
             foreach ($_SESSION['cart'] as $item) {
                 $stmt = $pdo->prepare("
                     INSERT INTO order_items (order_id, product_id, product_name, unit_price, quantity)
                     VALUES (?, ?, ?, ?, ?)
                 ");
                 $stmt->execute([
-                    $dbOrderId,
+                    $dbPurchaseId,
                     $item['id'],
                     $item['name'],
                     $item['price'],
@@ -128,39 +132,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['checkout'])) {
             
         } catch (Exception $e) {
             $pdo->rollBack();
-            $checkoutErrors[] = 'Failed to save order to database. Please try again.';
+            $checkoutErrors[] = 'Failed to save purchase to database. Please try again.';
         }
         
         if (empty($checkoutErrors)) {
-            $orderRecord = [
-                'id'             => $orderId,
+            $processedItems = [];
+            foreach ($_SESSION['cart'] as $item) {
+                $processedItems[] = [
+                    'id' => $item['id'],
+                    'product_name' => $item['name'], // Map 'name' to 'product_name'
+                    'unit_price' => $item['price'],
+                    'quantity' => $item['quantity']
+                ];
+            }
+
+            $purchaseRecord = [
+                'id'             => $purchaseId,
                 'user_id'        => $_SESSION['user']['user_id'],
                 'username'       => $_SESSION['user']['username'],
-                'items'          => $_SESSION['cart'],
+                'items'          => $processedItems,
                 'subtotal'       => $subtotal,
                 'tax'            => $tax,
                 'grand_total'    => $grandTotal,
                 'payment_method' => $paymentMethod,
-                'ordered_at'     => date('M j, Y g:i A'),
+                'purchased_at'   => date('M j, Y g:i A'),
             ];
 
-            // Save to last_order for receipt display
-            $_SESSION['last_order'] = $orderRecord;
+            // Save to last_purchase for receipt display
+            $_SESSION['last_purchase'] = $purchaseRecord;
 
             // ── Persist to user purchase history ─────────────────────────────
             if (!isset($_SESSION['purchases']) || !is_array($_SESSION['purchases'])) {
                 $_SESSION['purchases'] = [];
             }
-            array_unshift($_SESSION['purchases'], $orderRecord);
+            array_unshift($_SESSION['purchases'], $purchaseRecord);
 
             $checkoutSuccess = true;
-            $checkoutMessage = 'Order <strong>' . htmlspecialchars($orderId) . '</strong> placed successfully!';
+            $checkoutMessage = 'Purchase <strong>' . htmlspecialchars($purchaseId) . '</strong> completed successfully!';
             $_SESSION['cart'] = [];
             $total = 0;
         }
     }
 }
-
 $paymentMethods = ['Credit Card', 'GCash', 'PayMaya'];
 $selectedPayment = '';
 
@@ -172,12 +185,108 @@ include 'includes/header.php';
     
     <?php if ($checkoutSuccess): ?>
     <div class="bg-green-100 border border-green-300 text-green-800 px-4 py-3 rounded-lg mb-6">
-        <?php echo $checkoutMessage; /* contains safe HTML with order ID */ ?>
-        <?php if (isset($_SESSION['last_order'])): ?>
+        <?php echo $checkoutMessage; /* contains safe HTML with purchase ID */ ?>
+        <?php if (isset($_SESSION['last_purchase'])): ?>
         <p class="text-sm mt-1">
-            Payment: <strong><?php echo htmlspecialchars($_SESSION['last_order']['payment_method']); ?></strong>
-            &nbsp;•&nbsp; <?php echo htmlspecialchars($_SESSION['last_order']['ordered_at']); ?>
+            Payment: <strong><?php echo htmlspecialchars($_SESSION['last_purchase']['payment_method']); ?></strong>
+            &nbsp;•&nbsp; <?php echo htmlspecialchars($_SESSION['last_purchase']['purchased_at']); ?>
         </p>
+        <?php
+            $hasAdvancedPenetrationTesting = false;
+            foreach ($_SESSION['last_purchase']['items'] as $item) {
+                if (isset($item['product_name']) && $item['product_name'] === 'Advanced Penetration Testing') {
+                    $hasAdvancedPenetrationTesting = true;
+                    break;
+                }
+            }
+            if ($hasAdvancedPenetrationTesting):
+        ?>
+        <div class="mt-4">
+            <a href="Advanced_Penetration_Testing.php" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                Go to Advanced Penetration Testing Course
+            </a>
+        </div>
+        <?php endif; ?>
+        <?php
+            $hasNetworkSecurityFundamentals = false;
+            foreach ($_SESSION['last_purchase']['items'] as $item) {
+                if (isset($item['product_name']) && $item['product_name'] === 'Network Security Fundamentals') {
+                    $hasNetworkSecurityFundamentals = true;
+                    break;
+                }
+            }
+            if ($hasNetworkSecurityFundamentals):
+        ?>
+        <div class="mt-4">
+            <a href="Network_Security_Fundamentals.php" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                Go to Network Security Fundamentals Book
+            </a>
+        </div>
+        <?php endif; ?>
+        <?php
+            $hasMalwareAnalysisLabAccess = false;
+            foreach ($_SESSION['last_purchase']['items'] as $item) {
+                if (isset($item['product_name']) && $item['product_name'] === 'Malware Analysis Lab Access') {
+                    $hasMalwareAnalysisLabAccess = true;
+                    break;
+                }
+            }
+            if ($hasMalwareAnalysisLabAccess):
+        ?>
+        <div class="mt-4">
+            <a href="Malware_Analysis_Lab_Access.php" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                Go to Malware Analysis Lab Access Resource
+            </a>
+        </div>
+        <?php endif; ?>
+        <?php
+            $hasSOCAnalystBootcamp = false;
+            foreach ($_SESSION['last_purchase']['items'] as $item) {
+                if (isset($item['product_name']) && $item['product_name'] === 'SOC Analyst Bootcamp') {
+                    $hasSOCAnalystBootcamp = true;
+                    break;
+                }
+            }
+            if ($hasSOCAnalystBootcamp):
+        ?>
+        <div class="mt-4">
+            <a href="SOC_Analyst_Bootcamp.php" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                Go to SOC Analyst Bootcamp Course
+            </a>
+        </div>
+        <?php endif; ?>
+        <?php
+            $hasPythonForCybersecurity = false;
+            foreach ($_SESSION['last_purchase']['items'] as $item) {
+                if (isset($item['product_name']) && $item['product_name'] === 'Python for Cybersecurity') {
+                    $hasPythonForCybersecurity = true;
+                    break;
+                }
+            }
+            if ($hasPythonForCybersecurity):
+        ?>
+        <div class="mt-4">
+            <a href="Python_for_Cybersecurity.php" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                Go to Python for Cybersecurity Course
+            </a>
+        </div>
+        <?php endif; ?>
+        <?php
+            $hasWebApplicationsHackersHandbook = false;
+            foreach ($_SESSION['last_purchase']['items'] as $item) {
+                if (isset($item['product_name']) && $item['product_name'] === "Web Application Hacker's Handbook") {
+                    $hasWebApplicationsHackersHandbook = true;
+                    break;
+                }
+            }
+            if ($hasWebApplicationsHackersHandbook):
+        ?>
+        <div class="mt-4">
+            <a href="Web_Application_Hackers_Handbook.php" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                Go to Web Application Hacker's Handbook Book
+            </a>
+        </div>
+        <?php endif; ?>
         <?php endif; ?>
     </div>
     <?php endif; ?>
@@ -235,7 +344,7 @@ include 'includes/header.php';
 
         <div class="lg:col-span-1">
             <div class="bg-white rounded-xl shadow-md p-6 sticky top-24">
-                <h2 class="text-2xl font-bold text-gray-800 mb-6">Order Summary</h2>
+                <h2 class="text-2xl font-bold text-gray-800 mb-6">Purchase Summary</h2>
                 
                 <?php 
                 $summaryItems    = !empty($_SESSION['cart']) ? $_SESSION['cart'] : [];
@@ -244,17 +353,27 @@ include 'includes/header.php';
                 $summaryGrand    = $total * 1.12;
                 $summaryPayment  = '';
                 // After checkout, pull from the saved snapshot
-                if ($checkoutSuccess && isset($_SESSION['last_order'])) {
-                    $summaryItems    = $_SESSION['last_order']['items'];
-                    $summarySubtotal = $_SESSION['last_order']['subtotal'];
-                    $summaryTax      = $_SESSION['last_order']['tax'];
-                    $summaryGrand    = $_SESSION['last_order']['grand_total'];
-                    $summaryPayment  = $_SESSION['last_order']['payment_method'];
+                $lastPurchase = $_SESSION['last_purchase'] ?? $_SESSION['last_order'] ?? null;
+                if ($checkoutSuccess && $lastPurchase) {
+                    $summaryItems    = $lastPurchase['items'];
+                    $summarySubtotal = $lastPurchase['subtotal'];
+                    $summaryTax      = $lastPurchase['tax'];
+                    $summaryGrand    = $lastPurchase['grand_total'];
+                    $summaryPayment  = $lastPurchase['payment_method'];
                 }
                 ?>
                 <?php if (!empty($summaryItems) || $checkoutSuccess): ?>
                 <div class="space-y-4 mb-6">
-                    <?php foreach ($summaryItems as $item): ?>
+                    <?php
+                    $displayItems = [];
+                    foreach ($summaryItems as $item) {
+                        $displayItems[] = [
+                            'name' => $item['name'] ?? $item['product_name'] ?? 'Unknown Product',
+                            'price' => $item['price'] ?? $item['unit_price'] ?? 0.00
+                        ];
+                    }
+                    ?>
+                    <?php foreach ($displayItems as $item): ?>
                     <div class="flex justify-between text-gray-700 text-sm">
                         <span><?php echo htmlspecialchars($item['name']); ?></span>
                         <span>₱<?php echo number_format($item['price'], 2); ?></span>
@@ -488,6 +607,30 @@ modal.addEventListener('click', function(e) {
         modal.classList.remove('flex');
     }
 });
+
+// Idle timeout: Redirect to login after 1 minute of inactivity
+let idleTimer;
+const IDLE_TIMEOUT = 60000; // 1 minute in milliseconds
+
+function resetIdleTimer() {
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(redirectToLogin, IDLE_TIMEOUT);
+}
+
+function redirectToLogin() {
+    window.location.href = 'login.php';
+}
+
+// Reset timer on user activity
+document.addEventListener('mousemove', resetIdleTimer);
+document.addEventListener('mousedown', resetIdleTimer);
+document.addEventListener('keypress', resetIdleTimer);
+document.addEventListener('scroll', resetIdleTimer);
+document.addEventListener('touchmove', resetIdleTimer);
+document.addEventListener('touchstart', resetIdleTimer);
+
+// Initialize the timer when page loads
+resetIdleTimer();
 </script>
 
 <?php include 'includes/footer.php'; ?>

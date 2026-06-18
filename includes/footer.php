@@ -1,6 +1,6 @@
     <footer class="bg-gray-900 text-gray-400 py-12 mt-16">
         <div class="container mx-auto px-4">
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
                 <div>
                     <div class="flex items-center gap-2 mb-4">
                         <div class="w-10 h-10 bg-gradient-to-br from-blue-900 to-cyan-800 rounded-lg flex items-center justify-center">
@@ -15,25 +15,15 @@
                 <div>
                     <h4 class="text-white font-bold mb-4">For Job Seekers</h4>
                     <ul class="space-y-2 text-sm">
-                        <li><a href="#" class="hover:text-white transition">Find Jobs</a></li>
-                        <li><a href="#" class="hover:text-white transition">Browse Companies</a></li>
-                        <li><a href="#" class="hover:text-white transition">Salary Guide</a></li>
-                    </ul>
-                </div>
-                <div>
-                    <h4 class="text-white font-bold mb-4">For Recruiters</h4>
-                    <ul class="space-y-2 text-sm">
-                        <li><a href="#" class="hover:text-white transition">Post a Job</a></li>
-                        <li><a href="#" class="hover:text-white transition">Browse Talent</a></li>
-                        <li><a href="#" class="hover:text-white transition">Interview Suite</a></li>
+                        <li><a href="jobs.php" class="hover:text-white transition">Find Jobs</a></li>
+                        <li><a href="market.php" class="hover:text-white transition">Marketplace</a></li>
                     </ul>
                 </div>
                 <div>
                     <h4 class="text-white font-bold mb-4">Company</h4>
                     <ul class="space-y-2 text-sm">
-                        <li><a href="#" class="hover:text-white transition">About</a></li>
-                        <li><a href="#" class="hover:text-white transition">Blog</a></li>
-                        <li><a href="#" class="hover:text-white transition">Contact</a></li>
+                        <li><a href="communities.php" class="hover:text-white transition">Communities</a></li>
+                        <li><a href="index.php" class="hover:text-white transition">Home</a></li>
                     </ul>
                 </div>
             </div>

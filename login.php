@@ -1,4 +1,4 @@
-﻿﻿﻿﻿<?php
+﻿﻿﻿<?php
 require_once 'includes/bootstrap.php';
 require_once 'admin/admin_auth.php';
 
@@ -55,6 +55,60 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'website' => $profile['website'] ?? null,
                 'phone' => $profile['phone'] ?? null
             ];
+
+            // Load user's purchase history from the database
+            $purchasesStmt = $pdo->prepare("
+                SELECT
+                    o.order_id,
+                    o.subtotal,
+                    o.tax,
+                    o.grand_total,
+                    o.payment_method,
+                    o.purchased_at,
+                    oi.product_id,
+                    oi.product_name,
+                    oi.unit_price,
+                    oi.quantity
+                FROM
+                    orders o
+                JOIN
+                    order_items oi ON o.order_id = oi.order_id
+                WHERE
+                    o.user_id = ?
+                ORDER BY
+                    o.purchased_at DESC, o.order_id ASC
+            ");
+            $purchasesStmt->execute([$user['user_id']]);
+            $rawPurchases = $purchasesStmt->fetchAll();
+
+            $groupedPurchases = [];
+            foreach ($rawPurchases as $item) {
+                $orderId = $item['order_id'];
+                if (!isset($groupedPurchases[$orderId])) {
+                    // Assuming 'id' in purchase record refers to a unique purchase ID, not DB order_id
+                    // I'll generate a unique ID for each purchase record in session if not available from DB
+                    // For now, let's use a simplified approach to match existing session structure
+                    $groupedPurchases[$orderId] = [
+                        'id'             => 'PUR-' . strtoupper(substr(uniqid('', true), -8)), // Generate a unique ID for the session record
+                        'user_id'        => $user['user_id'],
+                        'username'       => $username,
+                        'items'          => [],
+                        'subtotal'       => $item['subtotal'],
+                        'tax'            => $item['tax'],
+                        'grand_total'    => $item['grand_total'],
+                        'payment_method' => $item['payment_method'],
+                        'purchased_at'   => date('M j, Y g:i A', strtotime($item['purchased_at'])),
+                    ];
+                }
+                $groupedPurchases[$orderId]['items'][] = [
+                    'id'           => $item['product_id'],
+                    'product_name' => $item['product_name'],
+                    'unit_price'   => $item['unit_price'],
+                    'quantity'     => $item['quantity'],
+                ];
+            }
+            $_SESSION['purchases'] = array_values($groupedPurchases); // Reset keys to 0-indexed array
+
 
             session_regenerate_id(true);
             setcookie('last_login', date('Y-m-d H:i:s'), time() + (86400 * 30), "/");
