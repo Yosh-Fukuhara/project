@@ -55,6 +55,13 @@ $checkoutSuccess = false;
 $checkoutMessage = '';
 $checkoutErrors  = [];
 
+// Handle successful checkout after OTP verification redirect
+if (isset($_GET['checkout_success']) && $_GET['checkout_success'] === 'true') {
+    $checkoutSuccess = true;
+    $checkoutMessage = $_SESSION['checkout_success_message'] ?? '';
+    unset($_SESSION['checkout_success_message']); // Clear message after display
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['checkout'])) {
     // ── Login required ────────────────────────────────────────────────────
     if (!isset($_SESSION['user'])) {
@@ -185,6 +192,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['checkout'])) {
             $checkoutMessage = 'Purchase <strong>' . htmlspecialchars($purchaseId) . '</strong> completed successfully!';
             $_SESSION['cart'] = [];
             $total = 0;
+
+            // Store checkout success message in session before redirecting for OTP
+            $_SESSION['checkout_success_message'] = $checkoutMessage;
+
+            // Generate OTP for checkout
+            $otp = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+            $_SESSION['otp'] = $otp;
+            $_SESSION['otp_expires_at'] = time() + (5 * 60); // OTP valid for 5 minutes
+            $_SESSION['otp_user_id'] = $_SESSION['user']['user_id'];
+            $_SESSION['otp_phone_number'] = $_SESSION['user']['phone'] ?? ''; // Get phone from user session
+            $_SESSION['otp_flow'] = 'checkout'; // Indicate OTP flow for checkout
+
+            // Redirect to OTP verification page
+            header('Location: verify_otp.php');
+            exit;
         }
     }
 }

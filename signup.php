@@ -8,7 +8,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $firstName = trim($_POST['first_name'] ?? '');
     $lastName = trim($_POST['last_name'] ?? '');
     $email = trim($_POST['email'] ?? '');
-    $phoneNumber = trim($_POST['phone_number'] ?? '');
     $password = trim($_POST['password'] ?? '');
     $confirmPassword = trim($_POST['confirm_password'] ?? '');
 
@@ -23,12 +22,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors[] = 'Email is required';
     } elseif (!preg_match('/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/', $email)) {
         $errors[] = 'Please enter a valid email address';
-    }
-
-    if (empty($phoneNumber)) {
-        $errors[] = 'Phone number is required';
-    } elseif (!preg_match('/^\\+?[0-9]{10,15}$/', $phoneNumber)) { // Basic validation for 10-15 digits, optional +
-        $errors[] = 'Please enter a valid phone number';
     }
 
     if (empty($password)) {
@@ -50,25 +43,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $errors[] = 'Email already exists';
         } else {
             $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
-            $insertStmt = $pdo->prepare('INSERT INTO users (first_name, last_name, email, password, phone_number, is_verified) VALUES (?, ?, ?, ?, ?, ?)');
-            $insertStmt->execute([$firstName, $lastName, $email, $hashedPassword, $phoneNumber, 0]); // is_verified = 0 by default
+            $insertStmt = $pdo->prepare('INSERT INTO users (first_name, last_name, email, password) VALUES (?, ?, ?, ?)');
+            $insertStmt->execute([$firstName, $lastName, $email, $hashedPassword]);
             $userId = $pdo->lastInsertId();
             
             // Insert a blank user profile record
             $profileStmt = $pdo->prepare('INSERT INTO user_profiles (user_id) VALUES (?)');
             $profileStmt->execute([$userId]);
 
-            // Generate OTP
-            $otp = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
-            $_SESSION['otp'] = $otp;
-            $_SESSION['otp_expires_at'] = time() + (5 * 60); // OTP valid for 5 minutes
-            $_SESSION['signup_email'] = $email; // Store email to verify later
-            $_SESSION['signup_phone_number'] = $phoneNumber; // Store phone number
-            $_SESSION['signup_user_id'] = $userId; // Store user ID temporarily
+            $_SESSION['user'] = [
+                'user_id' => $userId,
+                'first_name' => $firstName,
+                'last_name' => $lastName,
+                'username' => trim($firstName . ' ' . $lastName),
+                'email' => $email,
+                'role' => 'user',
+                'profile_pic' => null,
+                'cover_pic' => null,
+                'bio' => null,
+                'location' => null,
+                'website' => null,
+                'phone' => null
+            ];
 
-            // Instead of directly logging in and redirecting to index.php,
-            // redirect to OTP verification page
-            header('Location: verify_otp.php');
+            session_regenerate_id(true);
+            setcookie('last_login', date('Y-m-d H:i:s'), time() + (86400 * 30), "/");
+            setcookie('welcome_seen', 'true', time() + (86400 * 365), "/");
+
+            header('Location: index.php');
             exit;
         }
     }
@@ -134,17 +136,6 @@ $currentPage = 'signup';
                     value="<?php echo isset($_POST['email']) ? htmlspecialchars($_POST['email']) : ''; ?>"
                     class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 shadow-md"
                     placeholder="Example@gmail.com"
-                >
-            </div>
-
-            <div>
-                <label class="block text-xl font-semibold mb-1">Phone Number</label>
-                <input 
-                    type="text" 
-                    name="phone_number"
-                    value="<?php echo isset($_POST['phone_number']) ? htmlspecialchars($_POST['phone_number']) : ''; ?>"
-                    class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 shadow-md"
-                    placeholder="+639123456789"
                 >
             </div>
 

@@ -9,16 +9,16 @@ $errors = [];
 $message = '';
 
 // Check if OTP data exists in session
-if (!isset($_SESSION['otp']) || !isset($_SESSION['otp_expires_at']) || !isset($_SESSION['signup_user_id'])) {
-    header('Location: signup.php');
+if (!isset($_SESSION['otp']) || !isset($_SESSION['otp_expires_at']) || !isset($_SESSION['otp_user_id']) || !isset($_SESSION['otp_flow'])) {
+    header('Location: index.php'); // Redirect to home if no valid OTP context
     exit;
 }
 
-$userId = $_SESSION['signup_user_id'];
+$userId = $_SESSION['otp_user_id'];
 $expectedOtp = $_SESSION['otp'];
 $otpExpiresAt = $_SESSION['otp_expires_at'];
-$signupEmail = $_SESSION['signup_email'] ?? '';
-$signupPhoneNumber = $_SESSION['signup_phone_number'] ?? '';
+$currentFlow = $_SESSION['otp_flow'];
+$phoneNumber = $_SESSION['otp_phone_number'] ?? ''; // Phone number from the flow
 
 // Handle OTP verification
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -35,45 +35,54 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (empty($errors)) {
         try {
             $pdo = get_db_connection();
-            $stmt = $pdo->prepare('UPDATE users SET is_verified = 1 WHERE user_id = ?');
-            $stmt->execute([$userId]);
 
-            // Clear OTP data from session
+            // Clear OTP data from session regardless of flow
             unset($_SESSION['otp']);
             unset($_SESSION['otp_expires_at']);
-            unset($_SESSION['signup_user_id']);
-            unset($_SESSION['signup_email']);
-            unset($_SESSION['signup_phone_number']);
+            unset($_SESSION['otp_user_id']);
+            unset($_SESSION['otp_phone_number']);
+            unset($_SESSION['otp_flow']);
 
-            // Fetch user details to populate session
-            $userStmt = $pdo->prepare('SELECT user_id, first_name, last_name, email, phone_number, role FROM users WHERE user_id = ?');
-            $userStmt->execute([$userId]);
-            $userData = $userStmt->fetch(PDO::FETCH_ASSOC);
+            if ($currentFlow === 'signup') {
+                $stmt = $pdo->prepare('UPDATE users SET is_verified = 1 WHERE user_id = ?');
+                $stmt->execute([$userId]);
 
-            if ($userData) {
-                // Log the user in
-                $_SESSION['user'] = [
-                    'user_id' => $userData['user_id'],
-                    'first_name' => $userData['first_name'],
-                    'last_name' => $userData['last_name'],
-                    'username' => trim($userData['first_name'] . ' ' . $userData['last_name']),
-                    'email' => $userData['email'],
-                    'role' => $userData['role'],
-                    'profile_pic' => null, // These can be loaded later if needed from user_profiles
-                    'cover_pic' => null,
-                    'bio' => null,
-                    'location' => null,
-                    'website' => null,
-                    'phone' => $userData['phone_number']
-                ];
+                // Fetch user details to populate session (assuming phone_number is already in DB)
+                $userStmt = $pdo->prepare('SELECT user_id, first_name, last_name, email, phone_number, role FROM users WHERE user_id = ?');
+                $userStmt->execute([$userId]);
+                $userData = $userStmt->fetch(PDO::FETCH_ASSOC);
+
+                if ($userData) {
+                    // Log the user in
+                    $_SESSION['user'] = [
+                        'user_id' => $userData['user_id'],
+                        'first_name' => $userData['first_name'],
+                        'last_name' => $userData['last_name'],
+                        'username' => trim($userData['first_name'] . ' ' . $userData['last_name']),
+                        'email' => $userData['email'],
+                        'role' => $userData['role'],
+                        'profile_pic' => null,
+                        'cover_pic' => null,
+                        'bio' => null,
+                        'location' => null,
+                        'website' => null,
+                        'phone' => $userData['phone_number']
+                    ];
+                }
+
+                session_regenerate_id(true);
+                setcookie('last_login', date('Y-m-d H:i:s'), time() + (86400 * 30), "/");
+                setcookie('welcome_seen', 'true', time() + (86400 * 365), "/");
+
+                header('Location: index.php');
+                exit;
+
+            } elseif ($currentFlow === 'checkout') {
+                // For checkout, OTP is for confirmation, no DB update needed (already done in cart.php)
+                // Redirect back to cart.php with a success flag
+                header('Location: cart.php?checkout_success=true');
+                exit;
             }
-
-            session_regenerate_id(true);
-            setcookie('last_login', date('Y-m-d H:i:s'), time() + (86400 * 30), "/");
-            setcookie('welcome_seen', 'true', time() + (86400 * 365), "/");
-
-            header('Location: index.php');
-            exit;
 
         } catch (PDOException $e) {
             $errors[] = 'Database error during verification. Please try again later.';
@@ -88,6 +97,7 @@ if (isset($_GET['resend'])) {
     $newOtp = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
     $_SESSION['otp'] = $newOtp;
     $_SESSION['otp_expires_at'] = time() + (5 * 60); // New OTP valid for 5 minutes
+    // The current flow and user ID are already in session, no need to re-set
     $expectedOtp = $newOtp; // Update for display
 
     $message = 'A new OTP has been sent to your phone number.';
@@ -108,7 +118,7 @@ if (isset($_GET['resend'])) {
     <div class="bg-white rounded-2xl shadow-lg w-full max-w-lg p-8 md:p-12">
         <div class="text-center mb-8">
             <h1 class="text-2xl font-bold">Verify Your Phone Number</h1>
-            <p class="text-gray-600">Please enter the 6-digit OTP sent to your phone number: <strong><?php echo htmlspecialchars($signupPhoneNumber); ?></strong></p>
+            <p class="text-gray-600">Please enter the 6-digit OTP sent to your phone number: <strong><?php echo htmlspecialchars($phoneNumber); ?></strong></p>
             <p class="text-sm text-blue-500 mt-2">Your OTP is: <?php echo htmlspecialchars($expectedOtp); ?> (Expires in 5 minutes)</p>
         </div>
 
