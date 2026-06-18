@@ -5,6 +5,20 @@ require_once 'config/database.php';
 require_once 'autoload.php';
 require_once 'data/products.php';
 
+// ── Idle Timeout (1 minute) ─────────────────────────────────────────────
+const IDLE_TIMEOUT = 60; // seconds
+
+if (isset($_SESSION['last_activity']) && (time() - $_SESSION['last_activity'] > IDLE_TIMEOUT)) {
+    session_unset();     // unset $_SESSION variable for the run-time 
+    session_destroy();   // destroy session data in storage
+    header('Location: index.php');
+    exit;
+}
+
+$_SESSION['last_activity'] = time(); // update last activity time
+
+
+
 $pageTitle = 'Shopping Cart - CyberSphere';
 $currentPage = 'cart';
 
@@ -618,7 +632,7 @@ function resetIdleTimer() {
 }
 
 function redirectToLogin() {
-    window.location.href = 'login.php';
+    window.location.href = 'index.php';
 }
 
 // Reset timer on user activity

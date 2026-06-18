@@ -1,4 +1,4 @@
-﻿﻿﻿<?php
+﻿﻿﻿﻿﻿<?php
 require_once 'includes/bootstrap.php';
 require_once 'admin/admin_auth.php';
 
